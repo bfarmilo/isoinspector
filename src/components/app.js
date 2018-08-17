@@ -4,28 +4,6 @@ const ISOBoxer = require('codem-isoboxer');
 const { prft } = require('../components/additionalBoxes');
 const { schema_ext } = require('../components/additionalwebM');
 const ebml = require('ebml');
-//const finished = require('stream').finished();
-
-const parseM2TS = async buf => {
-	const parser = new window.HlsTs({ debug: false });
-	try {
-		const result = await parser.parse(buf);
-		console.log(result);
-		const avcPackets = parser.getPacketsByProgramType('avc');
-		const avcPayload = parser.getDataStreamByProgramType('avc');
-		const avcParser = parser.createAvcParser(avcPayload);
-		const nalUnits = avcParser.getNalUnits();
-		return Promise.resolve({
-			avc: {
-				avcPackets,
-				avcPayload
-			},
-			nalUnits
-		})
-	} catch (err) {
-		return Promise.reject(err);
-	}
-};
 
 const parseWebM = buf => new Promise((resolve, reject) => {
 	const decoder = new ebml.Decoder(schema_ext, {});
