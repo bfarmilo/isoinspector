@@ -4,7 +4,6 @@ const systemID = require('../../components/psshLookup.json');
 const ISOBoxer = require('codem-isoboxer');
 
 
-
 const Home = props => {
 	/** takes the box contents and recursively maps them to JSX
 	 * @param {ISOBox} box -> The ISOBox
@@ -29,17 +28,32 @@ const Home = props => {
 
 		const processEntry = entry => {
 			if (entryLookup.has(entry.type)) {
-				const { returnVal } = entryLookup.get(entry.type)
-				return returnVal(entry.value || entry.data, entry.dataSize);
-				/* if (entry.name.includes('Block')) {
-					// console.log('caught', entry.name, entry);
-					return (<div>
-						<div>Track:{entry.track} {entry.keyframe ? '(keyframe)' : ''} {entry.discardable ? 'discardable' : ''}</div>
-						<div>entry:{convertToHex(entry.entry)}</div>
-					</div>);
+				const { returnVal } = entryLookup.get(entry.type);
+				if (entry.type === 'b') {
+					// additional entry processing here for binary formats.
+					switch (entry.name) {
+						case 'SimpleBlock':
+							// if tracknumber 
+							const trackNumber = (entry.data.readUInt8(0)&0x80 === 0x80) ? entry.data.readUInt8(0) & 0x0F : entry.data.readUint8(0);
+							const timeCode = entry.data.readUInt16BE(1);
+							const flags = entry.data.readUInt8(3);
+							const flagVals = [
+								{flag: 'Keyframe', set: flags>>7},
+								{flag: 'Invisible', set: flags&'00001000'>>4},
+								{flag: 'Lacing', set:flags&'00000110'>>1},
+								{flag: 'Discardable', set: flags&'00000001'}
+							]
+							return `Track ${trackNumber}${flagVals.filter(item => item.set).map(item => `(${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+						default: return returnVal(entry.value || entry.data, entry.dataSize);
+					}
+					// Eg CodecPrivate for Audio tracks:
+					// https://tools.ietf.org/html/rfc7845.html#section-5
+					// CodecPrivate for VP9
+					// https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+					// SimpleBlock and Block processing:
+					// https://www.matroska.org/technical/specs/index.html#simpleblock_structure
 				}
-				*/
-				//return <div><span class={style.boxProp}>{entry.name}</span><span class={style.boxProp}>{returnVal(entry.value || entry.data, entry.dataSize)}</span></div>
+				return returnVal(entry.value || entry.data, entry.dataSize);
 			}
 			// the code isn't in the entryLookup table
 			return 'unknown type'
