@@ -29,9 +29,7 @@
   "dependencies": {
     "codem-isoboxer": "^0.3.6",
     "ebml": "^2.2.4",
-    "hls-ts": "^0.3.0",
     "preact": "^8.3.1",
-    "preact-compat": "^3.18.2",
-    "preact-router": "^2.5.7"
+    "preact-compat": "^3.18.2"
   }
 }

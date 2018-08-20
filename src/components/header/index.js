@@ -12,8 +12,7 @@ const Header = (props) => {
 	<header class={style.header}>
 		<h1>{names[props.mode]} Inspector</h1>
 		<nav>
-			<Link activeClassName={style.active} href="/">Enter Data</Link>
-			<Link activeClassName={style.active} href="#" onClick={props.changeMode}>Change Decode Mode</Link>
+			<a activeClassName={style.active} href="#" onClick={props.changeMode}>Change Decode Mode</a>
 		</nav>
 	</header>
 )};
