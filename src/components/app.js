@@ -137,7 +137,11 @@ export default class App extends Component {
 					changeMode={this.changeMode}
 					mode={this.state.mode}
 				/>
+<<<<<<< HEAD
 				<Router onChange={this.handleRoute} basename={process.env.PUBLIC_URL}>
+=======
+				<Router onChange={this.handleRoute}>
+>>>>>>> e0488ba2d665a42b66edf131aa0aa6503e7db33c
 					<Home
 						path="/"
 						decodeMode={this.state.mode}
