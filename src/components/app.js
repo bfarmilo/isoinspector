@@ -1,9 +1,12 @@
 import { h, Component } from 'preact';
-import { Router } from 'preact-router';
 const ISOBoxer = require('codem-isoboxer');
 const { prft } = require('../components/additionalBoxes');
 const { schema_ext } = require('../components/additionalwebM');
 const ebml = require('ebml');
+
+import Header from './header';
+// Code-splitting is automated for routes
+import Home from './home';
 
 const modes = {
 	webm: 'isobmff',
@@ -42,15 +45,6 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	decoder.write(buf);
 });
 
-
-import Header from './header';
-
-// Code-splitting is automated for routes
-import Home from '../routes/home';
-// import Profile from '../routes/profile';
-
-
-
 export default class App extends Component {
 	constructor(props) {
 		super(props);
@@ -67,14 +61,6 @@ export default class App extends Component {
 		// add any custom box processors
 		ISOBoxer.addBoxProcessor(prft.field, prft._parser);
 	}
-
-	/** Gets fired when the route changes.
-	 *	@param {Object} event		"change" event from [preact-router](http://git.io/preact-router)
-	 *	@param {string} event.url	The newly routed URL
-	 */
-	handleRoute = e => {
-		this.currentUrl = e.url;
-	};
 
 	createParsed = inputData => {
 		try {
@@ -137,19 +123,16 @@ export default class App extends Component {
 					changeMode={this.changeMode}
 					mode={this.state.mode}
 				/>
-				<Router onChange={this.handleRoute}>
-					<Home
-						path="/"
-						decodeMode={this.state.mode}
-						working={this.state.working}
-						parseFile={this.parseFile}
-						updateInput={this.updateInput}
-						inputData={this.state.inputData}
-						parsedData={this.state.parsedData}
-						handleFiles={this.handleFiles}
-						error={this.state.errorMessage}
-					/>
-				</Router>
+				<Home
+					decodeMode={this.state.mode}
+					working={this.state.working}
+					parseFile={this.parseFile}
+					updateInput={this.updateInput}
+					inputData={this.state.inputData}
+					parsedData={this.state.parsedData}
+					handleFiles={this.handleFiles}
+					error={this.state.errorMessage}
+				/>
 			</div>
 		);
 	}
