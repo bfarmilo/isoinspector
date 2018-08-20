@@ -7,7 +7,7 @@ const ebml = require('ebml');
 
 const parseWebM = buf => new Promise((resolve, reject) => {
 	const decoder = new ebml.Decoder(schema_ext, {});
-	let lastChunkTime; 
+	let lastChunkTime;
 	let allData = { boxes: [] };
 
 	// hack in case the stream never sends a 'finish' or 'end' event.
@@ -69,11 +69,10 @@ export default class App extends Component {
 		this.currentUrl = e.url;
 	};
 
-	createParsed = async inputData => {
+	createParsed = inputData => {
 		try {
 			const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-			const returnVal = this.state.mode === 'webm' ? await parseWebM(inputBuffer) : ISOBoxer.parseBuffer(inputBuffer.buffer);
-			return Promise.resolve(returnVal);
+			return this.state.mode === 'webm' ? parseWebM(inputBuffer) : Promise.resolve(ISOBoxer.parseBuffer(inputBuffer.buffer));
 		} catch (err) {
 			return Promise.reject(err)
 		}
@@ -85,15 +84,15 @@ export default class App extends Component {
 		this.setState({ inputData });
 	}
 
-	parseFile = async e => {
+	parseFile = e => {
 		console.log(`parsing data in ${this.state.mode} mode:`);
-		try {
-			this.setState({ working: true });
-			const parsedData = await this.createParsed(this.state.inputData);
-			this.setState({ parsedData, working: false });
-		} catch (err) {
-			console.error(err);
-		}
+		this.setState({ working: true });
+		this.createParsed(this.state.inputData)
+			.then(parsedData => {
+				this.setState({ parsedData, working: false });
+				return;
+			})
+			.catch(err => err)
 	}
 
 	handleFiles = e => {
@@ -101,15 +100,13 @@ export default class App extends Component {
 		const file = e.target.files[0];
 		const reader = new FileReader();
 		const self = this;
-		reader.onload = async r => {
+		reader.onload = r => {
 			const inputData = r.target.result.split(/base64,/)[1];
-			try {
-				const parsedData = await this.createParsed(inputData);
-				console.log(parsedData);
+			this.createParsed(inputData).then(parsedData => {
+				//console.log(parsedData);
 				self.setState({ inputData, parsedData });
-			} catch (err) {
-				console.error(err);
-			}
+			})
+				.catch(err => err)
 		}
 		reader.readAsDataURL(file);
 	}
