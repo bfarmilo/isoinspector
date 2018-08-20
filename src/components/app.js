@@ -5,6 +5,12 @@ const { prft } = require('../components/additionalBoxes');
 const { schema_ext } = require('../components/additionalwebM');
 const ebml = require('ebml');
 
+const modes = {
+	webm: 'isobmff',
+	isobmff: 'm2ts',
+	m2ts: 'webm'
+}
+
 const parseWebM = buf => new Promise((resolve, reject) => {
 	const decoder = new ebml.Decoder(schema_ext, {});
 	let lastChunkTime;
@@ -52,12 +58,13 @@ export default class App extends Component {
 			inputData: 'paste Hex values or use Browse to load from file',
 			parsedData: { boxes: [] },
 			mode: 'webm',
-			working: false
+			working: false,
+			errorMessage: ''
 		}
 	}
 
 	componentWillMount = () => {
-		console.log(prft);
+		// add any custom box processors
 		ISOBoxer.addBoxProcessor(prft.field, prft._parser);
 	}
 
@@ -92,29 +99,44 @@ export default class App extends Component {
 				this.setState({ parsedData, working: false });
 				return;
 			})
-			.catch(err => err)
+			.catch(err => {
+				this.setState({ errorMessage: err, working: false });
+				console.error(err);
+			})
 	}
 
 	handleFiles = e => {
-		console.log(`got new file ${e.target.files}`);
+		this.setState({ working: true });
 		const file = e.target.files[0];
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
 			const inputData = r.target.result.split(/base64,/)[1];
-			this.createParsed(inputData).then(parsedData => {
-				//console.log(parsedData);
-				self.setState({ inputData, parsedData });
-			})
-				.catch(err => err)
+			this.createParsed(inputData)
+				.then(parsedData => {
+					//console.log(parsedData);
+					self.setState({ inputData, parsedData, working: false });
+				})
+				.catch(err => {
+					self.setState({ errorMessage: err, working: false });
+					console.error(err);
+				})
 		}
 		reader.readAsDataURL(file);
+	}
+
+	changeMode = e => {
+		console.log(`switching from ${this.state.mode} to ${modes[this.state.mode]}`);
+		this.setState({ mode: modes[this.state.mode] });
 	}
 
 	render() {
 		return (
 			<div id="app">
-				<Header />
+				<Header
+					changeMode={this.changeMode}
+					mode={this.state.mode}
+				/>
 				<Router onChange={this.handleRoute}>
 					<Home
 						path="/"
@@ -125,6 +147,7 @@ export default class App extends Component {
 						inputData={this.state.inputData}
 						parsedData={this.state.parsedData}
 						handleFiles={this.handleFiles}
+						error={this.state.errorMessage}
 					/>
 				</Router>
 			</div>
