@@ -33,8 +33,9 @@ const Home = props => {
 					// additional entry processing here for binary formats.
 					switch (entry.name) {
 						case 'SimpleBlock':
-							// if tracknumber 
-							const trackNumber = (entry.data.readUInt8(0)&0x80 === 0x80) ? entry.data.readUInt8(0) & 0x0F : entry.data.readUint8(0);
+							// assume the MSB = 1 and it is a 7-bit track number
+							// otherwise if 0x4000 it is a 2-byte track number (not supported)
+							const trackNumber = entry.data.readUInt8(0)&'01111111';
 							const timeCode = entry.data.readUInt16BE(1);
 							const flags = entry.data.readUInt8(3);
 							const flagVals = [
@@ -43,7 +44,7 @@ const Home = props => {
 								{flag: 'Lacing', set:flags&'00000110'>>1},
 								{flag: 'Discardable', set: flags&'00000001'}
 							]
-							return `Track ${trackNumber}${flagVals.filter(item => item.set).map(item => `(${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+							return `Track ${trackNumber}${flagVals.filter(item => item.set).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
 						default: return returnVal(entry.value || entry.data, entry.dataSize);
 					}
 					// Eg CodecPrivate for Audio tracks:
