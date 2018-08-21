@@ -79,7 +79,7 @@ const getWebMData = tag => {
         ['8', { description: 'UTF-8 string', returnVal(data) { return data.toString('utf8') } }],
         ['d', { description: 'timestamp', returnVal(data) { console.warn('timestamp'); return new Date(data) } }],
         ['b', { description: 'raw binary data', returnVal(data) { return convertToHex(data) } }]
-    ])
+    ]);
 
     const processEntry = entry => {
         if (entryLookup.has(entry.type)) {
@@ -87,27 +87,28 @@ const getWebMData = tag => {
             if (entry.type === 'b') {
                 // additional entry processing here for binary formats.
                 switch (entry.name) {
+                    // SimpleBlock and Block processing:
+                    // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
                     case 'SimpleBlock':
                         // assume the MSB = 1 and it is a 7-bit track number
                         // otherwise if 0x4000 it is a 2-byte track number (not supported)
-                        const trackNumber = entry.data.readUInt8(0) & '01111111';
+                        const trackNumber = entry.data.readUInt8(0) & 0b01111111;
                         const timeCode = entry.data.readUInt16BE(1);
                         const flags = entry.data.readUInt8(3);
                         const flagVals = [
-                            { flag: 'Keyframe', set: flags >> 7 },
-                            { flag: 'Invisible', set: flags & '00001000' >> 4 },
-                            { flag: 'Lacing', set: flags & '00000110' >> 1 },
-                            { flag: 'Discardable', set: flags & '00000001' }
-                        ]
-                        return `Track ${trackNumber}${flagVals.filter(item => item.set).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+                            { flag: 'Keyframe', bitmask: 0b10000000 },
+                            { flag: 'Invisible', bitmask: 0b00001000 },
+                            { flag: 'Lacing', bitmask: 0b00000110 },
+                            { flag: 'Discardable', bitmask: 0b00000001 }
+                        ];
+                        return `Track ${trackNumber}${flagVals.filter(item => flags & item.bitmask).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+                    // Eg CodecPrivate for Audio tracks:
+                    // https://tools.ietf.org/html/rfc7845.html#section-5
+                    // CodecPrivate for VP9
+                    // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+                    // default is for blocks without additional flags.
                     default: return returnVal(entry.value || entry.data, entry.dataSize);
                 }
-                // Eg CodecPrivate for Audio tracks:
-                // https://tools.ietf.org/html/rfc7845.html#section-5
-                // CodecPrivate for VP9
-                // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
-                // SimpleBlock and Block processing:
-                // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
             }
             return returnVal(entry.value || entry.data, entry.dataSize);
         }
