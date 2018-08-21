@@ -108,7 +108,7 @@ const Home = props => {
 				<button class={style.parseButton} onClick={props.parseFile}>Go</button>
 			</div>
 			<div>
-				<h2> Parsed File Result </h2>
+				<h2> {props.decodeMode} File Contents </h2>
 				<div class={style.Result}>
 					{props.working ? (
 						<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50' }}>

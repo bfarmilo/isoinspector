@@ -45,6 +45,9 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	decoder.write(buf);
 });
 
+//placeholder for now
+const parseM2TS = buf => ({ boxes: [] });
+
 export default class App extends Component {
 	constructor(props) {
 		super(props);
@@ -53,7 +56,8 @@ export default class App extends Component {
 			parsedData: { boxes: [] },
 			mode: 'webm',
 			working: false,
-			errorMessage: ''
+			errorMessage: '',
+			decodeAttempts: 0
 		}
 	}
 
@@ -65,7 +69,17 @@ export default class App extends Component {
 	createParsed = inputData => {
 		try {
 			const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-			return this.state.mode === 'webm' ? parseWebM(inputBuffer) : Promise.resolve(ISOBoxer.parseBuffer(inputBuffer.buffer));
+			if (this.state.mode === 'webm') return parseWebM(inputBuffer);
+			let parsedData;
+			if (this.state.mode === 'isobmff') {
+				parsedData = ISOBoxer.parseBuffer(inputBuffer.buffer);
+				if (parsedData.boxes[0].type !== 'ftyp' && parsedData.boxes[0].type !== 'moof') throw new Error('not an ISOBMFF box');
+			};
+			if (this.state.mode === 'm2ts') {
+				parsedData = parseM2TS(inputBuffer);
+				if (!parsedData.boxes[0]) throw new Error('m2ts mode not supported');
+			}
+			return Promise.resolve(parsedData);
 		} catch (err) {
 			return Promise.reject(err)
 		}
@@ -82,11 +96,19 @@ export default class App extends Component {
 		this.setState({ working: true });
 		this.createParsed(this.state.inputData)
 			.then(parsedData => {
-				this.setState({ parsedData, working: false });
+				this.setState({ parsedData, working: false, decodeAttempts: 0 });
 				return;
 			})
 			.catch(err => {
 				this.setState({ errorMessage: err, working: false });
+				if (this.state.decodeAttempts < Object.keys(modes).length) {
+					let { decodeAttempts, mode } = this.state;
+					decodeAttempts += 1;
+					mode = modes[mode];
+					console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
+					this.setState({ decodeAttempts, mode });
+					this.parseFile(null);
+				}
 				console.error(err);
 			})
 	}
@@ -98,29 +120,16 @@ export default class App extends Component {
 		const self = this;
 		reader.onload = r => {
 			const inputData = r.target.result.split(/base64,/)[1];
-			this.createParsed(inputData)
-				.then(parsedData => {
-					//console.log(parsedData);
-					self.setState({ inputData, parsedData, working: false });
-				})
-				.catch(err => {
-					self.setState({ errorMessage: err, working: false });
-					console.error(err);
-				})
+			self.setState({ inputData });
+			self.parseFile();
 		}
 		reader.readAsDataURL(file);
-	}
-
-	changeMode = e => {
-		console.log(`switching from ${this.state.mode} to ${modes[this.state.mode]}`);
-		this.setState({ mode: modes[this.state.mode] });
 	}
 
 	render() {
 		return (
 			<div id="app">
 				<Header
-					changeMode={this.changeMode}
 					mode={this.state.mode}
 				/>
 				<Home
