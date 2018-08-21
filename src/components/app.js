@@ -41,6 +41,7 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	}, 500);
 	decoder.on('data', chunk => {
 		allData.boxes.push({ dataType: chunk[0], payload: chunk[1] });
+		console.log(chunk[1]);
 		lastChunkTime = (new Date()).getTime();
 	});
 	decoder.on('finish', () => {

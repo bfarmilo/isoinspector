@@ -81,7 +81,7 @@ const Home = props => {
 										if (box.dataType === 'end') {
 											return `</details>`;
 										}
-										if (box.dataType === 'tag') return `<div style="margin-left: 2em"><span>${box.payload.name}: </span><span style="font-weight:normal">${getWebMData(box.payload)}</span></div>`
+										if (box.dataType === 'tag') return `<div style="margin-left: 2em"><span>${box.payload.name}: </span><span style="font-weight:normal" data="${convertToHex(box.payload.data)}">${getWebMData(box.payload)}</span></div>`
 									}).join(''))
 								}} />
 								: props.parsedData.boxes.map(getBoxData)
