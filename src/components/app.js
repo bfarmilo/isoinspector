@@ -1,11 +1,10 @@
 import { h, Component } from 'preact';
 const ISOBoxer = require('codem-isoboxer');
-const { prft } = require('../components/additionalBoxes');
-const { schema_ext } = require('../components/additionalwebM');
+import { prft } from '../components/additionalBoxes';
+import { schema_ext } from '../components/additionalwebM';
 const ebml = require('ebml');
 
 import Header from './header';
-// Code-splitting is automated for routes
 import Home from './home';
 
 const modes = {

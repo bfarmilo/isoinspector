@@ -1,66 +1,15 @@
 import { h } from 'preact';
 import style from './style';
-const systemID = require('../../components/psshLookup.json');
 const ISOBoxer = require('codem-isoboxer');
+import { getWebMData } from '../../components/additionalwebM.js';
+import { convertToHex } from '../../components/tools.js';
+import { psshLookup } from '../../components/additionalBoxes.js';
 
 
 const Home = props => {
 	/** takes the box contents and recursively maps them to JSX
 	 * @param {ISOBox} box -> The ISOBox
 	 */
-	const convertToHex = entry => {
-		const buffer = entry instanceof Uint8Array ? entry : new Uint8Array(entry);
-		return Array.from(buffer).map(b => b.toString('16').padStart(2, '0')).join(' ')
-	}
-
-	const getWebMData = tag => {
-		//console.log(tag);
-
-		const entryLookup = new Map([
-			['u', { description: 'unsigned integer', returnVal(data, size) { return data.readUIntBE(0, size) } }],
-			['i', { description: 'signed integer', returnVal(data, size) { return data.readIntBE(0, size) } }],
-			['f', { description: 'floating point number', returnVal(data) { console.warn('floating point'); return data.readFloatBE(0) } }],
-			['s', { description: 'ASCII string', returnVal(data) { return data.toString() } }],
-			['8', { description: 'UTF-8 string', returnVal(data) { return data.toString('utf8') } }],
-			['d', { description: 'timestamp', returnVal(data) { console.warn('timestamp'); return new Date(data) } }],
-			['b', { description: 'raw binary data', returnVal(data) { return convertToHex(data) } }]
-		])
-
-		const processEntry = entry => {
-			if (entryLookup.has(entry.type)) {
-				const { returnVal } = entryLookup.get(entry.type);
-				if (entry.type === 'b') {
-					// additional entry processing here for binary formats.
-					switch (entry.name) {
-						case 'SimpleBlock':
-							// assume the MSB = 1 and it is a 7-bit track number
-							// otherwise if 0x4000 it is a 2-byte track number (not supported)
-							const trackNumber = entry.data.readUInt8(0)&'01111111';
-							const timeCode = entry.data.readUInt16BE(1);
-							const flags = entry.data.readUInt8(3);
-							const flagVals = [
-								{flag: 'Keyframe', set: flags>>7},
-								{flag: 'Invisible', set: flags&'00001000'>>4},
-								{flag: 'Lacing', set:flags&'00000110'>>1},
-								{flag: 'Discardable', set: flags&'00000001'}
-							]
-							return `Track ${trackNumber}${flagVals.filter(item => item.set).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
-						default: return returnVal(entry.value || entry.data, entry.dataSize);
-					}
-					// Eg CodecPrivate for Audio tracks:
-					// https://tools.ietf.org/html/rfc7845.html#section-5
-					// CodecPrivate for VP9
-					// https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
-					// SimpleBlock and Block processing:
-					// https://www.matroska.org/technical/specs/index.html#simpleblock_structure
-				}
-				return returnVal(entry.value || entry.data, entry.dataSize);
-			}
-			// the code isn't in the entryLookup table
-			return 'unknown type'
-		}
-		return processEntry(tag);
-	}
 
 	const getBoxData = box => {
 		const boxContents = Object.keys(box)
@@ -73,7 +22,7 @@ const Home = props => {
 						let formattedData;
 						switch (key) {
 							case 'SystemID':
-								formattedData = `0x ${convertToHex(box[key])} (${systemID[convertToHex(box[key])]})`;
+								formattedData = `0x ${convertToHex(box[key])} (${psshLookup[convertToHex(box[key])]})`;
 								break;
 							case 'Data':
 								formattedData = box[key].map(b => String.fromCharCode(b));
