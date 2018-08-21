@@ -72,13 +72,13 @@ const schema_ext = {
 const getWebMData = tag => {
 
     const entryLookup = new Map([
-        ['u', { description: 'unsigned integer', returnVal(data, size) { return data.readUIntBE(0, size) } }],
-        ['i', { description: 'signed integer', returnVal(data, size) { return data.readIntBE(0, size) } }],
-        ['f', { description: 'floating point number', returnVal(data) { console.warn('floating point'); return data.readFloatBE(0) } }],
+        ['u', { description: 'unsigned integer', returnVal: (data, size) => data.readUIntBE(0, size) }],
+        ['i', { description: 'signed integer', returnVal: (data, size) => data.readIntBE(0, size) } ],
+        ['f', { description: 'floating point number', returnVal(data) { return data.readFloatBE(0) } }],
         ['s', { description: 'ASCII string', returnVal(data) { return data.toString() } }],
         ['8', { description: 'UTF-8 string', returnVal(data) { return data.toString('utf8') } }],
-        ['d', { description: 'timestamp', returnVal(data) { console.warn('timestamp'); return new Date(data) } }],
-        ['b', { description: 'raw binary data', returnVal(data) { return convertToHex(data) } }]
+        ['d', { description: 'timestamp', returnVal(data) { console.warn('timestamp', data); return new Date(data) } }],
+        ['b', { description: 'raw binary data', returnVal: data => data }]
     ]);
 
     const processEntry = entry => {
@@ -106,8 +106,9 @@ const getWebMData = tag => {
                     // https://tools.ietf.org/html/rfc7845.html#section-5
                     // CodecPrivate for VP9
                     // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
-                    // default is for blocks without additional flags.
-                    default: return returnVal(entry.value || entry.data, entry.dataSize);
+                    
+                    // for binary formats not yet implemented, return a bytestream.
+                    default: return convertToHex(entry.value || entry.data);
                 }
             }
             return returnVal(entry.value || entry.data, entry.dataSize);
