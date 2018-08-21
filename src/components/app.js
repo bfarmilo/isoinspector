@@ -13,6 +13,17 @@ const modes = {
 	m2ts: 'webm'
 }
 
+const parseISO = buf => new Promise((resolve, reject) => {
+	const VALID_START_BOX = new Set([
+		'ftyp',
+		'moof',
+		'styp'
+	]);
+	const parsedData = ISOBoxer.parseBuffer(buf.buffer);
+	if (!VALID_START_BOX.has(parsedData.boxes[0].type)) return reject(new Error('not an ISOBMFF file'));
+	return resolve(parsedData);
+});
+
 const parseWebM = buf => new Promise((resolve, reject) => {
 	const decoder = new ebml.Decoder(schema_ext, {});
 	let lastChunkTime;
@@ -45,7 +56,9 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 });
 
 //placeholder for now
-const parseM2TS = buf => ({ boxes: [] });
+const parseM2TS = buf => new Promise((resolve, reject) => {
+	return reject(new Error('m2ts mode not supported'));
+});
 
 export default class App extends Component {
 	constructor(props) {
@@ -66,22 +79,10 @@ export default class App extends Component {
 	}
 
 	createParsed = inputData => {
-		try {
-			const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-			if (this.state.mode === 'webm') return parseWebM(inputBuffer);
-			let parsedData;
-			if (this.state.mode === 'isobmff') {
-				parsedData = ISOBoxer.parseBuffer(inputBuffer.buffer);
-				if (parsedData.boxes[0].type !== 'ftyp' && parsedData.boxes[0].type !== 'moof') throw new Error('not an ISOBMFF box');
-			};
-			if (this.state.mode === 'm2ts') {
-				parsedData = parseM2TS(inputBuffer);
-				if (!parsedData.boxes[0]) throw new Error('m2ts mode not supported');
-			}
-			return Promise.resolve(parsedData);
-		} catch (err) {
-			return Promise.reject(err)
-		}
+		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
+		if (this.state.mode === 'webm') return parseWebM(inputBuffer);
+		if (this.state.mode === 'isobmff') return parseISO(inputBuffer);
+		if (this.state.mode === 'm2ts') return parseM2TS(inputBuffer);
 	}
 
 	updateInput = e => {
@@ -106,7 +107,7 @@ export default class App extends Component {
 					mode = modes[mode];
 					console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
 					this.setState({ decodeAttempts, mode });
-					this.parseFile(null);
+					this.parseFile();
 				}
 				console.error(err);
 			})
