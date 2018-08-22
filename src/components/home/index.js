@@ -7,11 +7,28 @@ import { psshLookup } from '../../components/additionalBoxes.js';
 
 
 const Home = props => {
+
+
+
+	const getWebMJSX = box => {
+
+		if (Object.hasOwnProperty.call(box, 'boxes')) {
+			return <details key={box.start}><summary class={style.boxName}>{box.name}</summary>{box.boxes.map(getWebMJSX)}</details>
+		}
+		return <div key={box.start} class={style.boxProp}><span>{box.name}: </span><span class={style.boxContents} raw={convertToHex(box.data)}>{getWebMData(box)}</span></div>
+	};
+
+
 	/** takes the box contents and recursively maps them to JSX
 	 * @param {ISOBox} box -> The ISOBox
 	 */
 
 	const getBoxData = box => {
+		/* refactor required. See getWebMJSX for dealing with nested boxes
+		fixed fields are size, type
+		all ISO fields are keys not prefixed by _
+		see getWebMData for clean way of dealing with different datatypes
+		*/ 
 		const boxContents = Object.keys(box)
 			.filter(key => !/^_/i.test(key) && key !== 'boxes' && key !== 'size')
 			.map(key => {
@@ -29,18 +46,18 @@ const Home = props => {
 								break;
 							default: box[key].join(', ');
 						}
-						return <div class={style.boxProp}><strong>{key}:</strong><span class={style.arrayEntry}>{formattedData}</span></div>;
+						return <div><span class={style.boxProp}>{key}:</span><span class={style.arrayEntry}>{formattedData}</span></div>;
 					}
 					// if it's a plain object, return a stringified version
-					if (!Object.hasOwnProperty.call(box[key][0], '_cursor')) return <div class={style.boxProp}><strong>{key}:</strong>{box[key].map(val => <div class={style.arrayEntry}>{JSON.stringify(val, null, 1)}</div>)}</div>;
+					if (!Object.hasOwnProperty.call(box[key][0], '_cursor')) return <div><span class={style.boxProp}>{key}: </span><div class={style.boxContents}>{box[key].map(val => <div class={style.arrayEntry}>{JSON.stringify(val, null, 1)}</div>)}</div></div>;
 					// it's a box type object, so need to filter out keys with /^_/
 					const innerKeys = Object.keys(box[key][0]).filter(newKey => !/^_/i.test(newKey));
-					return <div class={style.boxProp}><strong>{key}:</strong><div class={style.boxProp}>{box[key].map(entry => {
-						return innerKeys.map(innerKey => <div class={style.arrayEntry}><strong>{innerKey}:</strong>{(entry[innerKey] instanceof Uint8Array) ? convertToHex(entry[innerKey]) : entry[innerKey]}</div>)
+					return <div><span class={style.boxProp}>{key}: </span><div class={style.boxContents}>{box[key].map(entry => {
+						return innerKeys.map(innerKey => <div><span class={style.arrayEntry}>{innerKey}: </span><span>{(entry[innerKey] instanceof Uint8Array) ? convertToHex(entry[innerKey]) : entry[innerKey]}</span></div>)
 					})}</div></div>;
 				}
-				if (key === 'data') return <div class={style.boxProp}><strong>{key}:</strong>{ISOBoxer.Utils.dataViewToString(box[key])}</div>;
-				return <div class={style.boxProp}><strong>{key}:</strong>{box[key]}</div>;
+				if (key === 'data') return <div><span class={style.boxProp}>{key}: </span><span>{ISOBoxer.Utils.dataViewToString(box[key])}</span></div>;
+				return <div><span class={style.boxProp}>{key}: </span><span class={style.boxContents}>{box[key]}</span></div>;
 			});
 
 		if (Object.hasOwnProperty.call(box, 'boxes')) {
@@ -71,19 +88,9 @@ const Home = props => {
 								))}
 							</svg>
 						</div>
-					) : props.parsedData.boxes.length > 0 ?
+					) : (props.parsedData.boxes.length > 0) ?
 							props.decodeMode === 'webm' ?
-								<div dangerouslySetInnerHTML={{
-									__html: (props.parsedData.boxes.map(box => {
-										if (box.dataType === 'start') {
-											return `<details style="margin-left: 1em; font-weight:bold"><summary>${box.payload.name}</summary>`;
-										}
-										if (box.dataType === 'end') {
-											return `</details>`;
-										}
-										if (box.dataType === 'tag') return `<div style="margin-left: 2em"><span>${box.payload.name}: </span><span style="font-weight:normal" data="${convertToHex(box.payload.data)}">${getWebMData(box.payload)}</span></div>`
-									}).join(''))
-								}} />
+								props.parsedData.boxes.map(getWebMJSX)
 								: props.parsedData.boxes.map(getBoxData)
 							: <div>No valid boxes detected</div>
 					}
