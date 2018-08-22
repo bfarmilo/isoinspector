@@ -124,9 +124,9 @@ note Per_Sample_IV_Size and flags comes from 'tenc' box
 }
 
 const psshLookup = {
-    '10 77 ef ec c0 b2 4d 02 ac e3 3c 1e 52 e2 fb 4b': 'Clearkey',
-    '9a 04 f0 79 98 40 42 86 ab 92 e6 5b e0 88 5f 95': 'PlayReady',
-    'ed ef 8b a9 79 d6 4a ce a3 c8 27 dc d5 1d 21 ed': 'WideVine'
+    '10 77 EF EC C0 B2 4D 02 AC E3 3C 1E 52 E2 FB 4B': 'Clearkey',
+    '9A 04 F0 79 98 40 42 86 AB 92 E6 5B E0 88 5F 95': 'PlayReady',
+    'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine'
 }
 
 module.exports = {

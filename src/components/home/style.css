@@ -1,3 +1,7 @@
+details {
+	margin-left: 1em;
+}
+
 .home {
 	padding: 56px 20px;
 	min-height: 100%;
@@ -5,24 +9,29 @@
 }
 
 .boxName {
- font-size:x-large;
- background-color:#673Ab7;
- color:white;
+	font-size: large;
+	background-color: rgba(104, 58, 183, 0.74);
+	color: white;
 }
 
 .boxContainer {
-	border-style:solid;
+	border-style: solid;
 }
 
 .subBox {
-	margin-left:1em;
+	margin-left: 1em;
 }
 
 .boxProp {
-	margin-left:3px;
-	font-size:medium;
-	color:black;
-	background-color:white;
+	margin-left: 1em;
+	font-size: medium;
+	font-weight: bold;
+	color: black;
+	background-color: white;
+}
+
+.boxContents {
+	font-weight: normal;
 }
 
 .arrayEntry {
@@ -30,20 +39,16 @@
 }
 
 .inputArea {
-	display:grid;
+	display: grid;
 }
 
 .inputBox {
-	height:10em;
-	width:70%;
+	height: 10em;
+	width: 70%;
 	margin: 10px;
 }
 
 .parseButton {
-	width:10em;
-	margin:5px;
-}
-
-.Result {
-
+	width: 10em;
+	margin: 5px;
 }

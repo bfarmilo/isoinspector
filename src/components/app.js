@@ -13,23 +13,63 @@ const modes = {
 	m2ts: 'webm'
 }
 
+const parseISO = buf => new Promise((resolve, reject) => {
+	const VALID_START_BOX = new Set([
+		'ftyp',
+		'moof',
+		'styp',
+		'sidx'
+	]);
+	const parsedData = ISOBoxer.parseBuffer(buf.buffer);
+	console.log(parsedData);
+	if (VALID_START_BOX.has(parsedData.boxes[0].type)) return resolve(parsedData);
+	return reject(new Error('not an ISOBMFF file'));
+});
+
 const parseWebM = buf => new Promise((resolve, reject) => {
 	const decoder = new ebml.Decoder(schema_ext, {});
 	let lastChunkTime;
-	let allData = { boxes: [] };
+	let allData = [];
 
 	// hack in case the stream never sends a 'finish' or 'end' event.
 	const MAX_TIME = 1000;
 	const pollTime = setInterval(() => {
 		const currentTime = (new Date()).getTime();
 		lastChunkTime = lastChunkTime || currentTime;
-		if ((currentTime - lastChunkTime) > MAX_TIME) {
+		if (allData.length && (currentTime - lastChunkTime) > MAX_TIME) {
 			clearInterval(pollTime);
-			return resolve(allData);
+			// keep master result of parsed boxes
+			let resultVal = new Map();
+			// keep a list of parents up the tree
+			let parentList = [];
+			// handy helper to recursively work the way down the resultSet tree. Use 'start' as a hash since it's unique
+			const setBox = newVal => parentList.reduce((boxList, entry) => boxList.get(entry).boxes, resultVal).set(newVal.start, newVal);
+			// iterate through the boxes to create a box object like ISO box
+			allData.map(box => {
+				if (box.dataType === 'start') {
+					const newEntry = { name: box.payload.name, start: box.payload.start, boxes: new Map() };
+					// root level entries
+					if (parentList.length === 0) {
+						resultVal.set(newEntry.start, { ...newEntry });
+					} else {
+						setBox(newEntry);
+					};
+					parentList.push(box.payload.start);
+				}
+				if (box.dataType === 'tag') setBox({ ...box.payload });
+				if (box.dataType === 'end') parentList.pop();
+			});
+			// now convert all maps into arrays of objects
+			const convertBox = boxMap => Array.from(boxMap).reduce((result, contents) => {
+				if (Object.hasOwnProperty.call(contents[1], 'boxes')) contents[1].boxes = convertBox(contents[1].boxes);
+				return result.concat(contents[1]);
+			}, []);
+			return resolve({ boxes: convertBox(resultVal) });
 		}
 	}, 500);
 	decoder.on('data', chunk => {
-		allData.boxes.push({ dataType: chunk[0], payload: chunk[1] });
+		allData.push({ dataType: chunk[0], payload: chunk[1] });
+		// console.log(chunk[1]);
 		lastChunkTime = (new Date()).getTime();
 	});
 	decoder.on('finish', () => {
@@ -45,13 +85,15 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 });
 
 //placeholder for now
-const parseM2TS = buf => ({ boxes: [] });
+const parseM2TS = buf => new Promise((resolve, reject) => {
+	return reject(new Error('m2ts mode not supported'));
+});
 
 export default class App extends Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			inputData: 'paste Hex values or use Browse to load from file',
+			inputData: 'paste Hex values in base64 or use Browse to load from file',
 			parsedData: { boxes: [] },
 			mode: 'webm',
 			working: false,
@@ -66,22 +108,10 @@ export default class App extends Component {
 	}
 
 	createParsed = inputData => {
-		try {
-			const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-			if (this.state.mode === 'webm') return parseWebM(inputBuffer);
-			let parsedData;
-			if (this.state.mode === 'isobmff') {
-				parsedData = ISOBoxer.parseBuffer(inputBuffer.buffer);
-				if (parsedData.boxes[0].type !== 'ftyp' && parsedData.boxes[0].type !== 'moof') throw new Error('not an ISOBMFF box');
-			};
-			if (this.state.mode === 'm2ts') {
-				parsedData = parseM2TS(inputBuffer);
-				if (!parsedData.boxes[0]) throw new Error('m2ts mode not supported');
-			}
-			return Promise.resolve(parsedData);
-		} catch (err) {
-			return Promise.reject(err)
-		}
+		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
+		if (this.state.mode === 'webm') return parseWebM(inputBuffer);
+		if (this.state.mode === 'isobmff') return parseISO(inputBuffer);
+		if (this.state.mode === 'm2ts') return parseM2TS(inputBuffer);
 	}
 
 	updateInput = e => {
@@ -105,8 +135,8 @@ export default class App extends Component {
 					decodeAttempts += 1;
 					mode = modes[mode];
 					console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
-					this.setState({ decodeAttempts, mode });
-					this.parseFile(null);
+					this.setState({ decodeAttempts, mode, working: true });
+					this.parseFile();
 				}
 				console.error(err);
 			})
