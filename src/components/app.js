@@ -31,7 +31,7 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	let lastChunkTime;
 	let allData = [];
 
-	// hack in case the stream never sends a 'finish' or 'end' event.
+	// poll in case the stream never sends a 'finish' or 'end' event.
 	const MAX_TIME = 1000;
 	const pollTime = setInterval(() => {
 		const currentTime = (new Date()).getTime();
@@ -59,7 +59,7 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 				if (box.dataType === 'tag') setBox({ ...box.payload });
 				if (box.dataType === 'end') parentList.pop();
 			});
-			// now convert all maps into arrays of objects
+			// now recursively convert all maps into arrays of objects
 			const convertBox = boxMap => Array.from(boxMap).reduce((result, contents) => {
 				if (Object.hasOwnProperty.call(contents[1], 'boxes')) contents[1].boxes = convertBox(contents[1].boxes);
 				return result.concat(contents[1]);
@@ -69,7 +69,6 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	}, 500);
 	decoder.on('data', chunk => {
 		allData.push({ dataType: chunk[0], payload: chunk[1] });
-		// console.log(chunk[1]);
 		lastChunkTime = (new Date()).getTime();
 	});
 	decoder.on('finish', () => {

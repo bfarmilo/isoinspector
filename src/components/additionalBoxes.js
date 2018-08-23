@@ -1,3 +1,5 @@
+const { convertToHex } = require('./tools.js');
+
 const prft = {
     source: 'ISO 14496-12_2012 Producer Reference Time 8.16.5',
     field: 'prft',
@@ -129,7 +131,60 @@ const psshLookup = {
     'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine'
 }
 
+/** Looks at the box entry and returns proper formatting based on the type of data therein,
+ * and possibly the entry.type
+ * 
+ * @param {Object} entry ->  a single box parameter
+ * @returns {String or Array<Object>} -> returns the unformatted contents in an array
+ */
+const getISOData = (boxName, key, value) => {
+
+    // 1) Handle Arrays of numbers
+    // 2) Handle Arrays of things represented by numbers (pssh:SystemID, pssh:Data possibly (for PlayReady) for example)
+    // 3) Handle lookups (psshLookup)
+    // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
+    // 5) Handle raw binary (Uint8Array) -- usually a 'data' prop
+
+    // Handle arrays of ...
+    if (Array.isArray(value)) {
+        // if the array entry isn't an object, return a comma separated list
+        if (typeof (value[0]) !== 'object') {
+            let formattedData;
+            switch (key) {
+                // Array of things represented by numbers
+                case 'SystemID':
+                    formattedData = `0x ${convertToHex(value)} (${psshLookup[convertToHex(value)]})`;
+                    break;
+                case 'Data':
+                    formattedData = value.map(b => String.fromCharCode(b)).join('');
+                    break;
+                // Array of numbers
+                default:
+                    formattedData = value.join(', ');
+            }
+            return formattedData;
+        }
+
+        // Arrays of Objects -- add an entry number and send it back up
+        if (Object.prototype.toString.call(value[0]) === '[object Object]' ) {
+            return value.map((item, index) => {
+                const cleanEntry = { ...item };
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry;
+            });
+        }
+
+    }
+
+    // Handle raw binary
+    if (key === 'data') return `0x ${convertToHex(value)}`;
+
+    // Handle string or Number or anything else that slips through
+    return value;
+}
+
 module.exports = {
+    getISOData,
     psshLookup,
     prft
 }
