@@ -8,8 +8,6 @@ import { psshLookup, getISOData } from '../../components/additionalBoxes.js';
 
 const Home = props => {
 
-
-
 	const getWebMJSX = box => {
 
 		if (Object.hasOwnProperty.call(box, 'boxes')) {
@@ -52,7 +50,7 @@ const Home = props => {
 		// otherwise output the boxEntry according to the above.
 		return (
 			<details key={box._offset}>
-				{box.entryNumber ? <summary class={style.boxProp}>{box.type||box.entryNumber}</summary> : <summary class={style.boxName}>{box.type} ({box.size} bytes)</summary>}
+				{box.entryNumber ? <summary class={style.boxProp}>{box.type || box.entryNumber}</summary> : <summary class={style.boxName}>{box.type} ({box.size} bytes)</summary>}
 				{Object.hasOwnProperty.call(box, 'boxes') && !Object.hasOwnProperty.call(box, 'entryNumber') ? box.boxes.map(getISOJSX) : boxEntry(box)}
 			</details>
 		)
@@ -61,9 +59,15 @@ const Home = props => {
 	return (
 		<div class={style.home}>
 			<div class={style.inputArea}>
-				<textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
-				<input type="file" onChange={props.handleFiles} />
-				<button class={style.parseButton} onClick={props.parseFile}>Go</button>
+				<div>
+					<label for="getFile"><div class={style.parseButton} style={{ textAlign: 'center', paddingTop: '0.2em' }}>Select Local File</div></label>
+					<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
+				</div>
+				<div style={{marginTop:'1.5em'}}>or</div>
+				<div><button class={style.parseButton} onClick={props.toggleHex}>Paste Hex Values</button></div>
+				<div></div>
+				<div style={{ gridColumn: '1/5' }}>{props.showHex ? (<div><textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
+					<button class={style.parseButton} onClick={props.parseFile}>Go</button></div>) : ''}</div>
 			</div>
 			<div>
 				<h2> {props.decodeMode} File Contents </h2>

@@ -97,7 +97,8 @@ export default class App extends Component {
 			mode: 'webm',
 			working: false,
 			errorMessage: '',
-			decodeAttempts: 0
+			decodeAttempts: 0,
+			showHex:false
 		}
 	}
 
@@ -154,6 +155,10 @@ export default class App extends Component {
 		reader.readAsDataURL(file);
 	}
 
+	toggleHex = e => {
+		this.setState({showHex: !this.state.showHex});
+	}
+
 	render() {
 		return (
 			<div id="app">
@@ -169,6 +174,8 @@ export default class App extends Component {
 					parsedData={this.state.parsedData}
 					handleFiles={this.handleFiles}
 					error={this.state.errorMessage}
+					showHex={this.state.showHex}
+					toggleHex={this.toggleHex}
 				/>
 			</div>
 		);
