@@ -139,16 +139,30 @@ const psshLookup = {
  */
 const getISOData = (boxName, key, value) => {
 
+    // little helper that returns the type
+    const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
+
     // 1) Handle Arrays of numbers
     // 2) Handle Arrays of things represented by numbers (pssh:SystemID, pssh:Data possibly (for PlayReady) for example)
     // 3) Handle lookups (psshLookup)
     // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
-    // 5) Handle raw binary (Uint8Array) -- usually a 'data' prop
+    // 5) Handle raw binary (Uint8Array)
 
+    // 5) Handle raw binary
+    if (getValueType(value) === 'Uint8Array') {
+        return `0x ${convertToHex(value)}`
+    }
     // Handle arrays of ...
-    if (Array.isArray(value)) {
-        // if the array entry isn't an object, return a comma separated list
-        if (typeof (value[0]) !== 'object') {
+    if (getValueType(value) === "Array") {
+        // Arrays of Objects -- add an entry number and send it back up
+        if (getValueType(value[0]) === 'Object') {
+            return value.map((item, index) => {
+                const cleanEntry = { ...item };
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry;
+            });
+        } else {
+            // if the array entry isn't an object, return a comma separated list
             let formattedData;
             switch (key) {
                 // Array of things represented by numbers
@@ -164,21 +178,7 @@ const getISOData = (boxName, key, value) => {
             }
             return formattedData;
         }
-
-        // Arrays of Objects -- add an entry number and send it back up
-        if (Object.prototype.toString.call(value[0]) === '[object Object]' ) {
-            return value.map((item, index) => {
-                const cleanEntry = { ...item };
-                cleanEntry.entryNumber = index + 1;
-                return cleanEntry;
-            });
-        }
-
     }
-
-    // Handle raw binary
-    if (key === 'data') return `0x ${convertToHex(value)}`;
-
     // Handle string or Number or anything else that slips through
     return value;
 }
