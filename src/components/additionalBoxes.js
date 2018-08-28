@@ -137,7 +137,7 @@ const psshLookup = {
  * @param {Object} entry ->  a single box parameter
  * @returns {String or Array<Object>} -> returns the unformatted contents in an array
  */
-const getISOData = (boxName, key, value) => {
+const getISOData = (key, value) => {
 
     // little helper that returns the type
     const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
@@ -147,36 +147,31 @@ const getISOData = (boxName, key, value) => {
     // 3) Handle lookups (psshLookup)
     // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
     // 5) Handle raw binary (Uint8Array)
+    const handleArray = {
+        'Object': value => value.map((item, index) => {
+            const cleanEntry = { ...item };
+            cleanEntry.entryNumber = index + 1;
+            return cleanEntry;
+        }),
+        'String': value => value.join(', '),
+        'Number': value => value.join(', ')
+    }
 
     // 5) Handle raw binary
     if (getValueType(value) === 'Uint8Array') {
-        return `0x ${convertToHex(value)}`
+        return { hex: convertToHex(value) } // an array of 16-byte entries
     }
     // Handle arrays of ...
     if (getValueType(value) === "Array") {
-        // Arrays of Objects -- add an entry number and send it back up
-        if (getValueType(value[0]) === 'Object') {
-            return value.map((item, index) => {
-                const cleanEntry = { ...item };
-                cleanEntry.entryNumber = index + 1;
-                return cleanEntry;
-            });
-        } else {
-            // if the array entry isn't an object, return a comma separated list
-            let formattedData;
-            switch (key) {
-                // Array of things represented by numbers
-                case 'SystemID':
-                    formattedData = `0x ${convertToHex(value)} (${psshLookup[convertToHex(value)]})`;
-                    break;
-                case 'Data':
-                    formattedData = value.map(b => String.fromCharCode(b)).join('');
-                    break;
-                // Array of numbers
-                default:
-                    formattedData = value.join(', ');
-            }
-            return formattedData;
+        // first check for special handling by key
+        switch (key) {
+            case 'SystemID':
+                return `${convertToHex(value)} (${psshLookup[convertToHex(value)]})`;
+            case 'Data':
+            case 'compressorname':
+                return value.map(b => String.fromCharCode(b)).join('');
+            default: // Otherwise handle based on type of the first entry
+                return handleArray[getValueType(value[0])](value);
         }
     }
     // Handle string or Number or anything else that slips through
