@@ -13,13 +13,19 @@ const Home = props => {
 		if (Object.hasOwnProperty.call(box, 'boxes')) {
 			return <details key={box.start}><summary class={style.boxName}>{box.name}</summary>{box.boxes.map(getWebMJSX)}</details>
 		}
-		return <div key={box.start} class={style.boxProp}><span>{box.name}: </span><span class={style.boxContents} raw={convertToHex(box.data)}>{getWebMData(box)}</span></div>
+		const result = getWebMData(box);
+		return <div key={box.start} class={style.boxProp}>
+			<span>{box.name}: </span>
+			{Object.hasOwnProperty.call(result, 'hex') ?
+				<details><summary class={style.boxContents}>{result.display || ''}</summary>{result.hex.map(row => <div key={row} class={style.hexEntry}>{row}</div>)}</details> :
+				<span class={style.boxContents} raw={convertToHex(box.data)}>{result.display}</span>}
+		</div>
 	};
 
 
 	/** takes the box contents and recursively maps them to JSX
-	 * @param {ISOBox} box -> The ISOBox
-	 */
+ * @param {ISOBox} box -> The ISOBox
+		*/
 
 	const getISOJSX = box => {
 
@@ -37,11 +43,15 @@ const Home = props => {
 
 		// iterate through the valid keys and generate processed output
 		const boxEntry = isoBox => contents.map(key => {
-			const result = getISOData(isoBox.type, key, isoBox[key]);
+			const result = getISOData(key, isoBox[key]);
 			return (
 				<div key={`${isoBox._offset}_${key}`} class={style.boxProp}>
 					<span>{key}: </span>
-					{Array.isArray(result) ? result.map(getISOJSX) : <span key={`${key}_${result}`} class={style.boxContents} raw={convertToHex(isoBox._raw)}>{result}</span>}
+					{Object.hasOwnProperty.call(result, 'hex') ?
+						result.hex.map(row => <div key={row} class={style.hexEntry}>{row}</div>) :
+						Array.isArray(result) ?
+							result.map(getISOJSX) :
+							<span key={`${key}_${result}`} class={style.boxContents} raw={convertToHex(isoBox._raw)}>{result}</span>}
 				</div>
 			)
 		});
@@ -51,7 +61,9 @@ const Home = props => {
 		return (
 			<details key={box._offset}>
 				{box.entryNumber ? <summary class={style.boxProp}>{box.type || box.entryNumber}</summary> : <summary class={style.boxName}>{box.type} ({box.size} bytes)</summary>}
-				{Object.hasOwnProperty.call(box, 'boxes') && !Object.hasOwnProperty.call(box, 'entryNumber') ? box.boxes.map(getISOJSX) : boxEntry(box)}
+				{Object.hasOwnProperty.call(box, 'boxes') && !Object.hasOwnProperty.call(box, 'entryNumber') ?
+					box.boxes.map(getISOJSX) :
+					boxEntry(box)}
 			</details>
 		)
 	}
@@ -63,7 +75,7 @@ const Home = props => {
 					<label for="getFile"><div class={style.parseButton} style={{ textAlign: 'center', paddingTop: '0.2em' }}>Select Local File</div></label>
 					<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
 				</div>
-				<div style={{marginTop:'1.5em'}}>or</div>
+				<div style={{ marginTop: '1.5em' }}>or</div>
 				<div><button class={style.parseButton} onClick={props.toggleHex}>Paste Hex Values</button></div>
 				<div></div>
 				<div style={{ gridColumn: '1/5' }}>{props.showHex ? (<div><textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
