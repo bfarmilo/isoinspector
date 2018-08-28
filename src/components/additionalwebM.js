@@ -72,12 +72,12 @@ const schema_ext = {
 const getWebMData = tag => {
 
     const entryLookup = new Map([
-        ['u', { description: 'unsigned integer', returnVal: (data, size) => data.readUIntBE(0, size) }],
-        ['i', { description: 'signed integer', returnVal: (data, size) => data.readIntBE(0, size) }],
-        ['f', { description: 'floating point number', returnVal(data) { return data.readFloatBE(0) } }],
-        ['s', { description: 'ASCII string', returnVal(data) { return data.toString() } }],
-        ['8', { description: 'UTF-8 string', returnVal(data) { return data.toString('utf8') } }],
-        ['d', { description: 'timestamp', returnVal(data) { console.warn('timestamp', data); return new Date(data) } }],
+        ['u', { description: 'unsigned integer', returnVal: (data, size) => ({ display: data.readUIntBE(0, size) }) }],
+        ['i', { description: 'signed integer', returnVal: (data, size) => ({ display: data.readIntBE(0, size) }) }],
+        ['f', { description: 'floating point number', returnVal: data => ({ display: data.readFloatBE(0) }) }],
+        ['s', { description: 'ASCII string', returnVal: data => ({ display: data.toString() }) }],
+        ['8', { description: 'UTF-8 string', returnVal: data => ({ display: data.toString('utf8') }) }],
+        ['d', { description: 'timestamp', returnVal: data => { console.warn('timestamp', data); return { display: new Date(data) } } }],
         ['b', { description: 'raw binary data', returnVal: data => data }]
     ]);
 
@@ -87,6 +87,13 @@ const getWebMData = tag => {
             if (entry.type === 'b') {
                 // additional entry processing here for binary formats.
                 switch (entry.name) {
+                    // For some binary boxes make nicer for display
+                    case 'SeekID':
+                    case 'Void':
+                    case 'SegmentUID':
+                        return { display: convertToHex(entry.value || entry.data) }
+                    case 'CodecPrivate':
+                        return { display: `Raw Binary, ${entry.dataSize} bytes`, hex: convertToHex(entry.data) }
                     // SimpleBlock and Block processing:
                     // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
                     case 'SimpleBlock':
@@ -101,14 +108,14 @@ const getWebMData = tag => {
                             { flag: 'Lacing', bitmask: 0b00000110 },
                             { flag: 'Discardable', bitmask: 0b00000001 }
                         ];
-                        return `Track ${trackNumber}${flagVals.filter(item => flags & item.bitmask).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+                        return { display: `Track ${trackNumber}${flagVals.filter(item => flags & item.bitmask).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`, hex: convertToHex(entry.data.slice(4)) };
                     // Eg CodecPrivate for Audio tracks:
                     // https://tools.ietf.org/html/rfc7845.html#section-5
                     // CodecPrivate for VP9
                     // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
 
                     // for binary formats not yet implemented, return a bytestream.
-                    default: return convertToHex(entry.value || entry.data);
+                    default: return { hex: convertToHex(entry.value || entry.data) };
                 }
             }
             return returnVal(entry.value || entry.data, entry.dataSize);
