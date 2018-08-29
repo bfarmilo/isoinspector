@@ -71,15 +71,15 @@ const Home = props => {
 	return (
 		<div class={style.home}>
 			<div class={style.inputArea}>
-				<div>
-					<label for="getFile"><div class={style.parseButton} style={{ textAlign: 'center', paddingTop: '0.2em' }}>Select Local File</div></label>
-					<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
-				</div>
-				<div style={{ marginTop: '1.5em' }}>or</div>
-				<div><button class={style.parseButton} onClick={props.toggleHex}>Paste Hex Values</button></div>
-				<div></div>
-				<div style={{ gridColumn: '1/5' }}>{props.showHex ? (<div><textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
-					<button class={style.parseButton} onClick={props.parseFile}>Go</button></div>) : ''}</div>
+				{props.showHex ?
+					<div style={{ gridColumn: '1/5' }}>
+						<textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
+						<button class={style.parseButton} onClick={props.parseFile}>Go</button>
+					</div> :
+					<div>
+						<label for="getFile"><div class={style.parseButton} style={{ textAlign: 'center', paddingTop: '0.2em' }}>Select Local File</div></label>
+						<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
+					</div>}
 			</div>
 			<div>
 				<h2> {props.decodeMode} File Contents </h2>

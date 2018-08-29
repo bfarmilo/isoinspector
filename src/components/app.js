@@ -186,6 +186,8 @@ export default class App extends Component {
 					mode={this.state.mode}
 					togglePreview={this.togglePreview}
 					showVideo={this.state.showVideo}
+					showHex={this.state.showHex}
+					toggleHex={this.toggleHex}
 				/>
 				{this.state.showVideo ?
 					<Video
@@ -203,7 +205,6 @@ export default class App extends Component {
 					handleFiles={this.handleFiles}
 					error={this.state.errorMessage}
 					showHex={this.state.showHex}
-					toggleHex={this.toggleHex}
 				/>
 			</div>
 		);
