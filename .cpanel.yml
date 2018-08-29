@@ -2,7 +2,5 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/farmilos/public_html/isoinspector/
-    - /bin/rm -f $DEPLOYPATH/*.js
-    - /bin/rm -f $DEPLOYPATH/*.css
-    - /bin/rm -f $DEPLOYPATH/*.map
+    - /bin/rm -rf $DEPLOYPATH/*
     - /bin/cp -R build/. $DEPLOYPATH
