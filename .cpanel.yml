@@ -2,4 +2,4 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/farmilos/public_html/isoinspector/
-    - /bin/cp -R /build/* $DEPLOYPATH
+    - /bin/cp -R build/. $DEPLOYPATH
