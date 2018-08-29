@@ -3,75 +3,83 @@ import style from './style';
 const ISOBoxer = require('codem-isoboxer');
 import { getWebMData } from '../../components/additionalwebM.js';
 import { convertToHex } from '../../components/tools.js';
-import { psshLookup } from '../../components/additionalBoxes.js';
+import { psshLookup, getISOData } from '../../components/additionalBoxes.js';
 
 
 const Home = props => {
-
-
 
 	const getWebMJSX = box => {
 
 		if (Object.hasOwnProperty.call(box, 'boxes')) {
 			return <details key={box.start}><summary class={style.boxName}>{box.name}</summary>{box.boxes.map(getWebMJSX)}</details>
 		}
-		return <div key={box.start} class={style.boxProp}><span>{box.name}: </span><span class={style.boxContents} raw={convertToHex(box.data)}>{getWebMData(box)}</span></div>
+		const result = getWebMData(box);
+		return <div key={box.start} class={style.boxProp}>
+			<span>{box.name}: </span>
+			{Object.hasOwnProperty.call(result, 'hex') ?
+				<details><summary class={style.boxContents}>{result.display || ''}</summary>{result.hex.map(row => <div key={row} class={style.hexEntry}>{row}</div>)}</details> :
+				<span class={style.boxContents} raw={convertToHex(box.data)}>{result.display}</span>}
+		</div>
 	};
 
 
 	/** takes the box contents and recursively maps them to JSX
-	 * @param {ISOBox} box -> The ISOBox
-	 */
+ * @param {ISOBox} box -> The ISOBox
+		*/
 
-	const getBoxData = box => {
-		/* refactor required. See getWebMJSX for dealing with nested boxes
-		fixed fields are size, type
-		all ISO fields are keys not prefixed by _
-		see getWebMData for clean way of dealing with different datatypes
-		*/ 
-		const boxContents = Object.keys(box)
-			.filter(key => !/^_/i.test(key) && key !== 'boxes' && key !== 'size')
-			.map(key => {
-				if (key === 'type') return <div class={style.boxName}>{box.type}({box.size} bytes)</div>;
-				if (Array.isArray(box[key])) {
-					// if the array entry isn't an object, return a comma separated list
-					if (typeof (box[key][0]) !== 'object') {
-						let formattedData;
-						switch (key) {
-							case 'SystemID':
-								formattedData = `0x ${convertToHex(box[key])} (${psshLookup[convertToHex(box[key])]})`;
-								break;
-							case 'Data':
-								formattedData = box[key].map(b => String.fromCharCode(b));
-								break;
-							default: box[key].join(', ');
-						}
-						return <div><span class={style.boxProp}>{key}:</span><span class={style.arrayEntry}>{formattedData}</span></div>;
-					}
-					// if it's a plain object, return a stringified version
-					if (!Object.hasOwnProperty.call(box[key][0], '_cursor')) return <div><span class={style.boxProp}>{key}: </span><div class={style.boxContents}>{box[key].map(val => <div class={style.arrayEntry}>{JSON.stringify(val, null, 1)}</div>)}</div></div>;
-					// it's a box type object, so need to filter out keys with /^_/
-					const innerKeys = Object.keys(box[key][0]).filter(newKey => !/^_/i.test(newKey));
-					return <div><span class={style.boxProp}>{key}: </span><div class={style.boxContents}>{box[key].map(entry => {
-						return innerKeys.map(innerKey => <div><span class={style.arrayEntry}>{innerKey}: </span><span>{(entry[innerKey] instanceof Uint8Array) ? convertToHex(entry[innerKey]) : entry[innerKey]}</span></div>)
-					})}</div></div>;
-				}
-				if (key === 'data') return <div><span class={style.boxProp}>{key}: </span><span>{ISOBoxer.Utils.dataViewToString(box[key])}</span></div>;
-				return <div><span class={style.boxProp}>{key}: </span><span class={style.boxContents}>{box[key]}</span></div>;
-			});
+	const getISOJSX = box => {
 
-		if (Object.hasOwnProperty.call(box, 'boxes')) {
-			return (<div key={box._offset}><div class={style.boxContainer}>{boxContents}</div><div class={style.subBox}>{box.boxes.map(getBoxData)}</div></div>)
-		}
-		return (<div key={box._offset}><div class={style.boxContainer}>{boxContents}</div></div>)
+		// entryNumber is added by the box processor when the box contains an array of objects. It is not in the stream.
+		// we process 'boxes' recursively.
+		// no need to parse 'size' or 'type'.
+		const SKIP_KEYS = [
+			'boxes',
+			'size',
+			'type',
+			'entryNumber'
+		];
+
+		const contents = Object.keys(box).filter(key => !/^_/i.test(key) && !SKIP_KEYS.includes(key));
+
+		// iterate through the valid keys and generate processed output
+		const boxEntry = isoBox => contents.map(key => {
+			const result = getISOData(key, isoBox[key]);
+			return (
+				<div key={`${isoBox._offset}_${key}`} class={style.boxProp}>
+					<span>{key}: </span>
+					{Object.hasOwnProperty.call(result, 'hex') ?
+						result.hex.map(row => <div key={row} class={style.hexEntry}>{row}</div>) :
+						Array.isArray(result) ?
+							result.map(getISOJSX) :
+							<span key={`${key}_${result}`} class={style.boxContents} raw={convertToHex(isoBox._raw)}>{result}</span>}
+				</div>
+			)
+		});
+
+		// if the box contains a 'boxes' prop (but doesn't have an entryNumber, which we added) recurse
+		// otherwise output the boxEntry according to the above.
+		return (
+			<details key={box._offset}>
+				{box.entryNumber ? <summary class={style.boxProp}>{box.type || box.entryNumber}</summary> : <summary class={style.boxName}>{box.type} ({box.size} bytes)</summary>}
+				{Object.hasOwnProperty.call(box, 'boxes') && !Object.hasOwnProperty.call(box, 'entryNumber') ?
+					box.boxes.map(getISOJSX) :
+					boxEntry(box)}
+			</details>
+		)
 	}
 
 	return (
 		<div class={style.home}>
 			<div class={style.inputArea}>
-				<textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
-				<input type="file" onChange={props.handleFiles} />
-				<button class={style.parseButton} onClick={props.parseFile}>Go</button>
+				{props.showHex ?
+					<div style={{ gridColumn: '1/5' }}>
+						<textarea class={style.inputBox} onChange={props.updateInput} value={props.inputData} />
+						<button class={style.parseButton} onClick={props.parseFile}>Go</button>
+					</div> :
+					<div>
+						<label for="getFile"><div class={style.parseButton} style={{ textAlign: 'center', paddingTop: '0.2em' }}>Select Local File</div></label>
+						<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
+					</div>}
 			</div>
 			<div>
 				<h2> {props.decodeMode} File Contents </h2>
@@ -91,7 +99,7 @@ const Home = props => {
 					) : (props.parsedData.boxes.length > 0) ?
 							props.decodeMode === 'webm' ?
 								props.parsedData.boxes.map(getWebMJSX)
-								: props.parsedData.boxes.map(getBoxData)
+								: props.parsedData.boxes.map(getISOJSX)
 							: <div>No valid boxes detected</div>
 					}
 				</div>

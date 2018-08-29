@@ -1,3 +1,5 @@
+const { convertToHex } = require('./tools.js');
+
 const prft = {
     source: 'ISO 14496-12_2012 Producer Reference Time 8.16.5',
     field: 'prft',
@@ -129,7 +131,55 @@ const psshLookup = {
     'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine'
 }
 
+/** Looks at the box entry and returns proper formatting based on the type of data therein,
+ * and possibly the entry.type
+ * 
+ * @param {Object} entry ->  a single box parameter
+ * @returns {String or Array<Object>} -> returns the unformatted contents in an array
+ */
+const getISOData = (key, value) => {
+
+    // little helper that returns the type
+    const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
+
+    // 1) Handle Arrays of numbers
+    // 2) Handle Arrays of things represented by numbers (pssh:SystemID, pssh:Data possibly (for PlayReady) for example)
+    // 3) Handle lookups (psshLookup)
+    // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
+    // 5) Handle raw binary (Uint8Array)
+    const handleArray = {
+        'Object': value => value.map((item, index) => {
+            const cleanEntry = { ...item };
+            cleanEntry.entryNumber = index + 1;
+            return cleanEntry;
+        }),
+        'String': value => value.join(', '),
+        'Number': value => value.join(', ')
+    }
+
+    // 5) Handle raw binary
+    if (getValueType(value) === 'Uint8Array') {
+        return { hex: convertToHex(value) } // an array of 16-byte entries
+    }
+    // Handle arrays of ...
+    if (getValueType(value) === "Array") {
+        // first check for special handling by key
+        switch (key) {
+            case 'SystemID':
+                return `${convertToHex(value)} (${psshLookup[convertToHex(value)]})`;
+            case 'Data':
+            case 'compressorname':
+                return value.map(b => String.fromCharCode(b)).join('');
+            default: // Otherwise handle based on type of the first entry
+                return handleArray[getValueType(value[0])](value);
+        }
+    }
+    // Handle string or Number or anything else that slips through
+    return value;
+}
+
 module.exports = {
+    getISOData,
     psshLookup,
     prft
 }

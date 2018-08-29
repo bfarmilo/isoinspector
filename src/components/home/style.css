@@ -3,7 +3,7 @@ details {
 }
 
 .home {
-	padding: 56px 20px;
+	padding: 0px 20px 20px 20px;
 	min-height: 100%;
 	width: 100%;
 }
@@ -40,6 +40,7 @@ details {
 
 .inputArea {
 	display: grid;
+	grid-template-columns: 7em 2em 7em 20em;
 }
 
 .inputBox {
@@ -49,6 +50,19 @@ details {
 }
 
 .parseButton {
-	width: 10em;
+	width: 5em;
 	margin: 5px;
+	height: 3em;
+	padding: 0;
+	color:whitesmoke;
+	font-size:large;
+	background: #673ab7;
+	box-shadow: 0 0 5px rgba(0, 0, 0, .5);
+	z-index: 50;
+	border: none;
+}
+
+.hexEntry {
+	font-family: 'Courier New', Courier, monospace;
+	font-weight: normal;
 }

@@ -6,11 +6,18 @@ const ebml = require('ebml');
 
 import Header from './header';
 import Home from './home';
+import Video from './video';
 
 const modes = {
-	webm: 'isobmff',
-	isobmff: 'm2ts',
-	m2ts: 'webm'
+	webm: 'mp4',
+	mp4: 'MP2T',
+	MP2T: 'webm'
+}
+
+const niceError = {
+	3: 'This video appears to be encrypted',
+	4: 'Can\'t parse metadata. Is this not an initialization segment?'
+
 }
 
 const parseISO = buf => new Promise((resolve, reject) => {
@@ -31,7 +38,7 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	let lastChunkTime;
 	let allData = [];
 
-	// hack in case the stream never sends a 'finish' or 'end' event.
+	// poll in case the stream never sends a 'finish' or 'end' event.
 	const MAX_TIME = 1000;
 	const pollTime = setInterval(() => {
 		const currentTime = (new Date()).getTime();
@@ -59,7 +66,7 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 				if (box.dataType === 'tag') setBox({ ...box.payload });
 				if (box.dataType === 'end') parentList.pop();
 			});
-			// now convert all maps into arrays of objects
+			// now recursively convert all maps into arrays of objects
 			const convertBox = boxMap => Array.from(boxMap).reduce((result, contents) => {
 				if (Object.hasOwnProperty.call(contents[1], 'boxes')) contents[1].boxes = convertBox(contents[1].boxes);
 				return result.concat(contents[1]);
@@ -69,7 +76,6 @@ const parseWebM = buf => new Promise((resolve, reject) => {
 	}, 500);
 	decoder.on('data', chunk => {
 		allData.push({ dataType: chunk[0], payload: chunk[1] });
-		// console.log(chunk[1]);
 		lastChunkTime = (new Date()).getTime();
 	});
 	decoder.on('finish', () => {
@@ -93,12 +99,15 @@ export default class App extends Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			inputData: 'paste Hex values in base64 or use Browse to load from file',
+			inputData: '',
 			parsedData: { boxes: [] },
 			mode: 'webm',
 			working: false,
 			errorMessage: '',
-			decodeAttempts: 0
+			videoError:'',
+			decodeAttempts: 0,
+			showHex: false,
+			showVideo: false
 		}
 	}
 
@@ -110,8 +119,8 @@ export default class App extends Component {
 	createParsed = inputData => {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
 		if (this.state.mode === 'webm') return parseWebM(inputBuffer);
-		if (this.state.mode === 'isobmff') return parseISO(inputBuffer);
-		if (this.state.mode === 'm2ts') return parseM2TS(inputBuffer);
+		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
+		if (this.state.mode === 'MP2T') return parseM2TS(inputBuffer);
 	}
 
 	updateInput = e => {
@@ -122,7 +131,7 @@ export default class App extends Component {
 
 	parseFile = e => {
 		console.log(`parsing data in ${this.state.mode} mode:`);
-		this.setState({ working: true });
+		this.setState({ working: true, showVideo: false, videoError:'' });
 		this.createParsed(this.state.inputData)
 			.then(parsedData => {
 				this.setState({ parsedData, working: false, decodeAttempts: 0 });
@@ -142,8 +151,15 @@ export default class App extends Component {
 			})
 	}
 
+	handleEncrypted = e => {
+		console.log('got encrypted event', e.target && e.target.error);
+		e.preventDefault();
+		const videoError = niceError[e.target && e.target.error && e.target.error.code] || 'unknown error';
+		this.setState({ showVideo: false, videoError });
+	}
+
 	handleFiles = e => {
-		this.setState({ working: true });
+		this.setState({ working: true, showVideo: false, inputData: '' });
 		const file = e.target.files[0];
 		const reader = new FileReader();
 		const self = this;
@@ -155,12 +171,30 @@ export default class App extends Component {
 		reader.readAsDataURL(file);
 	}
 
+	toggleHex = e => {
+		this.setState({ showHex: !this.state.showHex });
+	}
+
+	togglePreview = e => {
+		this.setState({ showVideo: !this.state.showVideo })
+	}
+
 	render() {
 		return (
 			<div id="app">
 				<Header
 					mode={this.state.mode}
+					togglePreview={this.togglePreview}
+					showVideo={this.state.showVideo}
+					showHex={this.state.showHex}
+					toggleHex={this.toggleHex}
 				/>
+				{this.state.showVideo ?
+					<Video
+						mimeType={this.state.mode}
+						data={this.state.inputData}
+						handleEncrypted={this.handleEncrypted}
+					/> : <div style={{ padding: '56px 20px' }}>{this.state.videoError}</div>}
 				<Home
 					decodeMode={this.state.mode}
 					working={this.state.working}
@@ -170,6 +204,7 @@ export default class App extends Component {
 					parsedData={this.state.parsedData}
 					handleFiles={this.handleFiles}
 					error={this.state.errorMessage}
+					showHex={this.state.showHex}
 				/>
 			</div>
 		);
