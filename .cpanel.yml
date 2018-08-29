@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/farmilos/public_html/isoinspector/
+    - /bin/cp ./build/* $DEPLOYPATH
