@@ -2270,6 +2270,8 @@ function plural(ms, n, name) {
 var _require = __webpack_require__("tTqp"),
     convertToHex = _require.convertToHex;
 
+var schema = __webpack_require__("R0Du").schema;
+
 var schema_ext = {
     '55b0': {
         name: 'Colour',
@@ -2366,6 +2368,9 @@ var getWebMData = function getWebMData(tag) {
                 switch (entry.name) {
                     // For some binary boxes make nicer for display
                     case 'SeekID':
+                        var lookup = convertToHex(entry.value || entry.data);
+                        console.log(lookup, typeof lookup);
+                        return { display: lookup + ' (' + schema[lookup[0].split(' ').join('').toLowerCase()].name + ')' };
                     case 'Void':
                     case 'SegmentUID':
                         return { display: convertToHex(entry.value || entry.data) };
@@ -3101,7 +3106,9 @@ var app_App = function (_Component) {
 
 		_this.componentWillMount = function () {
 			// add any custom box processors
-			app_ISOBoxer.addBoxProcessor(additionalBoxes["prft"].field, additionalBoxes["prft"]._parser);
+			additionalBoxes["additionalBoxes"].map(function (box) {
+				if (Object.hasOwnProperty.call(box, '_parser')) app_ISOBoxer.addBoxProcessor(box.field, box._parser);
+			});
 		};
 
 		_this.createParsed = function (inputData) {
@@ -4295,7 +4302,23 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 var _require = __webpack_require__("tTqp"),
     convertToHex = _require.convertToHex;
 
-var prft = {
+var additionalBoxes = [{
+    source: 'ISO/IEC 14496-12:2012 - 8.8.7 Track Fragment Header Box',
+    field: 'tfhd',
+    _parser: function _parser() {
+        var flagData = [];
+        this._procFullBox();
+        this._procField('track_ID', 'uint', 32);
+        if (this.flags & 0x01) this._procField('base_data_offset', 'uint', 64);
+        if (this.flags & 0x02) this._procField('sample_description_offset', 'uint', 32);
+        if (this.flags & 0x08) this._procField('default_sample_duration', 'uint', 32);
+        if (this.flags & 0x10) this._procField('default_sample_size', 'uint', 32);
+        if (this.flags & 0x20) this._procField('default_sample_flags', 'uint', 32);
+        if (this.flags & 0x010000) flagData.push('duration-is-empty');
+        if (this.flags & 0x020000) flagData.push('default-base-is-moof');
+        if (flagData.length) this.flagData = flagData;
+    }
+}, {
     source: 'ISO 14496-12_2012 Producer Reference Time 8.16.5',
     field: 'prft',
     _parser: function _parser() {
@@ -4304,121 +4327,184 @@ var prft = {
         this._procField('ntp_timestamp', 'uint', 64);
         this._procField('media_time', 'uint', this.version == 1 ? 64 : 32);
     }
-};
-
-var sgpd = {
-    /* Sequence Entry
-    abstract class SampleGroupDescriptionEntry (unsigned int(32) grouping_type) { }
-    abstract class VisualSampleGroupEntry (unsigned int(32) grouping_type) extends SampleGroupDescriptionEntry (grouping_type) { }
-    abstract class AudioSampleGroupEntry (unsigned int(32) grouping_type) extends SampleGroupDescriptionEntry (grouping_type) { }
-    abstract class HintSampleGroupEntry (unsigned int(32) grouping_type) extends SampleGroupDescriptionEntry (grouping_type) { }
-    aligned(8) class SampleGroupDescriptionBox (unsigned int(32) handler_type) extends FullBox('sgpd', version, 0){ unsigned int(32) grouping_type;
-    if (version==1) { unsigned int(32) default_length; } unsigned int(32) entry_count; int i;
-    for (i = 1 ; i <= entry_count ; i++){ if (version==1) { if (default_length==0) { unsigned int(32) description_length;
-    } } switch (handler_type){
-    case ‘vide’: // for video tracks VisualSampleGroupEntry (grouping_type); break;
-    case ‘soun’: // for audio tracks AudioSampleGroupEntry(grouping_type); break;
-    case ‘hint’: // for hint tracks HintSampleGroupEntry(grouping_type); break;
-    } } } */
-    source: 'ISO 14496-12_2012 Sample Group Description 8.9.3',
-    field: 'sgpd',
-    _parser: function _parser() {
-        this._procFullBox();
-        this._procField('grouping_type', 'uint', 32);
-        this.version == 1 && this._procField('default_length', 'uint', 32);
-        this._procField('entry_count', 'uint', 32);
-        //TODO
-    }
-};
-
-var sbgp = {
-
-    /*aligned(8) class SampleToGroupBox extends FullBox(‘sbgp’, version, 0)
-    { unsigned int(32) } unsigned int(32) entry_count;
-    for (i=1; i <= entry_count; i++) {
-    unsigned int(32) unsigned int(32)
-    } } 8.9.2.3 Semantics
-    version is an integer that specifies the version of this box, either 0 or 1. grouping_type is an integer that identifies the type (i.e. criterion used to form the sample groups) of the sample grouping and links it to its sample group description table with the same value for grouping type. At most one occurrence of this box with the same value for grouping_type (and, if used, grouping_type_parameter) shall exist for a track. grouping_type_parameter is an indication of the sub-type of the grouping entry_count is an integer that gives the number of entries in the following table. sample_count is an integer that gives the number of consecutive samples with the same sample group descriptor. If the sum of the sample count in this box is less than the total sample count, then the reader should effectively extend it with an entry that associates the remaining samples with no group. It is an error for the total in this box to be greater than the sample_count documented elsewhere, and the reader behaviour would then be undefined.
-    sample_count; group_description_index; grouping_type;
-    if (version == 1) { unsigned int(32) grouping_type_parameter; */
-    source: 'ISO 14496-12_2012 Sample-to-Group 8.9.2',
-    field: 'sbgp',
-    _parser: function _parser() {
-        this._procFullBox();
-        this._procField('reference_track_ID', 'uint', 32);
-        this._procField('ntp_timestamp', 'uint', 64);
-        this._procField('media_time', 'uint', this.version == 1 ? 64 : 32);
-    }
-};
-
-var saiz = {
-    /*aligned(8) class SampleAuxiliaryInformationSizesBox extends FullBox(‘saiz’, version = 0, flags)
-    {
-    if (flags & 1) { unsigned int(32) aux_info_type; unsigned int(32) aux_info_type_parameter;
-    }
-    unsigned int(8) default_sample_info_size; unsigned int(32) sample_count; if (default_sample_info_size == 0) {
-    unsigned int(8) sample_info_size[ sample_count ]; } } */
+}, {
     source: 'ISO 14496-12_2012 Sample Auxiliary Information Sizes 8.7.8',
     field: 'saiz',
     _parser: function _parser() {
         this._procFullBox();
-        this._procField('reference_track_ID', 'uint', 32);
-        this._procField('ntp_timestamp', 'uint', 64);
-        this._procField('media_time', 'uint', this.version == 1 ? 64 : 32);
+        this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+        this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
+        this._procField('default_sample_info_size', 'uint', 8);
+        this._procField('sample_count', 'uint', 32);
+        this.default_sample_info_size == 0 && this._procEntries('sample_info_sizes', this.sample_count, function (sample) {
+            this._procEntryField(sample, 'sample_info_size', 'uint', 8);
+        });
     }
-};
-
-var saio = {
-    /*aligned(8) class SampleAuxiliaryInformationOffsetsBox extends FullBox(‘saio’, version, flags)
-    {
-    if (flags & 1) { unsigned int(32) aux_info_type; unsigned int(32) aux_info_type_parameter;
-    }
-    unsigned int(32) entry_count; if ( version == 0 ) {
-    unsigned int(32) offset[ entry_count ]; }
-    else { unsigned int(64) offset[ entry_count ]; }
-    }
-    */
+}, {
     source: 'ISO 14496-12_2012 Sample Auxiliary Information Offsets 8.7.9',
     field: 'saio',
     _parser: function _parser() {
+        var version = this.version;
         this._procFullBox();
-        this._procField('reference_track_ID', 'uint', 32);
-        this._procField('ntp_timestamp', 'uint', 64);
-        this._procField('media_time', 'uint', this.version == 1 ? 64 : 32);
+        this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+        this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
+        this._procField('entry_count', 'uint', 32);
+        this._procEntries('offsets', this.entry_count, function (entry) {
+            this._procEntryField(entry, 'offset', 'uint', version == 1 ? 64 : 32);
+        });
     }
-};
-
-var senc = {
-    /*aligned(8) class SampleEncryptionBox
-    extends FullBox(‘senc’, version=0, flags)
+}, {
+    /* Sequence Entry
+    aligned(8) class SampleGroupDescriptionBox (unsigned int(32) handler_type) extends FullBox('sgpd', version, 0){ 
+    unsigned int(32) grouping_type;
+    if (version==1) { unsigned int(32) default_length; } 
+    unsigned int(32) entry_count; 
+        int i;
+        for (i = 1 ; i <= entry_count ; i++){ 
+            if (version==1) { 
+                if (default_length==0) { 
+                    unsigned int(32) description_length;
+                } 
+            } switch (handler_type) {
+                case ‘vide’: // for video tracks VisualSampleGroupEntry (grouping_type); break;
+                case ‘soun’: // for audio tracks AudioSampleGroupEntry(grouping_type); break;
+                case ‘hint’: // for hint tracks HintSampleGroupEntry(grouping_type); break;
+            } 
+        } 
+    } */
+    source: 'ISO 14496-12_2012 Sample Group Description 8.9.3',
+    field: 'sgpd'
+}, {
+    source: 'ISO 14496-12_2012 Sample-to-Group 8.9.2',
+    field: 'sbgp'
+}, {
+    /*
+    aligned(8) class SampleEncryptionBox extends FullBox(‘senc’, version=0, flags){
+        unsigned int(32)  sample_count;
     {
-    unsigned int(32)  sample_count;
-    {
-    unsigned int(Per_Sample_IV_Size*8)  InitializationVector;
-    if (flags & 0x000002)
-    {
-    unsigned int(16)  subsample_count;
-    {
-    unsigned int(16)  BytesOfClearData;
-    unsigned int(32)  BytesOfProtectedData;
-    } [ subsample_count ]
-    }
+        unsigned int(Per_Sample_IV_Size*8)  InitializationVector;
+        if (flags & 0x000002)
+        {
+            unsigned int(16)  subsample_count;
+            {
+                unsigned int(16)  BytesOfClearData;
+                unsigned int(32)  BytesOfProtectedData;
+            } [ subsample_count ]
+        }
     }[ sample_count ]
     }
     note Per_Sample_IV_Size and flags comes from 'tenc' box
     */
     source: 'ISO 23001-7_2016 Sample Encryption 7.2.1',
-    field: 'senc',
+    field: 'senc'
+}, {
+    source: 'ISO 14496-12_2012', field: 'iods'
+}, {
+    /*
+    aligned(8) class TimeToSampleBox extends FullBox(’stts’, version = 0, 0) { 
+        unsigned int(32) entry_count;
+        int i;
+        for (i=0; i < entry_count; i++) { 
+            unsigned int(32) sample_count; 
+            unsigned int(32) sample_delta;
+        }
+    }*/
+    source: 'ISO 14496-12_2012 (decoding) time-to-sample 8.6.1.2',
+    field: 'stts',
     _parser: function _parser() {
         this._procFullBox();
-        this._procField('sample_count', 'uint', 32);
-        this._procEntry('entry', this.sample_count, function (entry) {
-            this.procEntryField('subsample_count', 'uint', 16);
-            this.procFieldArray('');
-        });
-        //TODO
+        this._procField('entry_count', 'uint', 32);
+        if (this.entry_count) {
+            this._procEntries('entries', this.entry_count, function (entry) {
+                this._procEntryField(entry, 'sample_count', 'uint', 32);
+                this._procEntryField(entry, 'sample_delta', 'uint', 32);
+            });
+        }
     }
-};
+}, {
+    source: 'ISO 14496-12_2012 sample-to-chunk, partial data-offset information 8.7.4',
+    field: 'stsc',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('entry_count', 'uint', 32);
+        if (this.entry_count) {
+            this._procEntries('entries', this.entry_count, function (entry) {
+                this._procEntryField(entry, 'first_chunk', 'uint', 32);
+                this._procEntryField(entry, 'samples_per_chunk', 'uint', 32);
+                this._procEntryField(entry, 'sample_description_index', 'uint', 32);
+            });
+        }
+    }
+}, {
+    source: 'ISO 14496-12_2012 chunk offset, partial data-offset information 8.7.5',
+    field: 'stco',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('entry_count', 'uint', 32);
+        if (this.entry_count) {
+            this._procEntries('entries', this.entry_count, function (entry) {
+                this._procEntryField(entry, 'chunk_offset', 'uint', 32);
+            });
+        }
+    }
+}, {
+    source: 'ISO 14496-12_2012 sync sample table 8.6.3',
+    field: 'stss',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('entry_count', 'uint', 32);
+        if (this.entry_count) {
+            this._procEntries('entries', this.entry_count, function (entry) {
+                this._procEntryField(entry, 'sample_number', 'uint', 32);
+            });
+        }
+    }
+}, {
+    /*
+    aligned(8) class CompositionOffsetBox 
+    extends FullBox(‘ctts’, version = 0, 0) { 
+        unsigned int(32) entry_count; 
+            int i;
+        if (version==0) {
+            for (i=0; i < entry_count; i++) { 
+                unsigned int(32) sample_count;
+                unsigned int(32) sample_offset;
+            } 
+        } else if (version == 1) {
+            for (i=0; i < entry_count; i++) { 
+                unsigned int(32) sample_count;
+                signed int(32) sample_offset;
+            } 
+        } 
+    }
+    */
+    source: 'ISO 14496-12_2012 (composition) time to sample 8.6.1.3',
+    field: 'ctts',
+    _parser: function _parser() {
+        this._procFullBox();
+        var version = this.version;
+        this._procField('entry_count', 'uint', 32);
+        if (this.entry_count) {
+            this._procEntries('entries', this.entry_count, function (entry) {
+                this._procEntryField(entry, 'sample_count', 'uint', 32);
+                this._procEntryField(entry, 'sample_offset', version ? 'int' : 'uint', 32);
+            });
+        }
+    }
+}, {
+    source: 'ISO 14496-12_2012 Sample Size Box 8.7.3.1',
+    field: 'stsz',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('sample_size', 'uint', 32);
+        this._procField('sample_count', 'uint', 32);
+        if (this.sample_size == 0 && this.sample_count) {
+            this._procEntries('samples', this.sample_count, function (sample) {
+                this._procEntryField(sample, 'entry_size', 'uint', 32);
+            });
+        }
+    }
+}];
 
 var psshLookup = {
     '10 77 EF EC C0 B2 4D 02 AC E3 3C 1E 52 E2 FB 4B': 'Clearkey',
@@ -4476,9 +4562,11 @@ var psshLookup = {
                 }).join('');
             default:
                 // Otherwise handle based on type of the first entry
-                return handleArray[getValueType(value[0])](value);
+                return value[0] ? handleArray[getValueType(value[0])](value) : [];
         }
     }
+    // special case -- flags should show up as hex for easier comparison to standard
+    if (key === 'flags') return '0x' + value.toString(16).padStart(2, '0').toUpperCase();
     // Handle string or Number or anything else that slips through
     return value;
 };
@@ -4486,7 +4574,7 @@ var psshLookup = {
 module.exports = {
     getISOData: getISOData,
     psshLookup: psshLookup,
-    prft: prft
+    additionalBoxes: additionalBoxes
 };
 
 /***/ }),
