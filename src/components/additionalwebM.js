@@ -1,5 +1,6 @@
 
 const { convertToHex } = require('./tools.js');
+const schema = require('ebml').schema
 
 const schema_ext = {
     '55b0': {
@@ -89,6 +90,9 @@ const getWebMData = tag => {
                 switch (entry.name) {
                     // For some binary boxes make nicer for display
                     case 'SeekID':
+                        const lookup = convertToHex(entry.value || entry.data);
+                        console.log(lookup, typeof lookup);
+                        return {display: `${lookup} (${schema[lookup[0].split(' ').join('').toLowerCase()].name})`};
                     case 'Void':
                     case 'SegmentUID':
                         return { display: convertToHex(entry.value || entry.data) }
