@@ -1,6 +1,6 @@
 import { h, Component } from 'preact';
 const ISOBoxer = require('codem-isoboxer');
-import { prft } from '../components/additionalBoxes';
+import { additionalBoxes } from '../components/additionalBoxes';
 import { schema_ext } from '../components/additionalwebM';
 const ebml = require('ebml');
 
@@ -104,7 +104,7 @@ export default class App extends Component {
 			mode: 'webm',
 			working: false,
 			errorMessage: '',
-			videoError:'',
+			videoError: '',
 			decodeAttempts: 0,
 			showHex: false,
 			showVideo: false
@@ -113,7 +113,9 @@ export default class App extends Component {
 
 	componentWillMount = () => {
 		// add any custom box processors
-		ISOBoxer.addBoxProcessor(prft.field, prft._parser);
+		additionalBoxes.map(box => {
+			if (Object.hasOwnProperty.call(box, '_parser')) ISOBoxer.addBoxProcessor(box.field, box._parser)
+		});
 	}
 
 	createParsed = inputData => {
@@ -131,7 +133,7 @@ export default class App extends Component {
 
 	parseFile = e => {
 		console.log(`parsing data in ${this.state.mode} mode:`);
-		this.setState({ working: true, showVideo: false, videoError:'' });
+		this.setState({ working: true, showVideo: false, videoError: '' });
 		this.createParsed(this.state.inputData)
 			.then(parsedData => {
 				this.setState({ parsedData, working: false, decodeAttempts: 0 });
