@@ -10,8 +10,10 @@ details {
 
 .boxName {
 	font-size: large;
-	background-color: rgba(104, 58, 183, 0.74);
-	color: white;
+	background-color: rgba(197, 197, 197, 0.6);
+	color: black;
+	padding: 2px 0px 0px 4px;
+	margin:2px;
 }
 
 .boxContainer {
