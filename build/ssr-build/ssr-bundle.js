@@ -2355,52 +2355,60 @@ var getWebMData = function getWebMData(tag) {
         } }], ['d', { description: 'timestamp', returnVal: function returnVal(data) {
             console.warn('timestamp', data);return { display: new Date(data) };
         } }], ['b', { description: 'raw binary data', returnVal: function returnVal(data) {
-            return data;
+            return { hex: convertToHex(data) };
         } }]]);
 
     var processEntry = function processEntry(entry) {
         if (entryLookup.has(entry.type)) {
+            console.log(entry);
+
             var _entryLookup$get = entryLookup.get(entry.type),
                 returnVal = _entryLookup$get.returnVal;
 
-            if (entry.type === 'b') {
-                // additional entry processing here for binary formats.
-                switch (entry.name) {
-                    // For some binary boxes make nicer for display
-                    case 'SeekID':
-                        var lookup = convertToHex(entry.value || entry.data);
-                        console.log(lookup, typeof lookup);
-                        return { display: lookup + ' (' + schema[lookup[0].split(' ').join('').toLowerCase()].name + ')' };
-                    case 'Void':
-                    case 'SegmentUID':
-                        return { display: convertToHex(entry.value || entry.data) };
-                    case 'CodecPrivate':
-                        return { display: 'Raw Binary, ' + entry.dataSize + ' bytes', hex: convertToHex(entry.data)
-                            // SimpleBlock and Block processing:
-                            // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
-                        };case 'SimpleBlock':
-                        // assume the MSB = 1 and it is a 7-bit track number
-                        // otherwise if 0x4000 it is a 2-byte track number (not supported)
-                        var trackNumber = entry.data.readUInt8(0) & 127;
-                        var timeCode = entry.data.readUInt16BE(1);
-                        var flags = entry.data.readUInt8(3);
-                        var flagVals = [{ flag: 'Keyframe', bitmask: 128 }, { flag: 'Invisible', bitmask: 8 }, { flag: 'Lacing', bitmask: 6 }, { flag: 'Discardable', bitmask: 1 }];
-                        return { display: 'Track ' + trackNumber + flagVals.filter(function (item) {
-                                return flags & item.bitmask;
-                            }).map(function (item) {
-                                return ' (' + item.flag + ')';
-                            }) + ', Timecode ' + timeCode + ', ' + entry.dataSize + ' bytes', hex: convertToHex(entry.data.slice(4)) };
-                    // Eg CodecPrivate for Audio tracks:
-                    // https://tools.ietf.org/html/rfc7845.html#section-5
-                    // CodecPrivate for VP9
-                    // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+            var returnResult = returnVal(entry.value || entry.data, entry.dataSize);
+            // if it's not a binary format, we're done, so return
+            if (entry.type !== 'b') return returnResult;
+            // additional entry processing here for binary formats.
+            switch (entry.name) {
+                // For some binary boxes make nicer for display
+                case 'SeekID':
+                    returnResult.display = convertToHex(entry.data) + ' (' + schema[entry.data.toString('hex')].name + ')';
+                    delete returnResult.hex; //so the front-end doesn't break it out
+                    break;
+                case 'Void':
+                case 'SegmentUID':
+                    returnResult.display = convertToHex(entry.value || entry.data);
+                    delete returnResult.hex; //see above
+                    break;
+                case 'CodecPrivate':
+                    returnResult.display = 'Raw Binary, ' + entry.dataSize + ' bytes';
+                    break;
+                // SimpleBlock and Block processing:
+                // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
+                case 'SimpleBlock':
+                    // assume the MSB = 1 and it is a 7-bit track number
+                    // otherwise if 0x4000 it is a 2-byte track number (not supported)
+                    var trackNumber = entry.data.readUInt8(0) & 127;
+                    var timeCode = entry.data.readUInt16BE(1);
+                    var flags = entry.data.readUInt8(3);
+                    var flagVals = [{ flag: 'Keyframe', bitmask: 128 }, { flag: 'Invisible', bitmask: 8 }, { flag: 'Lacing', bitmask: 6 }, { flag: 'Discardable', bitmask: 1 }];
+                    returnResult.display = 'Track ' + trackNumber + flagVals.filter(function (item) {
+                        return flags & item.bitmask;
+                    }).map(function (item) {
+                        return ' (' + item.flag + ')';
+                    }) + ', Timecode ' + timeCode + ', ' + entry.dataSize + ' bytes';
+                    returnResult.hex = convertToHex(entry.data.slice(4)); // don't repeat the initial 4 byte flags
+                    break;
+                // Eg CodecPrivate for Audio tracks:
+                // https://tools.ietf.org/html/rfc7845.html#section-5
+                // CodecPrivate for VP9
+                // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
 
-                    // for binary formats not yet implemented, return a bytestream.
-                    default:
-                        return { hex: convertToHex(entry.value || entry.data) };
-                }
+                // for binary formats not yet implemented, we already have a bytestream.
+                default:
+                    break;
             }
-            return returnVal(entry.value || entry.data, entry.dataSize);
+            return returnResult;
         }
         // the code isn't in the entryLookup table
         return 'unknown type';
@@ -4518,7 +4526,9 @@ var psshLookup = {
      * @returns {String or Array<Object>} -> returns the unformatted contents in an array
      */
 };var getISOData = function getISOData(key, value) {
+    var _console$log;
 
+    console.log((_console$log = {}, _console$log[key] = value, _console$log));
     // little helper that returns the type
     var getValueType = function getValueType(val) {
         return Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
@@ -4562,7 +4572,7 @@ var psshLookup = {
                 }).join('');
             default:
                 // Otherwise handle based on type of the first entry
-                return value[0] ? handleArray[getValueType(value[0])](value) : [];
+                return value.length ? handleArray[getValueType(value[0])](value) : [];
         }
     }
     // special case -- flags should show up as hex for easier comparison to standard
