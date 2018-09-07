@@ -219,7 +219,7 @@ const psshLookup = {
  * @returns {String or Array<Object>} -> returns the unformatted contents in an array
  */
 const getISOData = (key, value) => {
-
+    console.log({ [key]: value });
     // little helper that returns the type
     const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
 
@@ -252,7 +252,7 @@ const getISOData = (key, value) => {
             case 'compressorname':
                 return value.map(b => String.fromCharCode(b)).join('');
             default: // Otherwise handle based on type of the first entry
-                return value[0] ? handleArray[getValueType(value[0])](value) : [];
+                return value.length ? handleArray[getValueType(value[0])](value) : [];
         }
     }
     // special case -- flags should show up as hex for easier comparison to standard
