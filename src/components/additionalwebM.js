@@ -79,50 +79,58 @@ const getWebMData = tag => {
         ['s', { description: 'ASCII string', returnVal: data => ({ display: data.toString() }) }],
         ['8', { description: 'UTF-8 string', returnVal: data => ({ display: data.toString('utf8') }) }],
         ['d', { description: 'timestamp', returnVal: data => { console.warn('timestamp', data); return { display: new Date(data) } } }],
-        ['b', { description: 'raw binary data', returnVal: data => data }]
+        ['b', { description: 'raw binary data', returnVal: data => ({ hex: convertToHex(data) }) }]
     ]);
 
     const processEntry = entry => {
         if (entryLookup.has(entry.type)) {
+            console.log(entry);
             const { returnVal } = entryLookup.get(entry.type);
-            if (entry.type === 'b') {
-                // additional entry processing here for binary formats.
-                switch (entry.name) {
-                    // For some binary boxes make nicer for display
-                    case 'SeekID':
-                        const lookup = convertToHex(entry.value || entry.data);
-                        console.log(lookup, typeof lookup);
-                        return {display: `${lookup} (${schema[lookup[0].split(' ').join('').toLowerCase()].name})`};
-                    case 'Void':
-                    case 'SegmentUID':
-                        return { display: convertToHex(entry.value || entry.data) }
-                    case 'CodecPrivate':
-                        return { display: `Raw Binary, ${entry.dataSize} bytes`, hex: convertToHex(entry.data) }
-                    // SimpleBlock and Block processing:
-                    // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
-                    case 'SimpleBlock':
-                        // assume the MSB = 1 and it is a 7-bit track number
-                        // otherwise if 0x4000 it is a 2-byte track number (not supported)
-                        const trackNumber = entry.data.readUInt8(0) & 0b01111111;
-                        const timeCode = entry.data.readUInt16BE(1);
-                        const flags = entry.data.readUInt8(3);
-                        const flagVals = [
-                            { flag: 'Keyframe', bitmask: 0b10000000 },
-                            { flag: 'Invisible', bitmask: 0b00001000 },
-                            { flag: 'Lacing', bitmask: 0b00000110 },
-                            { flag: 'Discardable', bitmask: 0b00000001 }
-                        ];
-                        return { display: `Track ${trackNumber}${flagVals.filter(item => flags & item.bitmask).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`, hex: convertToHex(entry.data.slice(4)) };
-                    // Eg CodecPrivate for Audio tracks:
-                    // https://tools.ietf.org/html/rfc7845.html#section-5
-                    // CodecPrivate for VP9
-                    // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+            const returnResult = returnVal(entry.value || entry.data, entry.dataSize)
+            // if it's not a binary format, we're done, so return
+            if (entry.type !== 'b') return returnResult;
+            // additional entry processing here for binary formats.
+            switch (entry.name) {
+                // For some binary boxes make nicer for display
+                case 'SeekID':
+                    returnResult.display = `${convertToHex(entry.data)} (${schema[entry.data.toString('hex')].name})`;
+                    delete returnResult.hex; //so the front-end doesn't break it out
+                    break;
+                case 'Void':
+                case 'SegmentUID':
+                    returnResult.display = convertToHex(entry.value || entry.data);
+                    delete returnResult.hex //see above
+                    break;
+                case 'CodecPrivate':
+                    returnResult.display = `Raw Binary, ${entry.dataSize} bytes`;
+                    break;
+                // SimpleBlock and Block processing:
+                // https://www.matroska.org/technical/specs/index.html#simpleblock_structure
+                case 'SimpleBlock':
+                    // assume the MSB = 1 and it is a 7-bit track number
+                    // otherwise if 0x4000 it is a 2-byte track number (not supported)
+                    const trackNumber = entry.data.readUInt8(0) & 0b01111111;
+                    const timeCode = entry.data.readUInt16BE(1);
+                    const flags = entry.data.readUInt8(3);
+                    const flagVals = [
+                        { flag: 'Keyframe', bitmask: 0b10000000 },
+                        { flag: 'Invisible', bitmask: 0b00001000 },
+                        { flag: 'Lacing', bitmask: 0b00000110 },
+                        { flag: 'Discardable', bitmask: 0b00000001 }
+                    ];
+                    returnResult.display = `Track ${trackNumber}${flagVals.filter(item => flags & item.bitmask).map(item => ` (${item.flag})`)}, Timecode ${timeCode}, ${entry.dataSize} bytes`;
+                    returnResult.hex = convertToHex(entry.data.slice(4)); // don't repeat the initial 4 byte flags
+                    break;
+                // Eg CodecPrivate for Audio tracks:
+                // https://tools.ietf.org/html/rfc7845.html#section-5
+                // CodecPrivate for VP9
+                // https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
 
-                    // for binary formats not yet implemented, return a bytestream.
-                    default: return { hex: convertToHex(entry.value || entry.data) };
-                }
+                // for binary formats not yet implemented, we already have a bytestream.
+                default:
+                    break;
             }
-            return returnVal(entry.value || entry.data, entry.dataSize);
+            return returnResult;
         }
         // the code isn't in the entryLookup table
         return 'unknown type'
