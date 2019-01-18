@@ -2343,17 +2343,17 @@ var schema_ext = {
 var getWebMData = function getWebMData(tag) {
 
     var entryLookup = new Map([['u', { description: 'unsigned integer', returnVal: function returnVal(data, size) {
-            return { display: data.readUIntBE(0, size) };
+            return { display: data.readUIntBE(0, size), hex: null };
         } }], ['i', { description: 'signed integer', returnVal: function returnVal(data, size) {
-            return { display: data.readIntBE(0, size) };
+            return { display: data.readIntBE(0, size), hex: null };
         } }], ['f', { description: 'floating point number', returnVal: function returnVal(data) {
-            return { display: data.readFloatBE(0) };
+            return { display: data.readFloatBE(0), hex: null };
         } }], ['s', { description: 'ASCII string', returnVal: function returnVal(data) {
-            return { display: data.toString() };
+            return { display: data.toString(), hex: null };
         } }], ['8', { description: 'UTF-8 string', returnVal: function returnVal(data) {
-            return { display: data.toString('utf8') };
+            return { display: data.toString('utf8'), hex: null };
         } }], ['d', { description: 'timestamp', returnVal: function returnVal(data) {
-            console.warn('timestamp', data);return { display: new Date(data) };
+            console.warn('timestamp', data);return { display: new Date(data), hex: null };
         } }], ['b', { description: 'raw binary data', returnVal: function returnVal(data) {
             return data;
         } }]]);
@@ -2370,10 +2370,10 @@ var getWebMData = function getWebMData(tag) {
                     case 'SeekID':
                         var lookup = convertToHex(entry.value || entry.data);
                         console.log(lookup, typeof lookup);
-                        return { display: lookup + ' (' + schema[lookup[0].split(' ').join('').toLowerCase()].name + ')' };
+                        return { display: lookup + ' (' + schema[lookup[0].split(' ').join('').toLowerCase()].name + ')', hex: null };
                     case 'Void':
                     case 'SegmentUID':
-                        return { display: convertToHex(entry.value || entry.data) };
+                        return { display: convertToHex(entry.value || entry.data), hex: null };
                     case 'CodecPrivate':
                         return { display: 'Raw Binary, ' + entry.dataSize + ' bytes', hex: convertToHex(entry.data)
                             // SimpleBlock and Block processing:
@@ -2397,7 +2397,7 @@ var getWebMData = function getWebMData(tag) {
 
                     // for binary formats not yet implemented, return a bytestream.
                     default:
-                        return { hex: convertToHex(entry.value || entry.data) };
+                        return { display: null, hex: convertToHex(entry.value || entry.data) };
                 }
             }
             return returnVal(entry.value || entry.data, entry.dataSize);
@@ -2685,11 +2685,18 @@ module.exports = function () {
 
 /***/ }),
 
+/***/ "FpCL":
+/***/ (function(module, exports) {
+
+module.exports = require("events");
+
+/***/ }),
+
 /***/ "HVeQ":
 /***/ (function(module, exports) {
 
 // removed by extract-text-webpack-plugin
-module.exports = {"home":"home__1I2EN","boxName":"boxName__26nav","boxContainer":"boxContainer__1jDYD","subBox":"subBox__1KWXu","boxProp":"boxProp__31O6F","boxContents":"boxContents__3uHwf","arrayEntry":"arrayEntry__zS5vz","inputArea":"inputArea__1vkMM","inputBox":"inputBox__2AC7B","parseButton":"parseButton__3dbik","hexEntry":"hexEntry__1Mnjz"};
+module.exports = {"home":"home__1I2EN","boxName":"boxName__26nav","boxContainer":"boxContainer__1jDYD","subBox":"subBox__1KWXu","boxProp":"boxProp__31O6F","boxContents":"boxContents__3uHwf","arrayEntry":"arrayEntry__zS5vz","hexEntry":"hexEntry__1Mnjz"};
 
 /***/ }),
 
@@ -2715,6 +2722,10 @@ var additionalBoxes_default = /*#__PURE__*/__webpack_require__.n(additionalBoxes
 var additionalwebM = __webpack_require__("7aRs");
 var additionalwebM_default = /*#__PURE__*/__webpack_require__.n(additionalwebM);
 
+// EXTERNAL MODULE: ./components/tools.js
+var tools = __webpack_require__("tTqp");
+var tools_default = /*#__PURE__*/__webpack_require__.n(tools);
+
 // EXTERNAL MODULE: ./components/header/style.css
 var header_style = __webpack_require__("u3et");
 var header_style_default = /*#__PURE__*/__webpack_require__.n(header_style);
@@ -2723,6 +2734,22 @@ var header_style_default = /*#__PURE__*/__webpack_require__.n(header_style);
 
 
 
+
+var _ref = Object(preact_min["h"])(
+	'h1',
+	null,
+	'Media Inspector'
+);
+
+var _ref2 = Object(preact_min["h"])(
+	'label',
+	{ 'for': 'getFile' },
+	Object(preact_min["h"])(
+		'a',
+		null,
+		'Select Local File'
+	)
+);
 
 var header_Header = function Header(props) {
 	var names = {
@@ -2733,19 +2760,16 @@ var header_Header = function Header(props) {
 	return Object(preact_min["h"])(
 		'header',
 		{ 'class': header_style_default.a.header },
-		Object(preact_min["h"])(
-			'h1',
-			null,
-			names[props.mode],
-			' Inspector'
-		),
+		_ref,
 		Object(preact_min["h"])(
 			'nav',
 			null,
+			Object(preact_min["h"])('input', { type: 'file', style: { opacity: 0 }, id: 'getFile', onChange: props.handleFiles }),
+			_ref2,
 			Object(preact_min["h"])(
 				'a',
 				{ onClick: props.toggleHex },
-				props.showHex ? 'Load Local File' : 'Paste Hex Values'
+				props.showHex ? 'Hide Hex Input' : 'Paste Hex Values'
 			),
 			Object(preact_min["h"])(
 				'a',
@@ -2761,10 +2785,6 @@ var header_Header = function Header(props) {
 var home_style = __webpack_require__("HVeQ");
 var home_style_default = /*#__PURE__*/__webpack_require__.n(home_style);
 
-// EXTERNAL MODULE: ./components/tools.js
-var tools = __webpack_require__("tTqp");
-var tools_default = /*#__PURE__*/__webpack_require__.n(tools);
-
 // CONCATENATED MODULE: ./components/home/index.js
 
 
@@ -2773,8 +2793,7 @@ var ISOBoxer = __webpack_require__("unQC");
 
 
 
-
-var _ref = Object(preact_min["h"])(
+var home__ref = Object(preact_min["h"])(
 	'div',
 	null,
 	'No valid boxes detected'
@@ -2784,37 +2803,72 @@ var home_Home = function Home(props) {
 
 	var getWebMJSX = function getWebMJSX(box) {
 
+		var seekOffset = box.start; //? box.start - props.seekHead : 0;
+		var willShowOffset = box.hex || Object.hasOwnProperty.call(box, 'boxes');
+		var boxLabel = willShowOffset ? '' + box.name + (props.hasFocus === box.start && seekOffset > 0 ? ' starting byte: ' + seekOffset : '') : box.name === "Cues" ? ': bytes ' + box.start + '-' + box.end : box.name;
+
 		if (Object.hasOwnProperty.call(box, 'boxes')) {
 			return Object(preact_min["h"])(
-				'details',
-				{ key: box.start },
+				'div',
+				{ style: { display: 'flex' } },
 				Object(preact_min["h"])(
-					'summary',
-					{ 'class': home_style_default.a.boxName },
-					box.name
+					'div',
+					{ style: { minWidth: '30em' } },
+					Object(preact_min["h"])(
+						'details',
+						{ key: box.start },
+						Object(preact_min["h"])(
+							'summary',
+							{ 'class': home_style_default.a.boxName, onMouseEnter: function onMouseEnter(e) {
+									return props.handleFocus(e, box.start, true);
+								}, onMouseLeave: function onMouseLeave(e) {
+									return props.handleFocus(e, box.start, false);
+								} },
+							boxLabel
+						),
+						box.boxes.map(getWebMJSX)
+					)
 				),
-				box.boxes.map(getWebMJSX)
+				Object(preact_min["h"])(
+					'div',
+					null,
+					Object(preact_min["h"])(
+						'a',
+						{ style: { display: 'flex', justifySelf: 'end' }, onClick: function onClick(e) {
+								return props.toggleRaw(e, box.start);
+							} },
+						'+'
+					)
+				)
 			);
 		}
-		var result = Object(additionalwebM["getWebMData"])(box);
 		return Object(preact_min["h"])(
 			'div',
 			{ key: box.start, 'class': home_style_default.a.boxProp },
-			Object(preact_min["h"])(
+			willShowOffset ? Object(preact_min["h"])(
+				'span',
+				{ onMouseEnter: function onMouseEnter(e) {
+						return props.handleFocus(e, box.start, true);
+					}, onMouseLeave: function onMouseLeave(e) {
+						return props.handleFocus(e, box.start, false);
+					} },
+				boxLabel,
+				':'
+			) : Object(preact_min["h"])(
 				'span',
 				null,
-				box.name,
-				': '
+				boxLabel,
+				':'
 			),
-			Object.hasOwnProperty.call(result, 'hex') ? Object(preact_min["h"])(
+			box.hex ? Object(preact_min["h"])(
 				'details',
 				null,
 				Object(preact_min["h"])(
 					'summary',
 					{ 'class': home_style_default.a.boxContents },
-					result.display || ''
+					box.display || ''
 				),
-				result.hex.map(function (row) {
+				box.hex.map(function (row) {
 					return Object(preact_min["h"])(
 						'div',
 						{ key: row, 'class': home_style_default.a.hexEntry },
@@ -2823,8 +2877,8 @@ var home_Home = function Home(props) {
 				})
 			) : Object(preact_min["h"])(
 				'span',
-				{ 'class': home_style_default.a.boxContents, raw: Object(tools["convertToHex"])(box.data) },
-				result.display
+				{ 'class': home_style_default.a.boxContents },
+				box.display
 			)
 		);
 	};
@@ -2841,7 +2895,7 @@ var home_Home = function Home(props) {
 		var SKIP_KEYS = ['boxes', 'size', 'type', 'entryNumber'];
 
 		var contents = Object.keys(box).filter(function (key) {
-			return !/^_/i.test(key) && !SKIP_KEYS.includes(key);
+			return !/^_/i.test(key) && !SKIP_KEYS.includes(key) || key === '_data' && Object.keys(box).includes('usertype');
 		});
 
 		// iterate through the valid keys and generate processed output
@@ -2897,62 +2951,47 @@ var home_Home = function Home(props) {
 		'div',
 		{ 'class': home_style_default.a.home },
 		Object(preact_min["h"])(
-			'div',
-			{ 'class': home_style_default.a.inputArea },
-			props.showHex ? Object(preact_min["h"])(
-				'div',
-				{ style: { gridColumn: '1/5' } },
-				Object(preact_min["h"])('textarea', { 'class': home_style_default.a.inputBox, onChange: props.updateInput, value: props.inputData }),
-				Object(preact_min["h"])(
-					'button',
-					{ 'class': home_style_default.a.parseButton, onClick: props.parseFile },
-					'Go'
-				)
-			) : Object(preact_min["h"])(
-				'div',
-				null,
-				Object(preact_min["h"])(
-					'label',
-					{ 'for': 'getFile' },
-					Object(preact_min["h"])(
-						'div',
-						{ 'class': home_style_default.a.parseButton, style: { textAlign: 'center', paddingTop: '0.2em' } },
-						'Select Local File'
-					)
-				),
-				Object(preact_min["h"])('input', { type: 'file', style: { opacity: 0 }, id: 'getFile', onChange: props.handleFiles })
-			)
-		),
-		Object(preact_min["h"])(
-			'div',
+			'h2',
 			null,
+			props.fileName,
+			' (',
+			props.decodeMode,
+			')'
+		),
+		props.working ? Object(preact_min["h"])(
+			'div',
+			{ style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50' } },
 			Object(preact_min["h"])(
-				'h2',
-				null,
-				' ',
-				props.decodeMode,
-				' File Contents '
-			),
+				'svg',
+				{ version: '1.1', x: '0px', y: '0px', width: '40px', height: '50px', viewBox: '0 0 24 30' },
+				[0, 1, 2].map(function (x) {
+					return Object(preact_min["h"])(
+						'rect',
+						{ key: x, x: x * 7, y: '0', width: '4', height: '20', fill: '#673Ab7' },
+						Object(preact_min["h"])('animate', { attributeName: 'opacity', attributeType: 'XML',
+							values: '1; .2; 1',
+							begin: x * 0.2 + 's', dur: '0.6s', repeatCount: 'indefinite' })
+					);
+				})
+			)
+		) : Object(preact_min["h"])(
+			'div',
+			{ style: { display: 'grid', gridTemplateColumns: '2fr 3fr' } },
 			Object(preact_min["h"])(
 				'div',
 				{ 'class': home_style_default.a.Result },
-				props.working ? Object(preact_min["h"])(
-					'div',
-					{ style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50' } },
-					Object(preact_min["h"])(
-						'svg',
-						{ version: '1.1', x: '0px', y: '0px', width: '40px', height: '50px', viewBox: '0 0 24 30' },
-						[0, 1, 2].map(function (x) {
-							return Object(preact_min["h"])(
-								'rect',
-								{ key: x, x: x * 7, y: '0', width: '4', height: '20', fill: '#673Ab7' },
-								Object(preact_min["h"])('animate', { attributeName: 'opacity', attributeType: 'XML',
-									values: '1; .2; 1',
-									begin: x * 0.2 + 's', dur: '0.6s', repeatCount: 'indefinite' })
-							);
-						})
-					)
-				) : props.parsedData.boxes.length > 0 ? props.decodeMode === 'webm' ? props.parsedData.boxes.map(getWebMJSX) : props.parsedData.boxes.map(getISOJSX) : _ref
+				props.parsedData.boxes.length > 0 ? props.decodeMode === 'webm' ? props.parsedData.boxes.map(getWebMJSX) : props.parsedData.boxes.map(getISOJSX) : home__ref
+			),
+			Object(preact_min["h"])(
+				'div',
+				null,
+				props.showRaw !== -1 ? props.rawVals.get(props.showRaw).map(function (row) {
+					return Object(preact_min["h"])(
+						'div',
+						{ key: row, 'class': home_style_default.a.hexEntry },
+						row
+					);
+				}) : ''
 			)
 		)
 	);
@@ -2979,6 +3018,10 @@ var video_Video = function Video(props) {
 };
 
 /* harmony default export */ var video = (video_Video);
+// EXTERNAL MODULE: external "events"
+var external__events_ = __webpack_require__("FpCL");
+var external__events__default = /*#__PURE__*/__webpack_require__.n(external__events_);
+
 // CONCATENATED MODULE: ./components/app.js
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
@@ -2994,11 +3037,34 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var app_ISOBoxer = __webpack_require__("unQC");
 
 
+
 var ebml = __webpack_require__("R0Du");
 
 
 
 
+
+
+var styles = {
+	parseButton: {
+		width: '5em',
+		margin: '5px',
+		height: '3em',
+		padding: '0',
+		color: 'whitesmoke',
+		fontSize: 'large',
+		background: '#673ab7',
+		boxShadow: '0 0 5px rgba(0, 0, 0, .5)',
+		zIndex: '50',
+		border: 'none'
+	},
+	inputArea: {
+		display: 'grid',
+		gridTemplateColumns: '6fr 1fr 20fr',
+		gridTemplateRows: '2fr 1fr',
+		marginTop: '65px'
+	}
+};
 
 var modes = {
 	webm: 'mp4',
@@ -3017,7 +3083,7 @@ var parseISO = function parseISO(buf) {
 		var VALID_START_BOX = new Set(['ftyp', 'moof', 'styp', 'sidx']);
 		var parsedData = app_ISOBoxer.parseBuffer(buf.buffer);
 		console.log(parsedData);
-		if (VALID_START_BOX.has(parsedData.boxes[0].type)) return resolve(parsedData);
+		if (VALID_START_BOX.has(parsedData.boxes[0].type)) return resolve({ parsedData: parsedData, seekHead: -1, rawVals: null });
 		return reject(new Error('not an ISOBMFF file'));
 	});
 };
@@ -3025,54 +3091,86 @@ var parseISO = function parseISO(buf) {
 var app_parseWebM = function parseWebM(buf) {
 	return new Promise(function (resolve, reject) {
 		var decoder = new ebml.Decoder(additionalwebM["schema_ext"], {});
-		var lastChunkTime = void 0;
+		var lastInterval = 0;
 		var allData = [];
+		var seekHead = 0;
+		var currentTime = new Date().getTime();
+		var lastChunkTime = currentTime;
 
 		// poll in case the stream never sends a 'finish' or 'end' event.
-		var MAX_TIME = 1000;
+		var MAX_TIME = 10;
 		var pollTime = setInterval(function () {
-			var currentTime = new Date().getTime();
-			lastChunkTime = lastChunkTime || currentTime;
-			if (allData.length && currentTime - lastChunkTime > MAX_TIME) {
+			currentTime = new Date().getTime();
+			lastInterval = lastChunkTime - currentTime;
+			if (allData.length && lastInterval < MAX_TIME) {
+				console.log(allData);
+				console.log(buf.length - allData[allData.length - 1].payload.end);
 				clearInterval(pollTime);
 				// keep master result of parsed boxes
 				var resultVal = new Map();
+				var rawVals = new Map();
 				// keep a list of parents up the tree
 				var parentList = [];
 				// handy helper to recursively work the way down the resultSet tree. Use 'start' as a hash since it's unique
 				var setBox = function setBox(newVal) {
-					return parentList.reduce(function (boxList, entry) {
+					// each 'boxes' is a Map. temp has the lowest level 'boxes'
+					var temp = parentList.reduce(function (boxList, entry) {
 						return boxList.get(entry).boxes;
-					}, resultVal).set(newVal.start, newVal);
+					}, resultVal);
+					temp.set(newVal.start, newVal);
 				};
 				// iterate through the boxes to create a box object like ISO box
 				allData.map(function (box) {
 					if (box.dataType === 'start') {
-						var newEntry = { name: box.payload.name, start: box.payload.start, boxes: new Map() };
-						// root level entries
+						// start tag. Create an entry for this which includes a 'boxes' property
+						var newEntry = {
+							name: box.payload.name,
+							start: box.payload.start,
+							boxes: new Map()
+						};
+						rawVals.set(box.payload.start, Object(tools["convertToHex"])(buf.subarray(box.payload.start, box.payload.end)));
+						// we will need this later to calculate offsets
+						if (box.payload.name === 'SeekHead') seekHead = box.payload.start;
+						// root level entries mean there arae no parents
 						if (parentList.length === 0) {
+							// so add to the result map using the start as a hash
 							resultVal.set(newEntry.start, _extends({}, newEntry));
 						} else {
+							// if there is at least one parent, use the helper to enter it at the right level.
 							setBox(newEntry);
 						};
+						// add to the parentlist array to keep track of where we are in the hierarchy
 						parentList.push(box.payload.start);
 					}
-					if (box.dataType === 'tag') setBox(_extends({}, box.payload));
+					if (box.dataType === 'tag') {
+						var _getWebMData = Object(additionalwebM["getWebMData"])(box.payload),
+						    display = _getWebMData.display,
+						    hex = _getWebMData.hex;
+
+						var payload = _extends({}, box.payload, { display: display, hex: hex });
+						setBox(payload);
+					};
 					if (box.dataType === 'end') parentList.pop();
 				});
 				// now recursively convert all maps into arrays of objects
 				var convertBox = function convertBox(boxMap) {
-					return Array.from(boxMap).reduce(function (result, contents) {
-						if (Object.hasOwnProperty.call(contents[1], 'boxes')) contents[1].boxes = convertBox(contents[1].boxes);
-						return result.concat(contents[1]);
+					return Array.from(boxMap).reduce(function (result, _ref) {
+						var key = _ref[0],
+						    entry = _ref[1];
+
+						if (Object.hasOwnProperty.call(entry, 'boxes')) entry.boxes = convertBox(entry.boxes);
+						return result.concat(entry);
 					}, []);
 				};
-				return resolve({ boxes: convertBox(resultVal) });
+				return resolve({ parsedData: { boxes: convertBox(resultVal) }, seekHead: seekHead, rawVals: rawVals });
 			}
-		}, 500);
+			return reject('timeout');
+		}, MAX_TIME / 2);
 		decoder.on('data', function (chunk) {
 			allData.push({ dataType: chunk[0], payload: chunk[1] });
 			lastChunkTime = new Date().getTime();
+			lastInterval = lastChunkTime - currentTime;
+			currentTime = lastChunkTime;
 		});
 		decoder.on('finish', function () {
 			console.log('got finish event');
@@ -3095,6 +3193,8 @@ var parseM2TS = function parseM2TS(buf) {
 		return reject(new Error('m2ts mode not supported'));
 	});
 };
+
+var _ref3 = Object(preact_min["h"])('div', null);
 
 var app_App = function (_Component) {
 	_inherits(App, _Component);
@@ -3129,8 +3229,13 @@ var app_App = function (_Component) {
 		_this.parseFile = function (e) {
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
-			_this.createParsed(_this.state.inputData).then(function (parsedData) {
-				_this.setState({ parsedData: parsedData, working: false, decodeAttempts: 0 });
+			_this.createParsed(_this.state.inputData).then(function (_ref2) {
+				var parsedData = _ref2.parsedData,
+				    seekHead = _ref2.seekHead,
+				    rawVals = _ref2.rawVals;
+
+				console.log(parsedData);
+				_this.setState({ parsedData: parsedData, seekHead: seekHead, rawVals: rawVals, working: false, decodeAttempts: 0 });
 				return;
 			}).catch(function (err) {
 				_this.setState({ errorMessage: err, working: false });
@@ -3157,8 +3262,8 @@ var app_App = function (_Component) {
 		};
 
 		_this.handleFiles = function (e) {
-			_this.setState({ working: true, showVideo: false, inputData: '' });
-			var file = e.target.files[0];
+			var fileName = e.target.files[0];
+			_this.setState({ working: true, showVideo: false, inputData: '', fileName: fileName });
 			var reader = new FileReader();
 			var self = _this;
 			reader.onload = function (r) {
@@ -3166,15 +3271,24 @@ var app_App = function (_Component) {
 				self.setState({ inputData: inputData });
 				self.parseFile();
 			};
-			reader.readAsDataURL(file);
+			reader.readAsDataURL(fileName);
 		};
 
 		_this.toggleHex = function (e) {
 			_this.setState({ showHex: !_this.state.showHex });
 		};
 
+		_this.toggleRaw = function (e, boxID) {
+			_this.setState({ showRaw: _this.state.showRaw === boxID ? -1 : boxID });
+		};
+
 		_this.togglePreview = function (e) {
 			_this.setState({ showVideo: !_this.state.showVideo });
+		};
+
+		_this.handleFocus = function (e, focusRow, showOffset) {
+			console.log('got mouse' + (showOffset ? 'Enter' : 'Leave') + ' event for row ' + focusRow);
+			_this.setState({ hasFocus: showOffset ? focusRow : -1 });
 		};
 
 		_this.state = {
@@ -3186,12 +3300,19 @@ var app_App = function (_Component) {
 			videoError: '',
 			decodeAttempts: 0,
 			showHex: false,
-			showVideo: false
+			showVideo: false,
+			hasFocus: -1,
+			seekHead: 0,
+			showRaw: -1,
+			rawVals: new Map(),
+			fileName: 'raw base64 data'
 		};
 		return _this;
 	}
 
 	App.prototype.render = function render() {
+		var _this2 = this;
+
 		return Object(preact_min["h"])(
 			'div',
 			{ id: 'app' },
@@ -3200,28 +3321,57 @@ var app_App = function (_Component) {
 				togglePreview: this.togglePreview,
 				showVideo: this.state.showVideo,
 				showHex: this.state.showHex,
-				toggleHex: this.toggleHex
+				toggleHex: this.toggleHex,
+				handleFiles: this.handleFiles
 			}),
-			this.state.showVideo ? Object(preact_min["h"])(video, {
-				mimeType: this.state.mode,
-				data: this.state.inputData,
-				handleEncrypted: this.handleEncrypted
-			}) : Object(preact_min["h"])(
+			this.state.showHex ? Object(preact_min["h"])(
 				'div',
-				{ style: { padding: '56px 20px' } },
-				this.state.videoError
-			),
-			Object(preact_min["h"])(home, {
-				decodeMode: this.state.mode,
-				working: this.state.working,
-				parseFile: this.parseFile,
-				updateInput: this.updateInput,
-				inputData: this.state.inputData,
-				parsedData: this.state.parsedData,
-				handleFiles: this.handleFiles,
-				error: this.state.errorMessage,
-				showHex: this.state.showHex
-			})
+				{ style: styles.inputArea },
+				Object(preact_min["h"])(
+					'div',
+					{ style: { gridRow: '1/3' } },
+					Object(preact_min["h"])('textarea', { style: { height: '90%', width: '95%', margin: '10px' }, onChange: function onChange(e) {
+							return _this2.updateInput(e);
+						}, value: this.state.inputData })
+				),
+				Object(preact_min["h"])(
+					'div',
+					{ style: { gridRow: '2/3' } },
+					Object(preact_min["h"])(
+						'button',
+						{ style: styles.parseButton, onClick: function onClick(e) {
+								return _this2.parseFile(e);
+							} },
+						'Go'
+					)
+				)
+			) : _ref3,
+			Object(preact_min["h"])(
+				'div',
+				null,
+				this.state.showVideo ? Object(preact_min["h"])(video, {
+					mimeType: this.state.mode,
+					data: this.state.inputData,
+					handleEncrypted: this.handleEncrypted
+				}) : Object(preact_min["h"])(
+					'div',
+					{ style: { padding: this.state.showHex ? '10px 10px' : '56px 10px' } },
+					this.state.videoError
+				),
+				Object(preact_min["h"])(home, {
+					fileName: this.state.fileName,
+					decodeMode: this.state.mode,
+					working: this.state.working,
+					parsedData: this.state.parsedData,
+					handleFocus: this.handleFocus,
+					error: this.state.errorMessage,
+					showRaw: this.state.showRaw,
+					toggleRaw: this.toggleRaw,
+					hasFocus: this.state.hasFocus,
+					seekHead: this.state.seekHead,
+					rawVals: this.state.rawVals
+				})
+			)
 		);
 	};
 
@@ -4300,7 +4450,8 @@ function localstorage() {
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 var _require = __webpack_require__("tTqp"),
-    convertToHex = _require.convertToHex;
+    convertToHex = _require.convertToHex,
+    formatUuid = _require.formatUuid;
 
 var additionalBoxes = [{
     source: 'ISO/IEC 14496-12:2012 - 8.8.7 Track Fragment Header Box',
@@ -4504,12 +4655,95 @@ var additionalBoxes = [{
             });
         }
     }
+}, {
+    source: 'Netflix Cadmium Player undocumented',
+    field: 'uuid',
+    _parser: function _parser() {
+        var _this = this;
+
+        var uuidString = this.usertype.map(function (bit) {
+            return bit.toString('16').padStart(2, '0').toUpperCase();
+        }).join('');
+        var getUint64 = function getUint64(byteOffset) {
+            var littleEndian = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+            // split 64-bit number into two 32-bit (4-byte) parts
+            var left = _this._raw.getUint32(byteOffset + 24, littleEndian);
+            var right = _this._raw.getUint32(byteOffset + 4 + 24, littleEndian);
+
+            // combine the two 32-bit values
+            var combined = littleEndian ? left + Math.pow(2, 32) * right : Math.pow(2, 32) * left + right;
+
+            if (!Number.isSafeInteger(combined)) console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost');
+
+            return combined;
+        };
+        if (uuidString === '4E6574666C6978506966665374726D21') {
+            console.log('NetflixPiffStream found !');
+            /*
+            function (a, b) { m(a, b); a.fileSize = b.Se(); a.X2 = b.Se(); a.duration = b.Se(); a.lka = b.Se(); a.Alb = b.Se(); 1 <= a.version && (a.cjb = b.Se(), a.djb = b.Ba(), a.mka = b.Se(), a.Gfa = b.Ba(), a.xfa = b.Jz()); }
+            Se = cd(8)
+            cd = function (a) { for (var b = 0; a--;)b = 256 * b + this.buffer[this.position++]; return b; }
+            */
+            this.filesize = getUint64(0);
+            this.X2 = getUint64(8);
+            this.duration = getUint64(16);
+            this.lka_offset = getUint64(24);
+            this.Alb = getUint64(32);
+            this.cjb = getUint64(40);
+            this.djb = this._raw.getUint32(48 + 24);
+            this.mka = getUint64(52);
+            this.Gfa = this._raw.getUint32(60 + 24);
+            /*this._procField('X2', 'uint', 8); 8
+            this._procField('duration', 'uint', 8); 16
+            this._procField('lka_offset?', 'uint', 8); 24
+            this._procField('Alb', 'uint', 8); 32
+            this._procField('cjb', 'uint', 8); 40
+            this._procField('djb', 'uint', 4); 48
+            this._procField('mka_offset?', 'uint', 8); 52
+            this._procField('Gfa_size?', 'uint', 4); 60
+            this._procField('xfa_KID?', 'uint', 8); // just return the dataview*/
+        } else {}
+    }
 }];
+
+/*
+UUID 	Reference 	Abstract
+5E629AF5-38DA-4063-8977-97FFBD9902D4 	Marlin Adaptive Streaming Specification – Simple Profile, V1.0 [9] 	Marlin, see the spec for the details of what can be further specified within the ContentProtection element.
+adb41c24-2dbf-4a6d-958b-4457c0d27b95 	Nagra MediaAccess PRM 3.0 , documentation available under NDA [12] 	Identifies Nagra MediaAccess PRM 3.0 and above
+A68129D3-575B-4F1A-9CBA-3223846CF7C3 	Cisco/NDS VideoGuard Everywhere DRM ™. Documentation is available under NDA [13] 	Cisco/NDS VideoGuard Everywhere DRM identification. For more information on VideoGuard Everywhere DRM go here
+9a04f079-9840-4286-ab92-e65be0885f95 	MPEG DASH Content Protection using Microsoft PlayReady [10], section 2.2.1 	Microsoft PlayReady
+9a27dd82-fde2-4725-8cbc-4234aa06ec09 	Verimatrix VCAS™ for DASH [11] 	Verimatrix ViewRight Web / DASH @value= “Verimatrix VCAS for DASH, ViewRightWeb VV.vv” (VV.vv will be the version number)This is the name of the company system and client version as recommended in DASH-AVC/264. If used, this can help the client to determine if the current DRM client can play the content.
+F239E769-EFA3-4850-9C16-A903C6932EFB 	Please contact Adobe for more information 	Adobe Primetime DRM, version 4
+1f83e1e8-6ee9-4f0d-ba2f-5ec4e3ed1a66 	No separate and public specification is available. The UUID is a version 4 UUID as per RFC 4122 [8]. The UUID will be made available in SecureMedia documentation shared with a partner or customer of SecureMedia. Please refer to http://www.securemedia.com/. 	SecureMedia, ArrisThe UUID of @schemeIdURIis a version 4 UUID as per RFC 4122.@valueshall be as follows: “Arris SecureMedia version XXXXXXX”XXXXXX will be specified in documentation associated with a particular version of the product. The documentation will be shared with a partner or customer of SecureMedia. Please refer to http://www.securemedia.com/.
+644FE7B5-260F-4FAD-949A-0762FFB054B4 	A draft version of the CMLA Technical Specification which is in process with involved adopters is not published. It’s planned to be chapter 18 of our CMLA Technical Specification upon completion and approval.Revisions of the CMLA Technical Specification become public upon CMLA approval.UUID will correlate to various related XML schema and PSSH components as well as elements of the content protection element relating to CMLA DASH mapping. 	CMLA (OMA DRM), for details see here http://www.cm-la.com.
+6a99532d-869f-5922-9a91-113ab7b1e2f3 	More information is available at http://www.mobitv.com/core-technologies/digital-rights-management/. 	MobiTV DRM: A generic identifier for any version of MobiDRM (MobiTV DRM). The version is signaled in the pssh box.
+35BF197B-530E-42D7-8B65-1B4BF415070F 	Please contact DivX for specifications. 	DivX DRM Series 5
+B4413586-C58C-FFB0-94A5-D4896C1AF6C3 	VODRM documentation is available under NDA. Please contact Viaccess-Orca for more information. 	This UUID identifies the Viaccess-Orca DRM (VODRM).
+edef8ba9-79d6-4ace-a3c8-27dcd51d21ed 	For more info: http://www.widevine.com 	Widevine Content Protection for MPEG DASH.
+80a6be7e-1448-4c37-9e70-d5aebe04c8d2 	Irdeto Protection documentation available under NDA. For more info: http://www.irdeto.com 	Irdeto Content Protection for DASH
+dcf4e3e3-62f1-5818-7ba6-0a6fe33ff3dd 	Documentation is available under NDA. For more info: http://www.digicaps.com/en/ 	DigiCAP SmartXess for DASH @value “CA/DRM_NAME VERSION” (CA 1.0, DRM+ 2.0)
+45d481cb-8fe0-49c0-ada9-ab2d2455b2f2 	For more information and specification, please contact CoreTurst. The contact detail is mktall@coretrust.com 	CoreCrypt : CoreTrust Content Protection for MPEG-DASH
+616C7469-6361-7374-2D50-726F74656374 	Please contact Alticast for more information, galtiprotect_drm@alticast.com. 	Alticast altiProtect, more information available at http://www.alticast.com/
+45d481cb-8fe0-49c0-ada9-ab2d2455b2f2 	For more information and specification, please contact CoreTurst. The contact detail is mktall@coretrust.com 	CoreCrypt : CoreTrust Content Protection for MPEG-DASH
+992c46e6-c437-4899-b6a0-50fa91ad0e39 	This UUID is a protection system specific identifier for SecureMedia SteelKnot. No separate and public specification is available. The UUID is as per RFC 4122 available at http://www.ietf.org/rfc/rfc4122.txt . The UUID will be made available in SecureMedia SteelKnot documentation shared with a partner or customer of SecureMedia SteelKnot. Please refer to http://www.securemedia.com/ 	The UUID of the attribute, @schemeIDURI is as per RFC 4122. The attribute, @value shall be as follows: “Arris SecureMedia SteelKnot version XXXXXXX”. The exact length and syntax of the placeholder denoted by XXXXXXX will be specified in documentation associated with a particular version of the product. The documentation will be shared with a partner or customer of SecureMedia SteelKnot. Please refer to http://www.securemedia.com/ .
+1077efec-c0b2-4d02-ace3-3c1e52e2fb4b 	https://w3c.github.io/encrypted-media/format-registry/initdata/cenc.html 	This identifier is to be used as the SystemID for the Common PSSH box format defined by the W3C (https://w3c.github.io/encrypted-media/format-registry/initdata/cenc.html), as a preferred alternative to DRM system specific PSSH box formats. This identifier may be used in PSSH boxes and MPEG-DASH ContentProtection elements.
+e2719d58-a985-b3c9-781a-b030af78d30e 	DASH-IF Interoperability Points v3.4: https://dashif.org/guidelines/ 	This identifier is meant to be used to signal availability of Clear Key content key delivery. Its use is mutually exclusive with the use of any other DRM System SystemIDs, including the Common PSSH Box Format System ID. This GUID may only be present in an MPEG-DASH ContentProtection element, and never in the media content PSSH Box.
+94CE86FB-07FF-4F43-ADB8-93D2FA968CA2 	Content Protection System Identifier for Apple FairPlay Streaming 	System ID to identify FairPlay Streaming
+279fe473-512c-48fe-ade8-d176fee6b40f 	Arris Titanium content protection. Documentation available under NDA. Contact multitrust.info@arris.com for further information. 	Arris Titanium. The UUID of @schemeiduri is a version 4 UUID as per RFC 4122. @value will be specified in documentation related to a specific version of the product. Contact multitrust.info@arris.com for further information.
+aa11967f-cc01-4a4a-8e99-c5d3dddfea2d 	Unitend Technologies Inc. applies this UUID to identify the Unitend DRM (UDRM). For further information, contact y.ren@unitend.com This UUID identifies the Unitend-DRM (UDRM). More information available at http://www.unitend.com/
+
+see also https://forums.developer.apple.com/thread/6185
+
+*/
 
 var psshLookup = {
     '10 77 EF EC C0 B2 4D 02 AC E3 3C 1E 52 E2 FB 4B': 'Clearkey',
     '9A 04 F0 79 98 40 42 86 AB 92 E6 5B E0 88 5F 95': 'PlayReady',
-    'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine'
+    'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine',
+    'F2 39 E7 69 EF A3 48 50 9C 16 A9 03 C6 93 2E FB': 'PrimeTime',
+    '94 CE 86 FB 07 FF 4F 43 AD B8 93 D2 FA 96 8C A2': 'FairPlay',
+    '29 70 1F E4 3C C7 4A 34 8C 5B AE 90 C7 43 9A 47': 'FairPlay-unofficial'
 
     /** Looks at the box entry and returns proper formatting based on the type of data therein,
      * and possibly the entry.type
@@ -4518,7 +4752,6 @@ var psshLookup = {
      * @returns {String or Array<Object>} -> returns the unformatted contents in an array
      */
 };var getISOData = function getISOData(key, value) {
-
     // little helper that returns the type
     var getValueType = function getValueType(val) {
         return Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
@@ -4560,6 +4793,12 @@ var psshLookup = {
                 return value.map(function (b) {
                     return String.fromCharCode(b);
                 }).join('');
+            case 'usertype':
+                return formatUuid(value) + ' (' + value.map(function (b) {
+                    return String.fromCharCode(b);
+                }).join('') + ')\n' + convertToHex(value._data);
+            case 'xfa_KID?':
+                return '' + formatUuid(value);
             default:
                 // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[getValueType(value[0])](value) : [];
@@ -4589,16 +4828,16 @@ module.exports = {
 /***/ "tTqp":
 /***/ (function(module, exports) {
 
+var numToHex = function numToHex(bit) {
+    return bit.toString('16').padStart(2, '0').toUpperCase();
+};
+
 var convertToHex = function convertToHex(entry) {
     var ROW_SIZE = 16;
     var MAX_SIZE = 128 * ROW_SIZE;
 
     // create an array of bytes, capped at MAX_SIZE for display purposes
     var buffer = Array.from(entry instanceof Uint8Array ? entry : new Uint8Array(entry)).slice(0, MAX_SIZE);
-
-    var numToHex = function numToHex(bit) {
-        return bit.toString('16').padStart(2, '0').toUpperCase();
-    };
 
     var getRow = function getRow(start) {
         return start + ROW_SIZE < buffer.length ? [buffer.slice(start, start + ROW_SIZE).map(numToHex).join(' ')].concat(getRow(start + ROW_SIZE)) : [buffer.slice(start).map(numToHex).join(' ')];
@@ -4607,8 +4846,19 @@ var convertToHex = function convertToHex(entry) {
     return getRow(0);
 };
 
+var formatUuid = function formatUuid(entry) {
+    var buffer = Array.from(entry instanceof Uint8Array ? entry : new Uint8Array(entry));
+
+    var groupBytes = function groupBytes(offset, size) {
+        return buffer.slice(offset, offset + size).map(numToHex).join('');
+    };
+
+    return groupBytes(0, 4) + '-' + groupBytes(4, 2) + '-' + groupBytes(6, 2) + '-' + groupBytes(8, 2) + '-' + groupBytes(10, 6);
+};
+
 module.exports = {
-    convertToHex: convertToHex
+    convertToHex: convertToHex,
+    formatUuid: formatUuid
 };
 
 /***/ }),
