@@ -203,7 +203,8 @@ const additionalBoxes = [
                 })
             }
         }
-    }, {
+    },
+    {
         source: 'Netflix Cadmium Player undocumented',
         field: 'uuid',
         _parser: function () {
@@ -217,9 +218,9 @@ const additionalBoxes = [
                 const combined = littleEndian ? left + 2 ** 32 * right : 2 ** 32 * left + right;
 
                 if (!Number.isSafeInteger(combined))
-                    console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost');
+                    //console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost');
 
-                return combined;
+                    return combined;
             }
             if (uuidString === '4E6574666C6978506966665374726D21') {
                 console.log('NetflixPiffStream found !');
@@ -227,7 +228,7 @@ const additionalBoxes = [
                 function (a, b) { m(a, b); a.fileSize = b.Se(); a.X2 = b.Se(); a.duration = b.Se(); a.lka = b.Se(); a.Alb = b.Se(); 1 <= a.version && (a.cjb = b.Se(), a.djb = b.Ba(), a.mka = b.Se(), a.Gfa = b.Ba(), a.xfa = b.Jz()); }
                 Se = cd(8)
                 cd = function (a) { for (var b = 0; a--;)b = 256 * b + this.buffer[this.position++]; return b; }
-                */
+                
                 this.filesize = getUint64(0);
                 this.X2 = getUint64(8);
                 this.duration = getUint64(16);
@@ -299,12 +300,12 @@ const psshLookup = {
  */
 const getISOData = (key, value) => {
     // little helper that returns the type
-    const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
+    const valueType = Object.prototype.toString.call(value).match(/ (\w+)\]/i)[1];
 
     // 1) Handle Arrays of numbers
     // 2) Handle Arrays of things represented by numbers (pssh:SystemID, pssh:Data possibly (for PlayReady) for example)
     // 3) Handle lookups (psshLookup)
-    // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
+    // 4) Handle Arrays of plain Objects (eg. entries, references, samples) -- note * usually includes *_count !
     // 5) Handle raw binary (Uint8Array)
     const handleArray = {
         'Object': value => value.map((item, index) => {
@@ -313,15 +314,34 @@ const getISOData = (key, value) => {
             return cleanEntry;
         }),
         'String': value => value.join(', '),
-        'Number': value => value.join(', ')
+        'Number': value => value.join(', '),
+        'SampleDependency': value => {
+            const flags = [
+                { flag: 'is_leading', bitmask: 0b11000000, shift: 6, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' },
+                { flag: 'sample_depends_on', bitmask: 0b00110000, shift: 4, 0: 'unknown', 1: 'depends on others (not an I frame)', 2: 'does not depend (I frame)' },
+                { flag: 'sample_is_depended_on', bitmask: 0b00001100, shift: 2, 0: 'unknown', 1: 'not disposable', 2: 'disposable' },
+                { flag: 'sample_has_redundancy', bitmask: 0b00000011, shift: 0, 0: 'unknown', 1: 'has redundant coding', 2: 'has no redundant coding' }
+            ];
+            return value.map((item, index) => {
+                // do a bit comparison and return the lookup
+                const cleanEntry = flags.reduce((summary, flag) => {
+                    summary[flag.flag] = flag[(item & flag.bitmask) >> flag.shift]
+                    return summary;
+                }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry
+            })
+        }
     }
 
     // 5) Handle raw binary
-    if (getValueType(value) === 'Uint8Array') {
-        return { hex: convertToHex(value) } // an array of 16-byte entries
+    if (valueType === 'Uint8Array') {
+        return convertToHex(value) // an array of hex strings, each 16 bytes wide, max of 64 rows
     }
     // Handle arrays of ...
-    if (getValueType(value) === "Array") {
+    if (valueType === "Array") {
+        // get the type of the first element
+        const elementType = Object.prototype.toString.call(value[0]).match(/ (\w+)\]/i)[1];
         // first check for special handling by key
         switch (key) {
             case 'SystemID':
@@ -333,8 +353,10 @@ const getISOData = (key, value) => {
                 return `${formatUuid(value)} (${value.map(b => String.fromCharCode(b)).join('')})\n${convertToHex(value._data)}`;
             case 'xfa_KID?':
                 return `${formatUuid(value)}`;
+            case 'sample_dependency_table':
+                return handleArray.SampleDependency(value);
             default: // Otherwise handle based on type of the first entry
-                return value[0] ? handleArray[getValueType(value[0])](value) : [];
+                return value[0] ? handleArray[elementType](value) : [];
         }
     }
     // special case -- flags should show up as hex for easier comparison to standard
@@ -343,8 +365,68 @@ const getISOData = (key, value) => {
     return value;
 }
 
+const postProcess = boxes => {
+    return boxes.map(box => {
+        const keyList = box.keys;
+        const { type, start, size, hex } = { ...box };
+        let boxContents;
+        if (keyList.length) {
+            boxContents = keyList.map(key => {
+                // first check if the key is for sub-boxes
+                if (key.includes('__altered')) return { name: key.split('__altered')[0], start, size, boxes: postProcess(box[key]) };
+                // if the value of that key contains an array, map it to the new format
+                /* if (key !== 'data' && Array.isArray(box[key]) && box[key].length) return box[key].map(entry => {
+                    const entryKeys = Object.keys(entry);
+                    return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
+                }); */
+                return { name: key, display: box[key], hex: hex || null }
+            })
+        }
+        // no keys, so it is a container box. If it has sub-boxes recurse to process those
+        return { type, start, size, boxes: box.boxes ? postProcess(box.boxes) : boxContents, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
+    });
+}
+
+const mappedKey = (oldKey, box) => {
+    switch (oldKey) {
+        case '_offset': return { newKey: 'start', value: box[oldKey] };
+        case '_data': case 'data': return { newKey: 'hex', value: box[oldKey] };
+        default: return { newKey: oldKey, value: box[oldKey] };
+    }
+}
+
+
+// fist stage of processing, filter out generic or unneeded keys.
+const convertBox = boxes => {
+
+    const HIDE_KEYS = new Set(['type', 'start', 'end', '_offset', '_data', 'size', 'hex']);
+
+    // it isn't a map, must be a nested array of objects
+    return boxes.reduce((result, box) => {
+        const keys = Object.keys(box).filter(key => !/^_/i.test(key) || key === '_offset' || key === '_data');
+        return result.concat(
+            keys.reduce((newBox, key) => {
+                // recurse if the contents of a key are other ISOBoxes.
+                if (key === 'boxes' || (Array.isArray(box[key]) && box[key][0].hasOwnProperty('_cursor'))) {
+                    if (key !== 'boxes') newBox.keys.push(`${key}__altered`);
+                    key === 'boxes' ? newBox[key] = convertBox(box[key]) : newBox[`${key}__altered`] = convertBox(box[key]);
+                } else {
+                    if (key !== '_data' || box.type === 'uuid' && key === '_data') {
+                        const { newKey, value } = mappedKey(key, box);
+                        newBox[newKey] = getISOData(key, value);
+                        if (!HIDE_KEYS.has(newKey)) newBox.keys.push(newKey);
+                    }
+                }
+                return newBox;
+            }, { keys: [] })
+        );
+    }, []);
+}
+
 module.exports = {
     getISOData,
     psshLookup,
-    additionalBoxes
+    additionalBoxes,
+    postProcess,
+    convertBox
 }
