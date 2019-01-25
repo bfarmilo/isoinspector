@@ -1,14 +1,12 @@
 import { h, Component } from 'preact';
-const ISOBoxer = require('codem-isoboxer');
-import { additionalBoxes, getISOData } from '../components/additionalBoxes';
-import { schema_ext, getWebMData } from '../components/additionalwebM';
-import { convertToHex } from '../components/tools';
-const ebml = require('ebml');
+import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
+import { ebmlBoxer } from './ebmlBoxer';
+import { additionalBoxes, convertBox, postProcess } from './additionalBoxes';
+
 
 import Header from './header';
 import Home from './home';
 import Video from './video';
-import { EventEmitter } from 'events';
 
 const styles = {
 	parseButton: {
@@ -43,47 +41,6 @@ const niceError = {
 
 }
 
-let rawVals = new Map();
-
-const mappedKey = (oldKey, box) => {
-	switch (oldKey) {
-		case '_offset': return { newKey: 'start', value: box[oldKey] };
-		case 'size': return { newKey: 'end', value: box._offset + box.size };
-		default: return { newKey: oldKey, value: box[oldKey] };
-	}
-}
-
-
-// helper to recursively convert all maps into arrays of objects
-const convertBox = (boxes, keyFilter = false) => {
-
-	const HIDE_KEYS = new Set(['type', 'start', 'end', 'data', '_offset', '_data', 'size']);
-
-	// boxes is a map -> webM mode
-	if (boxes.toString().includes('Map')) return Array.from(boxes).reduce((result, [key, entry]) => {
-		if (Object.hasOwnProperty.call(entry, 'boxes')) entry.boxes = convertBox(entry.boxes);
-		return result.concat(entry);
-	}, []);
-
-	// it isn't a map, must be a nested array of objects
-	return boxes.reduce((result, box) => {
-		const keys = Object.keys(box).filter(key => !/^_/i.test(key) || key === '_offset');
-		if (box._raw) rawVals.set(box._offset, new Uint8Array(box._raw.buffer, box._offset, Math.min(box.size, box._raw.buffer.byteLength - box._raw.buffer.byteOffset - 1)));
-		return result.concat(
-			keys.reduce((newBox, key) => {
-				if (key === 'boxes' || key === 'entries') {
-					newBox[key] = convertBox(box[key]);
-				} else {
-					const { newKey, value } = mappedKey(key, box);
-					newBox[newKey] = getISOData(key, value, box.data);
-					if (!HIDE_KEYS.has(newKey)) newBox.keys.push(newKey);
-				}
-				return newBox;
-			}, { keys: [] })
-		);
-	}, []);
-}
-
 const parseISO = buf => new Promise(async (resolve, reject) => {
 	const VALID_START_BOX = new Set([
 		'ftyp',
@@ -92,90 +49,18 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 		'sidx'
 	]);
 	// get the boxes
-	const parsedData = await ISOBoxer.parseBuffer(buf.buffer);
-	// process the boxes
-	const result = convertBox(parsedData.boxes);
-	if (VALID_START_BOX.has(parsedData.boxes[0].type)) return resolve({ parsedData: { boxes: result }, rawVals });
+	const parsedData = await parseBuffer(buf.buffer);
+	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
+		// process the boxes
+		const preProcessed = convertBox(parsedData.boxes);
+		const result = postProcess(preProcessed);
+		return resolve({ boxes: result });
+	}
 	return reject(new Error('not an ISOBMFF file'));
+
 });
 
-const parseWebM = buf => new Promise((resolve, reject) => {
-	const decoder = new ebml.Decoder(schema_ext, {});
-	let lastInterval = 0;
-	let allData = [];
-	let currentTime = (new Date()).getTime();
-	let lastChunkTime = currentTime;
-
-	// poll in case the stream never sends a 'finish' or 'end' event.
-	const MAX_TIME = 10;
-	const pollTime = setInterval(() => {
-		currentTime = (new Date()).getTime();
-		lastInterval = lastChunkTime - currentTime;
-		if (allData.length && (lastInterval) < MAX_TIME) {
-			console.log(allData);
-			console.log(buf.length - allData[allData.length - 1].payload.end);
-			clearInterval(pollTime);
-			// keep master result of parsed boxes
-			let resultVal = new Map();
-
-			// keep a list of parents up the tree
-			let parentList = [];
-			// handy helper to recursively work the way down the resultSet tree. Use 'start' as a hash since it's unique
-			const setBox = newVal => {
-				// each 'boxes' is a Map. temp has the lowest level 'boxes'
-				const temp = parentList.reduce((boxList, entry) => boxList.get(entry).boxes, resultVal)
-				temp.set(newVal.start, newVal);
-			};
-			// iterate through the boxes to create a box object like ISO box
-			allData.map(box => {
-				if (box.dataType === 'start') {
-					// start tag. Create an entry for this which includes a 'boxes' property
-					const newEntry = {
-						name: box.payload.name,
-						start: box.payload.start,
-						boxes: new Map()
-					};
-					rawVals.set(box.payload.start, convertToHex(buf.subarray(box.payload.start, box.payload.end)))
-					// root level entries mean there are no parents
-					if (parentList.length === 0) {
-						// no parents, so add to the result map using the start as a hash
-						resultVal.set(newEntry.start, { ...newEntry });
-					} else {
-						// if there is at least one parent, use the helper to enter it at the right level.
-						setBox(newEntry);
-					};
-					// add to the parentlist array to keep track of where we are in the hierarchy
-					parentList.push(box.payload.start);
-				}
-				if (box.dataType === 'tag') {
-					const { display, hex } = getWebMData(box.payload);
-					const payload = { ...box.payload, display, hex };
-					setBox(payload);
-				};
-				if (box.dataType === 'end') parentList.pop();
-			});
-			// now use convertBox to recursively process all 'boxes' entries
-			return resolve({ parsedData: { boxes: convertBox(resultVal) }, rawVals });
-		}
-		return reject('timeout')
-	}, MAX_TIME / 2);
-	decoder.on('data', chunk => {
-		allData.push({ dataType: chunk[0], payload: chunk[1] });
-		lastChunkTime = (new Date()).getTime();
-		lastInterval = lastChunkTime - currentTime;
-		currentTime = lastChunkTime;
-	});
-	decoder.on('finish', () => {
-		console.log('got finish event');
-		return resolve(allData);
-	})
-	decoder.on('end', () => {
-		console.log('got end event');
-		return resolve(allData);
-	})
-	decoder.on('error', err => reject(err));
-	decoder.write(buf);
-});
+const parseWebM = buf => ebmlBoxer(buf.buffer);
 
 //placeholder for now
 const parseM2TS = buf => new Promise((resolve, reject) => {
@@ -196,16 +81,15 @@ export default class App extends Component {
 			showHex: false,
 			showVideo: false,
 			hasFocus: -1,
-			showRaw: -1,
-			rawVals: new Map(),
-			fileName: 'raw base64 data'
+			fileName: 'raw base64 data',
+			base64: ''
 		}
 	}
 
 	componentWillMount = () => {
 		// add any custom box processors
 		additionalBoxes.map(box => {
-			if (Object.hasOwnProperty.call(box, '_parser')) ISOBoxer.addBoxProcessor(box.field, box._parser)
+			if (Object.hasOwnProperty.call(box, '_parser')) addBoxProcessor(box.field, box._parser)
 		});
 	}
 
@@ -226,9 +110,9 @@ export default class App extends Component {
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
 		this.createParsed(this.state.inputData)
-			.then(({ parsedData, rawVals }) => {
-				console.log(parsedData);
-				this.setState({ parsedData, rawVals, working: false, decodeAttempts: 0 });
+			.then(({ boxes }) => {
+				console.log(boxes);
+				this.setState({ parsedData: boxes, working: false, decodeAttempts: 0 });
 				return;
 			})
 			.catch(err => {
@@ -254,7 +138,7 @@ export default class App extends Component {
 
 	handleFiles = e => {
 		const fileName = e.target.files[0];
-		this.setState({ working: true, showVideo: false, inputData: '', fileName });
+		this.setState({ working: true, showVideo: false, inputData: '', fileName: fileName.name });
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
@@ -280,6 +164,12 @@ export default class App extends Component {
 	handleFocus = (e, focusRow, showOffset) => {
 		console.log(`got mouse${showOffset ? 'Enter' : 'Leave'} event for row ${focusRow}`);
 		this.setState({ hasFocus: showOffset ? focusRow : -1 })
+	}
+
+	toggleBase64 = (e, hexData) => {
+		console.log(hexData);
+		const base64 = hexData ? hexData.join(' ').split(' ').map(byte => String.fromCharCode(parseInt(byte, 16))) : '';
+		this.setState({ base64 })
 	}
 
 	render() {
@@ -318,10 +208,10 @@ export default class App extends Component {
 						parsedData={this.state.parsedData}
 						handleFocus={this.handleFocus}
 						error={this.state.errorMessage}
-						showRaw={this.state.showRaw}
-						toggleRaw={this.toggleRaw}
 						hasFocus={this.state.hasFocus}
-						rawVals={this.state.rawVals}
+						base64={this.state.base64}
+						toggleRaw={this.toggleRaw}
+						toggleBase64={this.toggleBase64}
 					/>
 				</div>
 			</div >
