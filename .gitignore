@@ -5,3 +5,7 @@ node_modules
 package-lock.json
 static/*
 testfile*
+/src/tests/*.json
+/src/tests/*.mp4
+/src/tests/*.webm
+
