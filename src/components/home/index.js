@@ -48,44 +48,7 @@ const Home = props => {
 			{outputRow}
 		</div>
 	}
-	/*
-			mp4: box => {
-				/**
-				 * box.keys
-				 * box.boxes
-				 * box[item]
-				 * box[item].hex
-				 * box.type
-				 * box.entryNumber ? (if box[item] is an array) 
-				 * 
-				console.log(box);
-				// iterate through the valid keys and generate processed output
-				const boxEntry = (isoBox, keyList) => keyList.map(key => {
-					return (
-						<div class={style.boxProp}>
-							<span>{key}: </span>
-							{isoBox[key].hex ?
-								isoBox[key].hex.map(row => <div class={style.hexEntry}>{row}</div>) :
-								Array.isArray(isoBox[key]) ?
-									isoBox[key].map(processBox.mp4) :
-									<span class={style.boxContents}>{isoBox[key]}</span>}
-						</div>
-					)
-				});
 	
-				// if the box contains a 'boxes' prop (but doesn't have an entryNumber, which we added) recurse
-				// otherwise output the boxEntry according to the above.
-				return (
-					<details>
-						{box.entryNumber ? <summary class={style.boxProp}>{box.type || box.entryNumber}</summary> : <summary class={style.boxName}>{box.type} ({box.end-box.start} bytes)</summary>}
-						{Object.hasOwnProperty.call(box, 'boxes') && !Object.hasOwnProperty.call(box, 'entryNumber') ?
-							box.boxes.map(processBox.mp4) :
-							boxEntry(box, box.keys)}
-					</details>
-				)
-			}
-		}
-	*/
 	return (
 		<div class={style.home} >
 			<h2>{props.fileName} ({props.decodeMode})</h2>
