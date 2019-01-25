@@ -2047,7 +2047,7 @@ const EbmlDecoder = function EbmlDecoder(options) {
         },
         /**
          * get an unsigned number from a buffer
-         * @param {Uint8Array) buff
+         * @param {Uint8Array} buff
          * @returns {number} result (in hex for lengths > 6)
          */
         readUnsigned: function (buff) {
