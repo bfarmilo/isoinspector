@@ -9,7 +9,7 @@
     "serve": "preact build && preact serve",
     "dev": "preact watch",
     "lint": "eslint src",
-    "test": "jest ./tests"
+    "test": "jest"
   },
   "eslintConfig": {
     "extends": "eslint-config-synacor"
@@ -28,7 +28,6 @@
   },
   "dependencies": {
     "codem-isoboxer": "^0.3.6",
-    "ebml": "^2.2.4",
     "preact": "^8.3.1",
     "preact-compat": "^3.18.2"
   }
