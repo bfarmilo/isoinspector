@@ -2,7 +2,7 @@ const numToHex = bit => bit.toString('16').padStart(2, '0').toUpperCase();
 
 const convertToHex = entry => {
     const ROW_SIZE = 16;
-    const MAX_SIZE = 128 * ROW_SIZE;
+    const MAX_SIZE = 64 * ROW_SIZE;
 
     // create an array of bytes, capped at MAX_SIZE for display purposes
     const buffer = Array.from(entry instanceof Uint8Array ? entry : new Uint8Array(entry)).slice(0, MAX_SIZE);
@@ -21,6 +21,7 @@ const formatUuid = entry => {
 
     return `${groupBytes(0,4)}-${groupBytes(4,2)}-${groupBytes(6,2)}-${groupBytes(8,2)}-${groupBytes(10,6)}`;
 }
+
 
 module.exports = {
     convertToHex,
