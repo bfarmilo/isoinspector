@@ -2,11 +2,9 @@ import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from '../components/ebmlBoxer';
 import { EbmlDecoder } from '../components/ebmlSchema';
 import { additionalBoxes, convertBox, postProcess } from '../components/additionalBoxes';
-
+import { m2tsBoxer } from '../components/m2tsBoxer';
 
 import * as fs from 'fs';
-
-
 
 const parseISO = buf => new Promise(async (resolve, reject) => {
     const VALID_START_BOX = new Set([
@@ -25,6 +23,7 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 
 const parseWebM = buf => ebmlBoxer(buf.buffer);
 
+const parseM2TS = buf => m2tsBoxer(buf.buffer);
 
 // TEST FIXTURES
 
@@ -39,7 +38,7 @@ const readFilePromise = fileName => new Promise((resolve, reject) => {
     })
 })
 
-describe('webM handling', () => {
+describe.skip('webM handling', () => {
 
     const buf = {};
 
@@ -106,5 +105,24 @@ describe.skip('ISOBMFF moof handling', () => {
         const processed = postProcess(result.boxes);
         expect(processed).not.toBeFalsy;
         fs.writeFile('./src/tests/ISOPostTest.json', JSON.stringify(processed));
-    })
-})
+    });
+});
+
+describe('M2TS handling', () => {
+
+    const buf = {};
+
+    beforeAll(async () => {
+        buf.buffer = await readFilePromise('./src/tests/segment1_450000_av.ts');
+    });
+
+    test('processes a MPEG2-TS file', async () => {
+        try {
+            const result = (await parseM2TS(buf));
+            expect(result).not.toBeFalsy;
+            fs.writeFile('./src/tests/m2tsTest.json', JSON.stringify(result));
+        } catch (e) {
+            console.error(e);
+        }
+    }, 10000);
+});
