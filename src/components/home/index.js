@@ -14,13 +14,13 @@ const Home = props => {
 		// box.boxes {Array:box} sub-boxes
 		// 
 
-		const showEntryDetails = entry => {
+		const showEntryDetails = (title, entry) => {
 
 			return (
 				<details>
-					<summary class={style.boxProp}>entry {entry.entryNumber}</summary>
-					{Object.keys(entry).filter(key => key !== 'entryNumber').map(key => {
-						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(entry[key][0]);
+					<summary class={style.boxProp}>{title.slice(0, -1)} {entry.entryNumber}</summary>
+					{Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
+						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
 						return (
 							<div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>
 						)
@@ -51,7 +51,7 @@ const Home = props => {
 		if (box.hex) {
 			outputRow = <details onToggle={e => props.toggleBase64(e, null)}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
 		} else if (Array.isArray(box.display) && box.display[0] && box.display[0].entryNumber) {
-			outputRow = box.display.map(showEntryDetails);
+			outputRow = box.display.map(display => showEntryDetails(boxLabel, display));
 		} else if (box.boxes) {
 			outputLabel = '';
 			outputRow = box.boxes.map(processBox)
