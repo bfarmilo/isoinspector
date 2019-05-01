@@ -1921,6 +1921,24 @@ const schema = new Map([[0x80, {
     webm: false,
     default: '2',
     description: 'The colour primaries of the video. For clarity, the value and meanings for Primaries are adopted from Table 2 of ISO/IEC 23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3: Reserved, 4: ITU-R BT.470M, 5: ITU-R BT.470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: FILM, 9: ITU-R BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors)'
+}],
+[0x47e7, {
+    name: 'ContentEncAESSettings',
+    level: 6, 
+    type: 'm', 
+    multiple: false, 
+    mandatory: false,  
+    webm: true, 
+    description: 'Settings describing the encryption algorithm used. If ConentEncAlgo !=5 this MUST be absent'
+}],
+[0x47e8, {
+    name: 'AESSettingsCipherMode', 
+    type: 'u', 
+    multiple: false, 
+    mandatory: false, 
+    webm: true, 
+    default: 1, 
+    description: 'The cipher mode used in the encryption. Predefined values: 1 - CTR'
 }]
 ]);
 
@@ -2117,6 +2135,12 @@ const EbmlDecoder = function EbmlDecoder(options) {
             }
 
             if (tagObj.name === 'SimpleBlock' || tagObj.name === 'Block') {
+                const lacingType = {
+                    0b00: 'no lacing',
+                    0b01: 'Xiph lacing',
+                    0b11: 'EBML lacing',
+                    0b10: 'fixed-size lacing'
+                }
                 var p = 0;
                 var track = tools.readVint(data, p);
                 p += track.length;
@@ -2124,10 +2148,20 @@ const EbmlDecoder = function EbmlDecoder(options) {
                 tagObj.value = tools.readSigned(data.subarray(p, p + 2));
                 p += 2;
                 if (tagObj.name === 'SimpleBlock') {
-                    tagObj.keyframe = Boolean(data[track.length + 2] & 0x80);
-                    tagObj.discardable = Boolean(data[track.length + 2] & 0x01);
+                    tagObj.keyframe = Boolean(data[p] & 0x80);
+                    tagObj.discardable = Boolean(data[p] & 0x01);
+                    tagObj.lacing = lacingType[(data[p] & 0b00000110) >> 1];
+                    tagObj.invisible = Boolean(data[p] & 0b00010000);
                 }
                 p++;
+                // if encrypted, it has a signal byte with the form x000000pe 
+                // currently x (extension flag) must = 0
+                if (tagObj.name === 'SimpleBlock' && !Boolean(data[p] & 0b11111100)) {
+                    tagObj.signal_extension_flag = Boolean(data[p] & 0b10000000);
+                    tagObj.signal_partition_flag = Boolean(data[p] & 0b0000010);
+                    tagObj.signal_encryption_flag = Boolean(data[p] & 0b0000001);
+                    p++;
+                }
                 tagObj.payload = data.subarray(p);
             }
             return tagObj;
