@@ -2,6 +2,7 @@ import { h, Component } from 'preact';
 import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from './ebmlBoxer';
 import { additionalBoxes, convertBox, postProcess } from './additionalBoxes';
+import { m2tsBoxer } from './m2tsBoxer';
 
 
 import Header from './header';
@@ -53,6 +54,7 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 		// process the boxes
 		const preProcessed = convertBox(parsedData.boxes);
+		console.log(preProcessed);
 		const result = postProcess(preProcessed);
 		return resolve({ boxes: result });
 	}
@@ -62,10 +64,7 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 
 const parseWebM = buf => ebmlBoxer(buf.buffer);
 
-//placeholder for now
-const parseM2TS = buf => new Promise((resolve, reject) => {
-	return reject(new Error('m2ts mode not supported'));
-});
+const parseM2TS = buf => m2tsBoxer(buf);
 
 export default class App extends Component {
 	constructor(props) {
@@ -153,10 +152,6 @@ export default class App extends Component {
 		this.setState({ showHex: !this.state.showHex });
 	}
 
-	toggleRaw = (e, boxID) => {
-		this.setState({ showRaw: this.state.showRaw === boxID ? -1 : boxID });
-	}
-
 	togglePreview = e => {
 		this.setState({ showVideo: !this.state.showVideo })
 	}
@@ -166,9 +161,32 @@ export default class App extends Component {
 		this.setState({ hasFocus: showOffset ? focusRow : -1 })
 	}
 
-	toggleBase64 = (e, hexData) => {
-		console.log(hexData);
-		const base64 = hexData ? hexData.join(' ').split(' ').map(byte => String.fromCharCode(parseInt(byte, 16))) : '';
+	toggleBase64 = (e, boxData) => {
+		const extractHex = buffer => {
+			const getRow = start => (start + 16 < buffer.length) ?
+				[buffer.slice(start, start + 16).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')].concat(getRow(start + 16)) :
+				[buffer.slice(start).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')];
+			return getRow(0);
+		}
+		let mp4Hex, base64;
+
+		if (this.state.mode === 'mp4' && boxData) {
+			// need to extract the hex by size and start byte
+			const buf = Array.from(Uint8Array.from(atob(this.state.inputData), c => c.charCodeAt(0)).slice(boxData.start, boxData.start + boxData.size));
+			mp4Hex = extractHex(buf);
+		}
+		const hexData = boxData && (boxData.hex || mp4Hex);
+		// toggle from hidden => base64 => hex
+		if (!this.state.base64) {
+			// hidden => base64
+			base64 = hexData ? hexData.join(' ').split(' ').map(byte => String.fromCharCode(parseInt(byte, 16))).join('') : '';
+		} else if (this.state.base64 instanceof Array) {// /([0-F][0-F] ){3,}/i.test(this.state.base64)) {
+			// hex => hidden
+			base64 = ''
+		} else {
+			// base64 => hex
+			base64 = hexData;
+		}
 		this.setState({ base64 })
 	}
 
@@ -210,7 +228,6 @@ export default class App extends Component {
 						error={this.state.errorMessage}
 						hasFocus={this.state.hasFocus}
 						base64={this.state.base64}
-						toggleRaw={this.toggleRaw}
 						toggleBase64={this.toggleBase64}
 					/>
 				</div>

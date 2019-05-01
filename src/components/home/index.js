@@ -14,29 +14,44 @@ const Home = props => {
 		// box.boxes {Array:box} sub-boxes
 		// 
 
-		const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type ? ` (${box.size} bytes)` : ''}`;
+		const showEntryDetails = entry => {
+
+			return (
+				<details>
+					<summary class={style.boxProp}>entry {entry.entryNumber}</summary>
+					{Object.keys(entry).filter(key => key !== 'entryNumber').map(key => {
+						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(entry[key][0]);
+						return (
+							<div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>
+						)
+					}
+					)}
+				</details>)
+		}
+
+		const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type && box.end ? ` (${box.size} bytes)` : ''}`;
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
 			return <div style={{ display: 'flex' }}>
 				<div style={{ minWidth: '30em' }}>
-					<details onToggle={e => props.toggleBase64(e, '')} key={box.start}>
+					<details onToggle={e => props.toggleBase64(e, null)} key={box.start}>
 						<summary class={style.boxName} /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>
 							{boxLabel}
 						</summary>
-						{box.boxes ? box.boxes.map(processBox) : box.display || box.hex && box.hex.map(row => <div onClick={e => props.toggleBase64(e, box.hex)} class={style.hexEntry}>{row}</div>)}
+						{box.boxes ? box.boxes.map(processBox) : box.display || box.hex && box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} class={style.hexEntry}>{row}</div>)}
 					</details>
 				</div>
-				<div><a style={{ display: 'flex', justifySelf: 'end' }} onClick={e => props.toggleRaw(e, box.start)}>+</a></div>
+				<div><a style={{ display: 'flex', justifySelf: 'end' }} onClick={e => props.toggleBase64(e, box)}>+</a></div>
 			</div>
 		}
 		// need to handle four cases here: raw hex, a simple object (key=name, value=display), an array of Objects, or a deeply nested box.
 		let outputRow;
 		let outputLabel = <span /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>{boxLabel}:</span>;
 		if (box.hex) {
-			outputRow = <details onToggle={e => props.toggleBase64(e, '')}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box.hex)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
+			outputRow = <details onToggle={e => props.toggleBase64(e, null)}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
 		} else if (Array.isArray(box.display) && box.display[0] && box.display[0].entryNumber) {
-			outputRow = box.display.map(entry => <details><summary class={style.boxProp}>entry {entry.entryNumber}</summary>{Object.keys(entry).filter(key => key !== 'entryNumber').map(key => <div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>)}</details>)
+			outputRow = box.display.map(showEntryDetails);
 		} else if (box.boxes) {
 			outputLabel = '';
 			outputRow = box.boxes.map(processBox)
@@ -48,7 +63,7 @@ const Home = props => {
 			{outputRow}
 		</div>
 	}
-	
+
 	return (
 		<div class={style.home} >
 			<h2>{props.fileName} ({props.decodeMode})</h2>
@@ -73,7 +88,10 @@ const Home = props => {
 									: <div>No valid boxes detected</div>
 								}
 							</div>
-							<div>{props.base64 ? <div class={style.hexEntry}>{props.base64}</div> : ''}</div>
+							<div>{props.base64 ? (props.base64 instanceof Array) ?
+								props.base64.map(row => <div class={style.hexEntry}>{row}</div>)
+								: <div class={style.hexEntry}>{props.base64}</div>
+								: ''}</div>
 						</div>
 					)
 			}

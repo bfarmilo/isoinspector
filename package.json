@@ -28,7 +28,8 @@
     "preact-render-spy": "^1.2.1"
   },
   "dependencies": {
-    "codem-isoboxer": "^0.3.6",
+    "codem-isoboxer": "^0.3.7",
+    "mpeg2ts-parser": "^1.0.2",
     "preact": "^8.3.1",
     "preact-compat": "^3.18.2"
   }
