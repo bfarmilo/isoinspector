@@ -1,6 +1,44 @@
 const { convertToHex, formatUuid } = require('./tools.js');
 
+let perSampleIVSize, subsampleCount;
+
 const additionalBoxes = [
+    {
+        source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 Bitrate box',
+        field: 'btrt',
+        _parser: function () {
+            this._procField('bufferSizeDB', 'uint', 32)
+            this._procField('maxBitrate', 'uint', 32)
+            this._procField('avgBitrate', 'uint', 32)
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2012 - 8.8.3.1 Track Extends Box',
+        field: 'trex',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('track_ID', 'uint', 32);
+            this._procField('default_sample_description_index', 'uint', 32);
+            this._procField('default_sample_duration', 'uint', 32);
+            this._procField('default_sample_size', 'uint', 32);
+            this._procField('default_sample_flags', 'uint', 32);
+            /*  this._procField('reserved1', 'bit', 4);
+             this._procField('is_leading', 'uint', 2);
+             this._procField('sample_depends_on', 'uint', 2);
+             this._procField('sample_is_depended_on', 'uint', 2);
+             this._procField('sample_has_redundancy', 'uint', 2);
+             this._procField('sample_padding_value', 'bit', 3);
+             this._procField('sample_is_non_sync_sample', 'bit', 1);
+             this._procField('sample_degredation_priority', 'uint', 16); */
+        }
+    }, {
+        source: 'ISO/IEC 14496-12:2012 - 8.12.2 Original Format Box',
+        field: 'frma',
+        _parser: function () {
+            // process this as a 4-byte array instead of a uint32 since it's actually ASCII text
+            this._procFieldArray('data_format', 4, 'uint', 8);
+        }
+    },
     {
         source: 'ISO/IEC 14496-12:2012 - 8.8.7 Track Fragment Header Box',
         field: 'tfhd',
@@ -77,6 +115,28 @@ const additionalBoxes = [
         source: 'ISO 14496-12_2012 Sample-to-Group 8.9.2',
         field: 'sbgp'
     }, {
+        source: 'ISO 23001-7 2016 Track Encryption 8.2.2',
+        field: 'tenc',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('reserved1', 'uint', 8);
+            if (this.version === 0) {
+                this._procField('reserved2', 'uint', 8);
+            } else {
+                this._procField('default_crypt_byte_block', 'uint', 4);
+                this._procField('default_skip_byte_block', 'uint', 4);
+            }
+            this._procField('default_isProtected', 'uint', 8);
+            this._procField('default_Per_Sample_IV_Size', 'uint', 8);
+            this._procFieldArray('default_KID', 16, 'uint', 8)
+            if (this.default_Per_Sample_IV_Size == 0) {
+                this._procField('default_constant_IV_size', 'uint', 8);
+                this._procFieldArray('default_constant_IV', this.default_constant_IV_size, 'uint', 8);
+            }
+            perSampleIVSize = this.default_Per_Sample_IV_Size || this.default_constant_IV_size;
+        }
+    },
+    {
         /*
         aligned(8) class SampleEncryptionBox extends FullBox(‘senc’, version=0, flags){
             unsigned int(32)  sample_count;
@@ -95,7 +155,17 @@ const additionalBoxes = [
     note Per_Sample_IV_Size and flags comes from 'tenc' box
      */
         source: 'ISO 23001-7_2016 Sample Encryption 7.2.1',
-        field: 'senc'
+        field: 'senc',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('sample_count', 'uint', 32);
+            if (this.sample_count) {
+                this._procEntries('entries', this.entry_count, function (entry) {
+                    this._procEntryField(entry, 'sample_count', 'uint', 32);
+                    this._procEntryField(entry, 'sample_delta', 'uint', 32);
+                })
+            }
+        }
     }, {
         source: 'ISO 14496-12_2012', field: 'iods'
     }, {
@@ -159,6 +229,90 @@ const additionalBoxes = [
             }
         }
     }, {
+        source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+        field: 'encv',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // VisualSampleEntry fields
+            this._procField('pre_defined1', 'uint', 16);
+            this._procField('reserved2', 'uint', 16);
+            this._procFieldArray('pre_defined2', 3, 'uint', 32);
+            this._procField('width', 'uint', 16);
+            this._procField('height', 'uint', 16);
+            this._procField('horizresolution', 'template', 32);
+            this._procField('vertresolution', 'template', 32);
+            this._procField('reserved3', 'uint', 32);
+            this._procField('frame_count', 'uint', 16);
+            this._procFieldArray('compressorname', 32, 'uint', 8);
+            this._procField('depth', 'uint', 16);
+            this._procField('pre_defined3', 'int', 16);
+            // Codec-specific fields
+            this._procSubBoxes('config', 'data', -1);
+        }
+    }, {
+        source: 'EC3 Specific Box',
+        field: 'dec3',
+        _parser: function () {
+            this._procField('data_rate', 'uint', 13);
+            this._procField('num_ind_sub', 'uint', 3);
+            this._procField('fscod', 'uint', 2);
+            this._procField('bsid', 'uint', 5);
+            this._procField('bsmod', 'uint', 5);
+            this._procField('acmod', 'uint', 3)
+            this._procField('lfeon', 'uint', 1);
+            this._procField('reserved1', 'uint', 3);
+            this._procField('num_dep_sub', 'uint', 4);
+            if (this.num_dep_sub > 0) {
+                this._procField('chan_loc', 'uint', 9);
+            } else {
+                this._procField('reserved2', 'uint', 1)
+            }
+        }
+    }, {
+        source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+        field: 'avc1',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // VisualSampleEntry fields
+            this._procField('pre_defined1', 'uint', 16);
+            this._procField('reserved2', 'uint', 16);
+            this._procFieldArray('pre_defined2', 3, 'uint', 32);
+            this._procField('width', 'uint', 16);
+            this._procField('height', 'uint', 16);
+            this._procField('horizresolution', 'template', 32);
+            this._procField('vertresolution', 'template', 32);
+            this._procField('reserved3', 'uint', 32);
+            this._procField('frame_count', 'uint', 16);
+            this._procFieldArray('compressorname', 32, 'uint', 8);
+            this._procField('depth', 'uint', 16);
+            this._procField('pre_defined3', 'int', 16);
+            // Codec-specific fields
+            this._procSubBoxes('config', 'data', -1);
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
+        field: 'enca',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // AudioSampleEntry fields
+            this._procFieldArray('reserved2', 2, 'uint', 32);
+            this._procField('channelcount', 'uint', 16);
+            this._procField('samplesize', 'uint', 16);
+            this._procField('pre_defined', 'uint', 16);
+            this._procField('reserved3', 'uint', 16);
+            this._procField('samplerate', 'template', 32);
+            // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
+            this._procSubBoxes('esds', 'data', -1);
+        }
+    },
+    {
         /*
         aligned(8) class CompositionOffsetBox 
         extends FullBox(‘ctts’, version = 0, 0) { 
@@ -197,6 +351,55 @@ const additionalBoxes = [
             this._procFullBox();
             this._procField('sample_size', 'uint', 32);
             this._procField('sample_count', 'uint', 32);
+            if (this.sample_size == 0 && this.sample_count) {
+                this._procEntries('samples', this.sample_count, function (sample) {
+                    this._procEntryField(sample, 'entry_size', 'uint', 32);
+                })
+            }
+        }
+    }, {
+        source: 'ISO/IEC 14496-12:2012 - 8.12.5 Scheme Type Box',
+        field: 'schm',
+        _parser: function () {
+            this._procFullBox();
+            // turn this into a 4-byte array since it's actually text
+            this._procFieldArray('scheme_type', 4, 'uint', 8);
+            this._procField('scheme_version', 'uint', 32);
+
+            if (this.flags & 0x000001) {
+                this._procField('scheme_uri', 'string', -1);
+            }
+        }
+    },
+    {
+        source: 'ISO 14496-15 avc decoder configuration',
+        field: 'avcC',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('configuration_version', 'uint', 8);
+            this._procField('AVC_profile_indication', 'uint', 8);
+            this._procField('profile_compatibility', 'uint', 8);
+            this._procField('configuration_version', 'uint', 8);
+            this._procField('reserved1', 'bit', 6);
+            this._procField('length_size_minus_one', 'uint', 2)
+            this._procField('reserved1', 'bit', 3);
+            this._procField('num_of_sequence_parameter_sets', 'uint', 5);
+            // sequenceparamater
+            this._procField('num_of_picture_parameter_sets', 'uint', 8);
+            //picture parameters
+            // if this.profile_idc == 100 || 110 || 122 || 144
+            /*
+             {   bit(6) reserved = ‘111111’b;   unsigned int(2) chroma_format;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_luma_minus8;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_chroma_minus8;   unsigned int(8) numOfSequenceParameterSetExt;   for (i=0; i< numOfSequenceParameterSetExt; i++) {    unsigned int(16) sequenceParameterSetExtLength;    bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;   }  }
+            */
+        }
+    },
+    {
+        source: 'Quicktime',
+        field: 'pasp',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('h_spacing', 'uint', 32);
+            this._procField('b_spacing', 'uint', 32);
             if (this.sample_size == 0 && this.sample_count) {
                 this._procEntries('samples', this.sample_count, function (sample) {
                     this._procEntryField(sample, 'entry_size', 'uint', 32);
@@ -308,8 +511,10 @@ const getISOData = (key, value) => {
     // 4) Handle Arrays of plain Objects (eg. entries, references, samples) -- note * usually includes *_count !
     // 5) Handle raw binary (Uint8Array)
     const handleArray = {
-        'Object': value => value.map((item, index) => {
+        'Object': (value, excludeKeys = false) => value.map((item, index) => {
             const cleanEntry = { ...item };
+            if (Object.keys(cleanEntry).includes('sample_flags')) cleanEntry.sample_flags = handleArray.LongSampleDependency(cleanEntry.sample_flags)
+            if (excludeKeys) excludeKeys.forEach(key => delete cleanEntry[key]);
             cleanEntry.entryNumber = index + 1;
             return cleanEntry;
         }),
@@ -331,8 +536,47 @@ const getISOData = (key, value) => {
                 cleanEntry.entryNumber = index + 1;
                 return cleanEntry
             })
+        },
+        'LongSampleDependency': value => {
+            /*
+bit(4)	reserved=0;
+unsigned int(2) is_leading;
+unsigned int(2) sample_depends_on;
+unsigned int(2) sample_is_depended_on;
+unsigned int(2) sample_has_redundancy;
+bit(3)	sample_padding_value;
+bit(1)	sample_is_non_sync_sample;
+unsigned int(16)	sample_degradation_priority;
+*/
+            const flags = [
+                { name: 'reserved1', bitmask: 0b11110000000000000000000000000000, shift: 28 },
+                { name: 'is_leading', bitmask: 0b00001100000000000000000000000000, shift: 26, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' },
+                { name: 'sample_depends_on', bitmask: 0b00000011000000000000000000000000, shift: 24, 0: 'unknown', 1: 'depends on others (not an I frame)', 2: 'does not depend (I frame)' },
+                { name: 'sample_is_depended_on', bitmask: 0b00000000110000000000000000000000, shift: 22, 0: 'unknown', 1: 'not disposable', 2: 'disposable' },
+                { name: 'sample_has_redundancy', bitmask: 0b00000000001100000000000000000000, shift: 20, 0: 'unknown', 1: 'has redundant coding', 2: 'has no redundant coding' },
+                { name: 'sample_padding_value', bitmask: 0b00000000000011100000000000000000, shift: 17 },
+                { name: 'sample_is_non_sync_sample', bitmask: 0b00000000000000010000000000000000, shift: 16, 0: 'sync sample', 1: 'not a sync sample' },
+                { name: 'sample_degredation_priority', bitmask: 0b00000000000000001111111111111111, shift: 0 }
+            ];
+            // do a bit comparison and return the lookup
+            // first, if it's an array then return an array
+            if (Array.isArray(value)) return value.map((item, index) => {
+                // do a bit comparison and return the lookup
+                const cleanEntry = flags.reduce((summary, flag) => {
+                    summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                    return summary;
+                }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry
+            })
+            // otherwise, if it's a single value, just return a single value
+            return [].concat(flags.reduce((summary, flag) => {
+                summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                return summary;
+            }, { entryNumber: 1 }));
         }
     }
+
 
     // 5) Handle raw binary
     if (valueType === 'Uint8Array') {
@@ -353,14 +597,26 @@ const getISOData = (key, value) => {
                 return `${formatUuid(value)} (${value.map(b => String.fromCharCode(b)).join('')})\n${convertToHex(value._data)}`;
             case 'xfa_KID?':
                 return `${formatUuid(value)}`;
+            case 'default_KID':
+                return `${formatUuid(value)}`;
             case 'sample_dependency_table':
                 return handleArray.SampleDependency(value);
+            case 'sample_flags':
+                return handleArray.LongSampleDependency(value);
+            case 'references':
+                return handleArray[elementType](value, ['sap', 'reference']);
+            case 'data_format': case 'scheme_type':
+                return value.map(b => String.fromCharCode(b)).join('');
             default: // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
         }
     }
     // special case -- flags should show up as hex for easier comparison to standard
     if (key === 'flags') return `0x${value.toString(16).padStart(2, '0').toUpperCase()}`;
+    // Handle 'default_sample_flags' or 'first_sample_flags
+    if (key === 'default_sample_flags' || key === 'first_sample_flags') {
+        return handleArray.LongSampleDependency(value);
+    }
     // Handle string or Number or anything else that slips through
     return value;
 }
@@ -369,7 +625,7 @@ const postProcess = boxes => {
     return boxes.map(box => {
         const keyList = box.keys;
         const { type, start, size, hex } = { ...box };
-        let boxContents;
+        let boxContents, boxes;
         if (keyList.length) {
             boxContents = keyList.map(key => {
                 // first check if the key is for sub-boxes
@@ -379,11 +635,23 @@ const postProcess = boxes => {
                     const entryKeys = Object.keys(entry);
                     return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
                 }); */
+                if (key === 'config') return { name: key, display: null, hex: box[key] }
                 return { name: key, display: box[key], hex: hex || null }
             })
         }
-        // no keys, so it is a container box. If it has sub-boxes recurse to process those
-        return { type, start, size, boxes: box.boxes ? postProcess(box.boxes) : boxContents, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
+        // Merge the boxContents with sub-boxes if applicable. If it has sub-boxes recurse to process those
+        const subBoxes = box.boxes && box.boxes.length ? postProcess(box.boxes) : null;
+        if (!boxContents) {
+            //no keys, must be just a container box
+            boxes = subBoxes;
+        } else if (!subBoxes) {
+            //no subBoxes, but has contents, just a bottom-level box
+            boxes = boxContents
+        } else if (boxContents && subBoxes) {
+            //has both its own contents and subboxes
+            boxes = boxContents.concat(subBoxes);
+        }
+        return { type, start, size, boxes, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
     });
 }
 
@@ -401,17 +669,24 @@ const convertBox = boxes => {
 
     const HIDE_KEYS = new Set(['type', 'start', 'end', '_offset', '_data', 'size', 'hex']);
 
-    // it isn't a map, must be a nested array of objects
     return boxes.reduce((result, box) => {
+        if (box._incomplete) console.log(`${box.type} payload not parsed due to missing bytes`);
         const keys = Object.keys(box).filter(key => !/^_/i.test(key) || key === '_offset' || key === '_data');
         return result.concat(
             keys.reduce((newBox, key) => {
                 // recurse if the contents of a key are other ISOBoxes.
-                if (key === 'boxes' || (Array.isArray(box[key]) && box[key][0].hasOwnProperty('_cursor'))) {
-                    if (key !== 'boxes') newBox.keys.push(`${key}__altered`);
-                    key === 'boxes' ? newBox[key] = convertBox(box[key]) : newBox[`${key}__altered`] = convertBox(box[key]);
+                // console.log('');
+                if (key === 'boxes' || (Array.isArray(box[key]) && box[key][0] && box[key][0].hasOwnProperty('_cursor'))) {
+                    // for non-box keys, make it an __altered entry
+                    if (key !== 'boxes') {
+                        newBox.keys.push(`${key}__altered`);
+                        newBox[`${key}__altered`] = convertBox(box[key]);
+                    } else {
+                        // if the key is boxes, recurse to return a converted key
+                        newBox[key] = convertBox(box[key])
+                    }
                 } else {
-                    if (key !== '_data' || box.type === 'uuid' && key === '_data') {
+                    if (key !== '_data' || (box.type === 'uuid' && key === '_data')) {
                         const { newKey, value } = mappedKey(key, box);
                         newBox[newKey] = getISOData(key, value);
                         if (!HIDE_KEYS.has(newKey)) newBox.keys.push(newKey);
