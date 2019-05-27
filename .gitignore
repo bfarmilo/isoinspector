@@ -8,4 +8,5 @@ testfile*
 /src/tests/*.json
 /src/tests/*.mp4
 /src/tests/*.webm
+/src/tests/*.ts
 
