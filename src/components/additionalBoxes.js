@@ -133,7 +133,7 @@ const additionalBoxes = [
                 this._procField('default_constant_IV_size', 'uint', 8);
                 this._procFieldArray('default_constant_IV', this.default_constant_IV_size, 'uint', 8);
             }
-            perSampleIVSize = this.default_Per_Sample_IV_Size || this.default_constant_IV_size;
+            this.perSampleIVSize = this.default_Per_Sample_IV_Size || this.default_constant_IV_size;
         }
     },
     {
@@ -159,12 +159,19 @@ const additionalBoxes = [
         _parser: function () {
             this._procFullBox();
             this._procField('sample_count', 'uint', 32);
-            if (this.sample_count) {
-                this._procEntries('entries', this.entry_count, function (entry) {
-                    this._procEntryField(entry, 'sample_count', 'uint', 32);
-                    this._procEntryField(entry, 'sample_delta', 'uint', 32);
-                })
+            if (this.flags & 1) {
+                this._procField('IV_size', 'uint', 8);
             }
+            this._procEntries('senc_samples', this.sample_count, function (entry) {
+                this._procEntryField(entry, 'InitializationVector', 'data', 8);
+                if (this.flags & 2) {
+                    this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                    this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                        this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                        this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                    });
+                }
+            });
         }
     }, {
         source: 'ISO 14496-12_2012', field: 'iods'
@@ -539,15 +546,15 @@ const getISOData = (key, value) => {
         },
         'LongSampleDependency': value => {
             /*
-bit(4)	reserved=0;
-unsigned int(2) is_leading;
-unsigned int(2) sample_depends_on;
-unsigned int(2) sample_is_depended_on;
-unsigned int(2) sample_has_redundancy;
-bit(3)	sample_padding_value;
-bit(1)	sample_is_non_sync_sample;
-unsigned int(16)	sample_degradation_priority;
-*/
+            bit(4)	reserved=0;
+            unsigned int(2) is_leading;
+            unsigned int(2) sample_depends_on;
+            unsigned int(2) sample_is_depended_on;
+            unsigned int(2) sample_has_redundancy;
+            bit(3)	sample_padding_value;
+            bit(1)	sample_is_non_sync_sample;
+            unsigned int(16)	sample_degradation_priority;
+            */
             const flags = [
                 { name: 'reserved1', bitmask: 0b11110000000000000000000000000000, shift: 28 },
                 { name: 'is_leading', bitmask: 0b00001100000000000000000000000000, shift: 26, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' },
@@ -574,7 +581,14 @@ unsigned int(16)	sample_degradation_priority;
                 summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
                 return summary;
             }, { entryNumber: 1 }));
-        }
+        },
+        'senc_samples': value => value.map((item, index) => {
+            const cleanEntry = { ...item, InitializationVector: convertToHex(item.InitializationVector) };
+            // add an entry number to each subsample entry
+            cleanEntry.subsamples = cleanEntry.subsamples.map((subsample, subEntryNo) => ({ ...subsample, entryNumber: subEntryNo + 1 }));
+            cleanEntry.entryNumber = index + 1;
+            return cleanEntry;
+        }),
     }
 
 
@@ -605,6 +619,8 @@ unsigned int(16)	sample_degradation_priority;
                 return handleArray.LongSampleDependency(value);
             case 'references':
                 return handleArray[elementType](value, ['sap', 'reference']);
+            case 'senc_samples':
+                return handleArray.senc_samples(value);
             case 'data_format': case 'scheme_type':
                 return value.map(b => String.fromCharCode(b)).join('');
             default: // Otherwise handle based on type of the first entry

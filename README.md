@@ -6,7 +6,7 @@ A basic preact single-page app that attempts to parse the tags in streaming medi
 Just run the page and either paste bytes in Base64 format or browse to a local file. To switch parsing modes click on the button at top right.
 
 ## Programming notes
-Using a custom version of ebml where you pass an 'external schema' as a second argument to the decoder. Similar to ebml-universal package, but instead of having to specify the whole schema only pass in the additional definitions.
+Added a feature to ebml where you pass an 'external schema' as a second argument to the decoder. Similar to ebml-universal package, but instead of having to specify the whole schema only pass in the additional definitions.
 
 ## Architecture notes
 To clean up, need to pass a consistent object to the view layer to render. View layer needs the following:
@@ -15,7 +15,7 @@ To clean up, need to pass a consistent object to the view layer to render. View 
 1. Contents of the box, ie the payload and the values.
   1. In the case of ISO, any nested boxes show up below this.
   1. In the case of WebM, box contents have no payload if there is a nested box.
-  1. Additional processing may be required for the payload of the box, ie, if it is an array of entries, or objects, or uuid's. This processing is done as the box is parsed.
+  1. Additional processing may be required for the payload of the box to display in a friendly way, ie, if it is an array of entries, or objects, or uuid's. This processing is done as the box is parsed.
 1. Sub-boxes show up as next level down.
 
 So the basic structure of the display layer is:
@@ -31,6 +31,7 @@ level1box (start, end)
   |
   +-- etc.
 
+
 rawValues: Uint8Array(byteStream, start, end)
 
 Note EBML parser deals with (basically) raw binary so all formatting is done manually.
@@ -41,5 +42,4 @@ Need way to keep track of which box is selected for hex display. Probably need a
 
 ## Issues List
 
-* TODO: fork the EBML parser repo and add this in
 1. Allow this to also run the service (Nflx, etc. etc.) by acting as a desktop web Browser (electron). Then capture keys etc. to allow replaying. parse-on-the-fly?

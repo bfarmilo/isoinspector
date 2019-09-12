@@ -45,17 +45,27 @@ const Home = props => {
 				<div><a style={{ display: 'flex', justifySelf: 'end' }} onClick={e => props.toggleBase64(e, box)}>+</a></div>
 			</div>
 		}
-		// need to handle four cases here: raw hex, a simple object (key=name, value=display), an array of Objects, or a deeply nested box.
+		// need to handle five cases here: 
+		// 1. raw hex, 
+		// 2. a simple object (key=name, value=display), 
+		// 3. an array of Objects, 
+		// 4. a deeply nested box,
+		// 5. (senc) an array of Objects that contains a key that contains an Array of Objects
 		let outputRow;
 		let outputLabel = <span /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>{boxLabel}:</span>;
 		if (box.hex) {
+			// case 1
 			outputRow = <details onToggle={e => props.toggleBase64(e, null)}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
 		} else if (Array.isArray(box.display) && box.display[0] && box.display[0].entryNumber) {
+			// case 3
 			outputRow = box.display.map(display => showEntryDetails(boxLabel, display));
+			// case 5
 		} else if (box.boxes) {
+			// case 4
 			outputLabel = '';
 			outputRow = box.boxes.map(processBox)
 		} else {
+			// case 2
 			outputRow = <span class={style.boxContents}>{box.display}</span>;
 		}
 		return <div key={box.start} class={box.boxes ? style.boxName : style.boxProp}>
