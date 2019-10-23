@@ -66,6 +66,20 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
+/***/ "97RM":
+/***/ (function(module, exports) {
+
+module.exports = require("stream");
+
+/***/ }),
+
+/***/ "Bcfi":
+/***/ (function(module, exports) {
+
+module.exports = require("util");
+
+/***/ }),
+
 /***/ "HVeQ":
 /***/ (function(module, exports) {
 
@@ -2011,6 +2025,22 @@ var schema = new Map([[0x80, {
     webm: false,
     default: '2',
     description: 'The colour primaries of the video. For clarity, the value and meanings for Primaries are adopted from Table 2 of ISO/IEC 23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3: Reserved, 4: ITU-R BT.470M, 5: ITU-R BT.470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: FILM, 9: ITU-R BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors)'
+}], [0x47e7, {
+    name: 'ContentEncAESSettings',
+    level: 6,
+    type: 'm',
+    multiple: false,
+    mandatory: false,
+    webm: true,
+    description: 'Settings describing the encryption algorithm used. If ConentEncAlgo !=5 this MUST be absent'
+}], [0x47e8, {
+    name: 'AESSettingsCipherMode',
+    type: 'u',
+    multiple: false,
+    mandatory: false,
+    webm: true,
+    default: 1,
+    description: 'The cipher mode used in the encryption. Predefined values: 1 - CTR'
 }]]);
 
 'use strict';
@@ -2203,6 +2233,12 @@ var EbmlDecoder = function EbmlDecoder(options) {
             }
 
             if (tagObj.name === 'SimpleBlock' || tagObj.name === 'Block') {
+                var lacingType = {
+                    0: 'no lacing',
+                    1: 'Xiph lacing',
+                    3: 'EBML lacing',
+                    2: 'fixed-size lacing'
+                };
                 var p = 0;
                 var track = tools.readVint(data, p);
                 p += track.length;
@@ -2210,10 +2246,20 @@ var EbmlDecoder = function EbmlDecoder(options) {
                 tagObj.value = tools.readSigned(data.subarray(p, p + 2));
                 p += 2;
                 if (tagObj.name === 'SimpleBlock') {
-                    tagObj.keyframe = Boolean(data[track.length + 2] & 0x80);
-                    tagObj.discardable = Boolean(data[track.length + 2] & 0x01);
+                    tagObj.keyframe = Boolean(data[p] & 0x80);
+                    tagObj.discardable = Boolean(data[p] & 0x01);
+                    tagObj.lacing = lacingType[(data[p] & 6) >> 1];
+                    tagObj.invisible = Boolean(data[p] & 16);
                 }
                 p++;
+                // if encrypted, it has a signal byte with the form x000000pe 
+                // currently x (extension flag) must = 0
+                if (tagObj.name === 'SimpleBlock' && !Boolean(data[p] & 252)) {
+                    tagObj.signal_extension_flag = Boolean(data[p] & 128);
+                    tagObj.signal_partition_flag = Boolean(data[p] & 2);
+                    tagObj.signal_encryption_flag = Boolean(data[p] & 1);
+                    p++;
+                }
                 tagObj.payload = data.subarray(p);
             }
             return tagObj;
@@ -2583,6 +2629,200 @@ var ebmlBoxer_ebmlBoxer = function ebmlBoxer(buf) {
 var additionalBoxes = __webpack_require__("kKod");
 var additionalBoxes_default = /*#__PURE__*/__webpack_require__.n(additionalBoxes);
 
+// CONCATENATED MODULE: ./components/m2tsBoxer.js
+
+var parser = __webpack_require__("PFLp")();
+var m2tsBoxer_MAX_TIME = 10;
+
+var pidLookup = new Map([[0, 'Program Association Table'], [1, 'Conditional Access Table'], [2, 'Transport Stream Description Table'], [3, 'IPMP Control Information Table']]);
+
+var tableIDLookup = {
+    0x00: 'Program Association Section',
+    0x01: 'Conditional Access Section',
+    0x02: 'TS Program Map Section',
+    0x03: 'TS Description Section',
+    0x04: 'Scene Description Section',
+    0x05: 'Object Descriptor Section',
+    0x06: 'Metadata Section',
+    0x07: 'IPMP Control Information Section'
+};
+
+var streamTypeLookup = {
+    0x00: 'ITU-T | ISO/IEC Reserved',
+    0x01: 'ISO/IEC 11172-2 Video',
+    0x02: 'ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream',
+    0x03: 'ISO/IEC 11172-3 Audio',
+    0x04: 'ISO/IEC 13818-3 Audio',
+    0x05: 'ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections',
+    0x06: 'ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data',
+    0x07: 'ISO/IEC 13522 MHEG 0x08 ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Annex A DSM-CC',
+    0x09: 'ITU-T Rec. H.222.1',
+    0x0A: 'ISO/IEC 13818-6 type A',
+    0x0B: 'ISO/IEC 13818-6 type B',
+    0x0C: 'ISO/IEC 13818-6 type C',
+    0x0D: 'ISO/IEC 13818-6 type D',
+    0x0E: 'ITU-T Rec. H.222.0 | ISO/IEC 13818-1 auxiliary',
+    0x0F: 'ISO/IEC 13818-7 Audio', // with ADTS transport syntax',
+    0x10: 'ISO/IEC 14496-2 Visual',
+    0x11: 'ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3',
+    0x12: 'ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets',
+    0x13: 'ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections',
+    0x14: 'ISO/IEC 13818-6 Synchronized Download Protocol',
+    0x15: 'Metadata carried in PES packets',
+    0x16: 'Metadata carried in metadata_sections',
+    0x17: 'Metadata carried in ISO/IEC 13818-6 Data Carousel',
+    0x18: 'Metadata carried in ISO/IEC 13818-6 Object Carousel',
+    0x19: 'Metadata carried in ISO/IEC 13818-6 Synchronized Download Protocol',
+    0x1A: 'IPMP stream (defined in ISO/IEC 13818-11, MPEG-2 IPMP)',
+    0x1B: 'AVC video stream', // as defined in ITU-T Rec. H.264 | ISO/IEC 14496-10 Video',
+    0x7F: 'IPMP stream'
+};
+
+var parsePAT = function parsePAT(buf) {
+    // need to parse the PAT
+    return {
+        table_id: tableIDLookup[buf[0]] || 'reserved',
+        section_syntax_indicator: (buf[1] & 128) >> 7,
+        // 0 bit
+        reserved1: (buf[1] & 48) >> 4,
+        section_length: (buf[1] & 15) << 4 | buf[2],
+        transport_stream_id: buf[3] << 8 | buf[4],
+        reserved2: (buf[5] & 192) >> 6,
+        version_number: (buf[5] & 62) >> 1,
+        current_next_indicator: buf[5] & 1,
+        section_number: buf[6],
+        last_section_number: buf[7],
+        program_number: buf[8] << 8 | buf[9],
+        reserved3: (buf[10] & 224) >> 5,
+        program_map_PID: (buf[10] & 31) << 8 | buf[11],
+        crc_32: buf[12] << 24 | buf[13] << 16 | buf[14] << 8 | buf[15]
+    };
+};
+
+var parsePMT = function parsePMT(buf) {
+    var _pmt;
+
+    // need to parse the PMT
+    var pmt = (_pmt = {
+        table_id: tableIDLookup[buf[0]] || 'reserved',
+        section_syntax_indicator: (buf[1] & 128) >> 7,
+        // 0 bit
+        reserved1: (buf[1] & 48) >> 4,
+        section_length: (buf[1] & 15) << 8 | buf[2],
+        program_number: buf[3] << 8 + buf[4],
+        reserved2: (buf[5] & 192) >> 6,
+        version_number: (buf[5] & 62) >> 1,
+        current_next_indicator: buf[5] & 1,
+        section_number: buf[6],
+        last_section_number: buf[7],
+        reserved3: (buf[8] & 224) >> 5,
+        PCR_PID: (buf[8] & 31) << 8 | buf[9]
+    }, _pmt['reserved3'] = (buf[10] & 240) >> 4, _pmt.program_info_length = (buf[10] & 15) << 8 | buf[11], _pmt);
+
+    // now need to loop buf[12] to get
+    var start = 12;
+    var boxes = [];
+    var i = 0;
+    while (buf.length > start + i + 4) {
+        var _streamInfo;
+
+        var streamInfo = (_streamInfo = {
+            stream_type: streamTypeLookup[buf[start + i]] || 'unknown'
+        }, _streamInfo['reserved' + (4 + i)] = (buf[start + i + 1] & 224) >> 5, _streamInfo.elementary_PID = (buf[start + i + 1] & 31) << 8 | buf[start + i + 2], _streamInfo['reserved' + (4 + i + 1)] = (buf[start + i + 3] & 240) >> 4, _streamInfo.ES_info_length = (buf[start + i + 3] & 15) << 8 | buf[start + i + 4], _streamInfo);
+        boxes.push(streamInfo);
+        // add the stream type and id to the table
+        pidLookup.set(streamInfo.elementary_PID, streamInfo.stream_type);
+        i += 5;
+    }
+    pmt.boxes = boxes;
+    pmt.crc_32 = buf[i] << 24 | buf[i + 1] << 16 | buf[i + 2] << 8 | buf[i + 3];
+    return pmt;
+};
+
+var m2tsBoxer_processEntry = function processEntry(segment) {
+    // first some manual processing of the PAT, not in the decoder (yet)
+    if (segment.hasOwnProperty('pid') && segment.pid === 0) {
+        segment.program_association_section = parsePAT(segment.payload);
+        // now add that to the list
+        pidLookup.set(segment.program_association_section.program_map_PID, 'Program Map Table');
+    };
+    if (segment.hasOwnProperty('pid') && pidLookup.get(segment.pid) === 'Program Map Table') {
+        // need to process the program map table
+        segment.program_map_section = parsePMT(segment.payload);
+    }
+    // now convert all keys to the form {name, display}
+    var keyList = Object.keys(segment).filter(function (key) {
+        return key !== 'packet' && key !== 'payload';
+    });
+    return keyList.map(function (key) {
+        if (typeof segment[key] === 'object') return { type: key, boxes: processEntry(segment[key]), start: null, end: null };
+        return { name: key, display: segment[key], start: null, end: null };
+    });
+};
+
+var m2tsBoxer_processData = function processData(data) {
+    try {
+        var boxes = data.map(function (segment) {
+            // Display layer is expecting the form:
+            // box.start {number} byte offset of box start
+            // box.end {number} byte offset of box end
+            // box.display {string} display value of the box
+            // box.hex {string} hex representation of the box
+            // box.name {string} name of the data entry
+            // box.type {string} name of the container box
+            // box.boxes {Array:box} sub-boxes
+            return {
+                start: null,
+                end: null,
+                type: 'PID ' + segment.pid + (pidLookup.has(segment.pid) ? ' (' + pidLookup.get(segment.pid) + ')' : '') + ' number ' + segment.continuity_counter,
+                hex: Object(tools["convertToHex"])(segment.packet),
+                packet: Object(tools["convertToHex"])(segment.packet),
+                boxes: m2tsBoxer_processEntry(segment)
+            };
+        });
+        return { boxes: boxes };
+    } catch (e) {
+        throw e;
+    }
+};
+
+var m2tsBoxer = function m2tsBoxer(buf) {
+    return new Promise(function (resolve, reject) {
+        var allData = [];
+        var lastChunkTime = new Date().getTime();
+        var currentTime = lastChunkTime;
+
+        try {
+            var catchEnd = setInterval(function () {
+                if (allData.length && lastChunkTime - currentTime < m2tsBoxer_MAX_TIME) {
+                    clearInterval(catchEnd);
+                    return resolve(allData);
+                } else {
+                    return reject('m2ts timeout');
+                }
+            }, m2tsBoxer_MAX_TIME / 2);
+
+            parser.on('data', function (data) {
+                allData.push(data);
+                lastChunkTime = new Date().getTime();
+                currentTime = lastChunkTime;
+            });
+            parser.on('end', function () {
+                return resolve(allData);
+            });
+            parser.on('error', function (err) {
+                return reject(err);
+            });
+            parser.write(buf, function () {
+                return resolve(m2tsBoxer_processData(allData));
+            });
+        } catch (e) {
+            return reject(e);
+        }
+    });
+};
+
+
 // EXTERNAL MODULE: ./components/header/style.css
 var header_style = __webpack_require__("u3et");
 var header_style_default = /*#__PURE__*/__webpack_require__.n(header_style);
@@ -2665,7 +2905,42 @@ var home_Home = function Home(props) {
 		// box.boxes {Array:box} sub-boxes
 		// 
 
-		var boxLabel = '' + (box.type || box.name) + (props.hasFocus === box.start && box.type ? ' starting byte: ' + box.start : '') + (box.type ? ' (' + box.size + ' bytes)' : '');
+		var showEntryDetails = function showEntryDetails(title, entry) {
+
+			return Object(preact_min["h"])(
+				'details',
+				null,
+				Object(preact_min["h"])(
+					'summary',
+					{ 'class': home_style_default.a.boxProp },
+					title.slice(0, -1),
+					' ',
+					entry.entryNumber
+				),
+				Object.keys(entry).filter(function (key) {
+					return key !== 'entryNumber' && key !== 'title';
+				}).map(function (key) {
+					if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
+					return Object(preact_min["h"])(
+						'div',
+						null,
+						Object(preact_min["h"])(
+							'span',
+							{ 'class': home_style_default.a.boxProp },
+							key,
+							':'
+						),
+						Object(preact_min["h"])(
+							'span',
+							{ 'class': home_style_default.a.boxContents },
+							entry[key]
+						)
+					);
+				})
+			);
+		};
+
+		var boxLabel = '' + (box.type || box.name) + (props.hasFocus === box.start && box.type ? ' starting byte: ' + box.start : '') + (box.type && box.end ? ' (' + box.size + ' bytes)' : '');
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
@@ -2678,7 +2953,7 @@ var home_Home = function Home(props) {
 					Object(preact_min["h"])(
 						'details',
 						{ onToggle: function onToggle(e) {
-								return props.toggleBase64(e, '');
+								return props.toggleBase64(e, null);
 							}, key: box.start },
 						Object(preact_min["h"])(
 							'summary',
@@ -2689,7 +2964,7 @@ var home_Home = function Home(props) {
 							return Object(preact_min["h"])(
 								'div',
 								{ onClick: function onClick(e) {
-										return props.toggleBase64(e, box.hex);
+										return props.toggleBase64(e, box);
 									}, 'class': home_style_default.a.hexEntry },
 								row
 							);
@@ -2702,14 +2977,19 @@ var home_Home = function Home(props) {
 					Object(preact_min["h"])(
 						'a',
 						{ style: { display: 'flex', justifySelf: 'end' }, onClick: function onClick(e) {
-								return props.toggleRaw(e, box.start);
+								return props.toggleBase64(e, box);
 							} },
 						'+'
 					)
 				)
 			);
 		}
-		// need to handle four cases here: raw hex, a simple object (key=name, value=display), an array of Objects, or a deeply nested box.
+		// need to handle five cases here: 
+		// 1. raw hex, 
+		// 2. a simple object (key=name, value=display), 
+		// 3. an array of Objects, 
+		// 4. a deeply nested box,
+		// 5. (senc) an array of Objects that contains a key that contains an Array of Objects
 		var outputRow = void 0;
 		var outputLabel = Object(preact_min["h"])(
 			'span',
@@ -2718,10 +2998,11 @@ var home_Home = function Home(props) {
 			':'
 		);
 		if (box.hex) {
+			// case 1
 			outputRow = Object(preact_min["h"])(
 				'details',
 				{ onToggle: function onToggle(e) {
-						return props.toggleBase64(e, '');
+						return props.toggleBase64(e, null);
 					} },
 				Object(preact_min["h"])(
 					'summary',
@@ -2732,48 +3013,24 @@ var home_Home = function Home(props) {
 					return Object(preact_min["h"])(
 						'div',
 						{ onClick: function onClick(e) {
-								return props.toggleBase64(e, box.hex);
+								return props.toggleBase64(e, box);
 							}, key: row, 'class': home_style_default.a.hexEntry },
 						row
 					);
 				})
 			);
 		} else if (Array.isArray(box.display) && box.display[0] && box.display[0].entryNumber) {
-			outputRow = box.display.map(function (entry) {
-				return Object(preact_min["h"])(
-					'details',
-					null,
-					Object(preact_min["h"])(
-						'summary',
-						{ 'class': home_style_default.a.boxProp },
-						'entry ',
-						entry.entryNumber
-					),
-					Object.keys(entry).filter(function (key) {
-						return key !== 'entryNumber';
-					}).map(function (key) {
-						return Object(preact_min["h"])(
-							'div',
-							null,
-							Object(preact_min["h"])(
-								'span',
-								{ 'class': home_style_default.a.boxProp },
-								key,
-								':'
-							),
-							Object(preact_min["h"])(
-								'span',
-								{ 'class': home_style_default.a.boxContents },
-								entry[key]
-							)
-						);
-					})
-				);
+			// case 3
+			outputRow = box.display.map(function (display) {
+				return showEntryDetails(boxLabel, display);
 			});
+			// case 5
 		} else if (box.boxes) {
+			// case 4
 			outputLabel = '';
 			outputRow = box.boxes.map(processBox);
 		} else {
+			// case 2
 			outputRow = Object(preact_min["h"])(
 				'span',
 				{ 'class': home_style_default.a.boxContents },
@@ -2826,7 +3083,13 @@ var home_Home = function Home(props) {
 			Object(preact_min["h"])(
 				'div',
 				null,
-				props.base64 ? Object(preact_min["h"])(
+				props.base64 ? props.base64 instanceof Array ? props.base64.map(function (row) {
+					return Object(preact_min["h"])(
+						'div',
+						{ 'class': home_style_default.a.hexEntry },
+						row
+					);
+				}) : Object(preact_min["h"])(
 					'div',
 					{ 'class': home_style_default.a.hexEntry },
 					props.base64
@@ -2865,6 +3128,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
 
 
 
@@ -2919,6 +3183,7 @@ var app_parseISO = function parseISO(buf) {
 					parsedData = $await_1;
 					if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 						preProcessed = Object(additionalBoxes["convertBox"])(parsedData.boxes);
+						console.log(preProcessed);
 						result = Object(additionalBoxes["postProcess"])(preProcessed);
 						return $return(resolve({ boxes: result }));
 					}
@@ -2935,11 +3200,8 @@ var app_parseWebM = function parseWebM(buf) {
 	return ebmlBoxer_ebmlBoxer(buf.buffer);
 };
 
-//placeholder for now
-var parseM2TS = function parseM2TS(buf) {
-	return new Promise(function (resolve, reject) {
-		return reject(new Error('m2ts mode not supported'));
-	});
+var app_parseM2TS = function parseM2TS(buf) {
+	return m2tsBoxer(buf);
 };
 
 var app__ref2 = Object(preact_min["h"])('div', null);
@@ -2965,7 +3227,7 @@ var app_App = function (_Component) {
 			});
 			if (_this.state.mode === 'webm') return app_parseWebM(inputBuffer);
 			if (_this.state.mode === 'mp4') return app_parseISO(inputBuffer);
-			if (_this.state.mode === 'MP2T') return parseM2TS(inputBuffer);
+			if (_this.state.mode === 'MP2T') return app_parseM2TS(inputBuffer);
 		};
 
 		_this.updateInput = function (e) {
@@ -3024,10 +3286,6 @@ var app_App = function (_Component) {
 			_this.setState({ showHex: !_this.state.showHex });
 		};
 
-		_this.toggleRaw = function (e, boxID) {
-			_this.setState({ showRaw: _this.state.showRaw === boxID ? -1 : boxID });
-		};
-
 		_this.togglePreview = function (e) {
 			_this.setState({ showVideo: !_this.state.showVideo });
 		};
@@ -3037,11 +3295,42 @@ var app_App = function (_Component) {
 			_this.setState({ hasFocus: showOffset ? focusRow : -1 });
 		};
 
-		_this.toggleBase64 = function (e, hexData) {
-			console.log(hexData);
-			var base64 = hexData ? hexData.join(' ').split(' ').map(function (byte) {
-				return String.fromCharCode(parseInt(byte, 16));
-			}) : '';
+		_this.toggleBase64 = function (e, boxData) {
+			var extractHex = function extractHex(buffer) {
+				var getRow = function getRow(start) {
+					return start + 16 < buffer.length ? [buffer.slice(start, start + 16).map(function (bit) {
+						return bit.toString('16').padStart(2, '0').toUpperCase();
+					}).join(' ')].concat(getRow(start + 16)) : [buffer.slice(start).map(function (bit) {
+						return bit.toString('16').padStart(2, '0').toUpperCase();
+					}).join(' ')];
+				};
+				return getRow(0);
+			};
+			var mp4Hex = void 0,
+			    base64 = void 0;
+
+			if (_this.state.mode === 'mp4' && boxData) {
+				// need to extract the hex by size and start byte
+				var buf = Array.from(Uint8Array.from(atob(_this.state.inputData), function (c) {
+					return c.charCodeAt(0);
+				}).slice(boxData.start, boxData.start + boxData.size));
+				mp4Hex = extractHex(buf);
+			}
+			var hexData = boxData && (boxData.hex || mp4Hex);
+			// toggle from hidden => base64 => hex
+			if (!_this.state.base64) {
+				// hidden => base64
+				base64 = hexData ? hexData.join(' ').split(' ').map(function (byte) {
+					return String.fromCharCode(parseInt(byte, 16));
+				}).join('') : '';
+			} else if (_this.state.base64 instanceof Array) {
+				// /([0-F][0-F] ){3,}/i.test(this.state.base64)) {
+				// hex => hidden
+				base64 = '';
+			} else {
+				// base64 => hex
+				base64 = hexData;
+			}
 			_this.setState({ base64: base64 });
 		};
 
@@ -3120,7 +3409,6 @@ var app_App = function (_Component) {
 					error: this.state.errorMessage,
 					hasFocus: this.state.hasFocus,
 					base64: this.state.base64,
-					toggleRaw: this.toggleRaw,
 					toggleBase64: this.toggleBase64
 				})
 			)
@@ -3161,7 +3449,7 @@ var app_App = function (_Component) {
       e[n] = t[n];
     }return e;
   }function n(e, t) {
-    null != e && ("function" == typeof e ? e(t) : e.current = t);
+    e && ("function" == typeof e ? e(t) : e.current = t);
   }function o(n, o) {
     return e(n.nodeName, t(t({}, n.attributes), o), arguments.length > 2 ? [].slice.call(arguments, 2) : n.children);
   }function r(e) {
@@ -3343,6 +3631,206 @@ var app_App = function (_Component) {
 
 /***/ }),
 
+/***/ "PFLp":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var stream = __webpack_require__("97RM");
+var util = __webpack_require__("Bcfi");
+
+/**
+ * @private
+ * @param {Buffer} packet - TS packet
+ * @return {Object}
+ */
+var parseAdaptationField = function parseAdaptationField(packet) {
+    var adaptation_field_length = packet[4];
+
+    if (adaptation_field_length <= 0) {
+        return {
+            adaptation_field_length: adaptation_field_length
+        };
+    }
+
+    var adaptation_field = {
+        adaptation_field_length: adaptation_field_length,
+        discontinuity_indicator: (packet[5] & 0x80) >>> 7,
+        random_access_indicator: (packet[5] & 0x40) >>> 6,
+        elementary_stream_priority_indicator: (packet[5] & 0x20) >>> 5,
+        pcr_flag: (packet[5] & 0x10) >>> 4,
+        opcr_flag: (packet[5] & 0x08) >>> 3,
+        splicing_point_flag: (packet[5] & 0x04) >>> 2,
+        transport_private_data_flag: (packet[5] & 0x02) >>> 1,
+        adaptation_field_extension_flag: packet[5] & 0x01
+    };
+
+    var index = 6;
+
+    if (adaptation_field.pcr_flag) {
+        adaptation_field.program_clock_reference_base = packet.readUInt32BE(index) * 2 + ((packet[index + 4] & 0x80) >>> 7);
+
+        adaptation_field.program_clock_reference_extension = (packet[index + 4] & 0x1) * 256 + (packet[index + 5] >>> 0);
+
+        index += 6;
+    }
+
+    if (adaptation_field.opcr_flag) {
+        adaptation_field.original_program_clock_reference_base = packet.readUInt32BE(index) * 2 + ((packet[index + 4] & 0x80) >>> 7);
+
+        adaptation_field.original_program_clock_reference_extension = (packet[index + 4] & 0x1) * 256 + (packet[index + 5] >>> 0);
+
+        index += 6;
+    }
+
+    if (adaptation_field.splicing_point_flag) {
+        adaptation_field.splice_countdown = packet.readInt8(index);
+
+        index += 1;
+    }
+
+    if (adaptation_field.transport_private_data_flag) {
+        adaptation_field.transport_private_data_length = packet[index] >>> 0;
+
+        adaptation_field.private_data = packet.slice(index + 1, index + 1 + adaptation_field.transport_private_data_length);
+
+        index += 1 + adaptation_field.transport_private_data_length;
+    }
+
+    if (adaptation_field.adaptation_field_extension_flag) {
+        adaptation_field.adaptation_field_extension_length = packet[index] >>> 0;
+
+        adaptation_field.ltw_flag = (packet[index + 1] & 0x80) >>> 7;
+        adaptation_field.piecewise_rate_flag = (packet[index + 1] & 0x40) >>> 6;
+        adaptation_field.seamless_splice_flag = (packet[index + 1] & 0x20) >>> 5;
+
+        index += 2;
+
+        if (adaptation_field.ltw_flag) {
+            adaptation_field.ltw_valid_flag = (packet[index] & 0x80) >>> 7;
+
+            adaptation_field.ltw_offset = (packet[index] & 0x7f) * 256 + (packet[index + 1] >>> 0);
+
+            index += 2;
+        }
+
+        if (adaptation_field.piecewise_rate_flag) {
+            adaptation_field.piecewise_rate = (packet[index] & 0x3f) * 65536 + packet[index + 1] * 256 + (packet[index + 2] >>> 0);
+
+            index += 3;
+        }
+
+        if (adaptation_field.seamless_splice_flag) {
+            adaptation_field.splice_type = (packet[index] & 0xf0) >>> 4;
+
+            // 536870912 = 2 ^ 29
+            // 4194304   = 2 ^ 22
+            // 16384     = 2 ^ 14
+            // 128       = 2 ^ 7
+            adaptation_field.dts_next_au = (packet[index] & 0x0e) * 536870912 + packet[index + 1] * 4194304 + ((packet[index + 2] & 0xfe) >>> 0) * 16384 + packet[index + 3] * 128 + ((packet[index + 4] & 0xfe) >>> 1);
+        }
+    }
+
+    return adaptation_field;
+};
+
+/**
+ * @private
+ * @param {Buffer} chunk - Buffer
+ * @return {Object}
+ */
+var parsePacket = function parsePacket(chunk) {
+    if (chunk[0] !== 0x47 /* sync byte */) {
+            throw new Error('Not a ts packet');
+        }
+
+    var packet = {
+        transport_error_indicator: (chunk[1] & 0x80) >>> 7,
+        payload_unit_start_indicator: (chunk[1] & 0x40) >>> 6,
+        transport_priority: (chunk[1] & 0x20) >>> 5,
+        pid: (chunk[1] & 0x1f) << 8 | chunk[2],
+        transport_scrambling_control: (chunk[3] & 0xc0) >>> 6,
+        adaptation_field_control: (chunk[3] & 0x30) >>> 4,
+        continuity_counter: chunk[3] & 0x0f,
+        packet: chunk
+    };
+
+    if (packet.adaptation_field_control & 0x2) {
+        packet.adaptation_field = parseAdaptationField(chunk);
+    }
+
+    if (packet.adaptation_field_control & 0x1) {
+        var begin = 5 + (packet.adaptation_field & 0x2 ? packet.adaptation_field.adaptation_field_length : 0);
+
+        var end = 188;
+        for (; chunk[end - 1] === 0xff; --end) {}
+
+        packet.payload = chunk.slice(begin, end);
+    }
+
+    return packet;
+};
+
+/**
+ * @class
+ * @param {Object} options
+ */
+var Mpeg2TsParser = function Mpeg2TsParser(options) {
+    if (!(this instanceof Mpeg2TsParser)) {
+        return new Mpeg2TsParser(options);
+    }
+
+    stream.Transform.call(this, typeof options === 'undefined' ? {} : options);
+
+    this._writableState.objectMode = false;
+    this._readableState.objectMode = true;
+
+    this._buffer = new Buffer(0);
+};
+
+util.inherits(Mpeg2TsParser, stream.Transform);
+
+/**
+ * @private
+ */
+Mpeg2TsParser.prototype._transform = function (chunk, encoding, callback) {
+    if (this._buffer.length + chunk.length < 188) {
+        try {
+            this._buffer = Buffer.concat([this._buffer, chunk]);
+        } catch (err) {
+            callback(err);
+            return;
+        }
+
+        callback();
+        return;
+    }
+
+    try {
+        this.push(parsePacket(Buffer.concat([this._buffer, chunk.slice(0, 188 - this._buffer.length)], 188)));
+
+        chunk = chunk.slice(188 - this._buffer.length);
+
+        var index = 0;
+
+        for (; index + 188 < chunk.length; index += 188) {
+            this.push(parsePacket(chunk.slice(index, index + 188)));
+        }
+
+        this._buffer = chunk.slice(index);
+    } catch (err) {
+        callback(err);
+        return;
+    }
+
+    callback();
+};
+
+module.exports = Mpeg2TsParser;
+
+/***/ }),
+
 /***/ "bUFf":
 /***/ (function(module, exports) {
 
@@ -3359,7 +3847,44 @@ var _require = __webpack_require__("tTqp"),
     convertToHex = _require.convertToHex,
     formatUuid = _require.formatUuid;
 
+var perSampleIVSize = void 0,
+    subsampleCount = void 0;
+
 var additionalBoxes = [{
+    source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 Bitrate box',
+    field: 'btrt',
+    _parser: function _parser() {
+        this._procField('bufferSizeDB', 'uint', 32);
+        this._procField('maxBitrate', 'uint', 32);
+        this._procField('avgBitrate', 'uint', 32);
+    }
+}, {
+    source: 'ISO/IEC 14496-12:2012 - 8.8.3.1 Track Extends Box',
+    field: 'trex',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('track_ID', 'uint', 32);
+        this._procField('default_sample_description_index', 'uint', 32);
+        this._procField('default_sample_duration', 'uint', 32);
+        this._procField('default_sample_size', 'uint', 32);
+        this._procField('default_sample_flags', 'uint', 32);
+        /*  this._procField('reserved1', 'bit', 4);
+         this._procField('is_leading', 'uint', 2);
+         this._procField('sample_depends_on', 'uint', 2);
+         this._procField('sample_is_depended_on', 'uint', 2);
+         this._procField('sample_has_redundancy', 'uint', 2);
+         this._procField('sample_padding_value', 'bit', 3);
+         this._procField('sample_is_non_sync_sample', 'bit', 1);
+         this._procField('sample_degredation_priority', 'uint', 16); */
+    }
+}, {
+    source: 'ISO/IEC 14496-12:2012 - 8.12.2 Original Format Box',
+    field: 'frma',
+    _parser: function _parser() {
+        // process this as a 4-byte array instead of a uint32 since it's actually ASCII text
+        this._procFieldArray('data_format', 4, 'uint', 8);
+    }
+}, {
     source: 'ISO/IEC 14496-12:2012 - 8.8.7 Track Fragment Header Box',
     field: 'tfhd',
     _parser: function _parser() {
@@ -3435,6 +3960,27 @@ var additionalBoxes = [{
     source: 'ISO 14496-12_2012 Sample-to-Group 8.9.2',
     field: 'sbgp'
 }, {
+    source: 'ISO 23001-7 2016 Track Encryption 8.2.2',
+    field: 'tenc',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('reserved1', 'uint', 8);
+        if (this.version === 0) {
+            this._procField('reserved2', 'uint', 8);
+        } else {
+            this._procField('default_crypt_byte_block', 'uint', 4);
+            this._procField('default_skip_byte_block', 'uint', 4);
+        }
+        this._procField('default_isProtected', 'uint', 8);
+        this._procField('default_Per_Sample_IV_Size', 'uint', 8);
+        this._procFieldArray('default_KID', 16, 'uint', 8);
+        if (this.default_Per_Sample_IV_Size == 0) {
+            this._procField('default_constant_IV_size', 'uint', 8);
+            this._procFieldArray('default_constant_IV', this.default_constant_IV_size, 'uint', 8);
+        }
+        this.perSampleIVSize = this.default_Per_Sample_IV_Size || this.default_constant_IV_size;
+    }
+}, {
     /*
     aligned(8) class SampleEncryptionBox extends FullBox(‘senc’, version=0, flags){
         unsigned int(32)  sample_count;
@@ -3453,7 +3999,24 @@ var additionalBoxes = [{
     note Per_Sample_IV_Size and flags comes from 'tenc' box
     */
     source: 'ISO 23001-7_2016 Sample Encryption 7.2.1',
-    field: 'senc'
+    field: 'senc',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('sample_count', 'uint', 32);
+        if (this.flags & 1) {
+            this._procField('IV_size', 'uint', 8);
+        }
+        this._procEntries('senc_samples', this.sample_count, function (entry) {
+            this._procEntryField(entry, 'InitializationVector', 'data', 8);
+            if (this.flags & 2) {
+                this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                    this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                    this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                });
+            }
+        });
+    }
 }, {
     source: 'ISO 14496-12_2012', field: 'iods'
 }, {
@@ -3517,6 +4080,88 @@ var additionalBoxes = [{
         }
     }
 }, {
+    source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+    field: 'encv',
+    _parser: function _parser() {
+        // SampleEntry fields
+        this._procFieldArray('reserved1', 6, 'uint', 8);
+        this._procField('data_reference_index', 'uint', 16);
+        // VisualSampleEntry fields
+        this._procField('pre_defined1', 'uint', 16);
+        this._procField('reserved2', 'uint', 16);
+        this._procFieldArray('pre_defined2', 3, 'uint', 32);
+        this._procField('width', 'uint', 16);
+        this._procField('height', 'uint', 16);
+        this._procField('horizresolution', 'template', 32);
+        this._procField('vertresolution', 'template', 32);
+        this._procField('reserved3', 'uint', 32);
+        this._procField('frame_count', 'uint', 16);
+        this._procFieldArray('compressorname', 32, 'uint', 8);
+        this._procField('depth', 'uint', 16);
+        this._procField('pre_defined3', 'int', 16);
+        // Codec-specific fields
+        this._procSubBoxes('config', 'data', -1);
+    }
+}, {
+    source: 'EC3 Specific Box',
+    field: 'dec3',
+    _parser: function _parser() {
+        this._procField('data_rate', 'uint', 13);
+        this._procField('num_ind_sub', 'uint', 3);
+        this._procField('fscod', 'uint', 2);
+        this._procField('bsid', 'uint', 5);
+        this._procField('bsmod', 'uint', 5);
+        this._procField('acmod', 'uint', 3);
+        this._procField('lfeon', 'uint', 1);
+        this._procField('reserved1', 'uint', 3);
+        this._procField('num_dep_sub', 'uint', 4);
+        if (this.num_dep_sub > 0) {
+            this._procField('chan_loc', 'uint', 9);
+        } else {
+            this._procField('reserved2', 'uint', 1);
+        }
+    }
+}, {
+    source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+    field: 'avc1',
+    _parser: function _parser() {
+        // SampleEntry fields
+        this._procFieldArray('reserved1', 6, 'uint', 8);
+        this._procField('data_reference_index', 'uint', 16);
+        // VisualSampleEntry fields
+        this._procField('pre_defined1', 'uint', 16);
+        this._procField('reserved2', 'uint', 16);
+        this._procFieldArray('pre_defined2', 3, 'uint', 32);
+        this._procField('width', 'uint', 16);
+        this._procField('height', 'uint', 16);
+        this._procField('horizresolution', 'template', 32);
+        this._procField('vertresolution', 'template', 32);
+        this._procField('reserved3', 'uint', 32);
+        this._procField('frame_count', 'uint', 16);
+        this._procFieldArray('compressorname', 32, 'uint', 8);
+        this._procField('depth', 'uint', 16);
+        this._procField('pre_defined3', 'int', 16);
+        // Codec-specific fields
+        this._procSubBoxes('config', 'data', -1);
+    }
+}, {
+    source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
+    field: 'enca',
+    _parser: function _parser() {
+        // SampleEntry fields
+        this._procFieldArray('reserved1', 6, 'uint', 8);
+        this._procField('data_reference_index', 'uint', 16);
+        // AudioSampleEntry fields
+        this._procFieldArray('reserved2', 2, 'uint', 32);
+        this._procField('channelcount', 'uint', 16);
+        this._procField('samplesize', 'uint', 16);
+        this._procField('pre_defined', 'uint', 16);
+        this._procField('reserved3', 'uint', 16);
+        this._procField('samplerate', 'template', 32);
+        // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
+        this._procSubBoxes('esds', 'data', -1);
+    }
+}, {
     /*
     aligned(8) class CompositionOffsetBox 
     extends FullBox(‘ctts’, version = 0, 0) { 
@@ -3555,6 +4200,53 @@ var additionalBoxes = [{
         this._procFullBox();
         this._procField('sample_size', 'uint', 32);
         this._procField('sample_count', 'uint', 32);
+        if (this.sample_size == 0 && this.sample_count) {
+            this._procEntries('samples', this.sample_count, function (sample) {
+                this._procEntryField(sample, 'entry_size', 'uint', 32);
+            });
+        }
+    }
+}, {
+    source: 'ISO/IEC 14496-12:2012 - 8.12.5 Scheme Type Box',
+    field: 'schm',
+    _parser: function _parser() {
+        this._procFullBox();
+        // turn this into a 4-byte array since it's actually text
+        this._procFieldArray('scheme_type', 4, 'uint', 8);
+        this._procField('scheme_version', 'uint', 32);
+
+        if (this.flags & 0x000001) {
+            this._procField('scheme_uri', 'string', -1);
+        }
+    }
+}, {
+    source: 'ISO 14496-15 avc decoder configuration',
+    field: 'avcC',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('configuration_version', 'uint', 8);
+        this._procField('AVC_profile_indication', 'uint', 8);
+        this._procField('profile_compatibility', 'uint', 8);
+        this._procField('configuration_version', 'uint', 8);
+        this._procField('reserved1', 'bit', 6);
+        this._procField('length_size_minus_one', 'uint', 2);
+        this._procField('reserved1', 'bit', 3);
+        this._procField('num_of_sequence_parameter_sets', 'uint', 5);
+        // sequenceparamater
+        this._procField('num_of_picture_parameter_sets', 'uint', 8);
+        //picture parameters
+        // if this.profile_idc == 100 || 110 || 122 || 144
+        /*
+         {   bit(6) reserved = ‘111111’b;   unsigned int(2) chroma_format;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_luma_minus8;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_chroma_minus8;   unsigned int(8) numOfSequenceParameterSetExt;   for (i=0; i< numOfSequenceParameterSetExt; i++) {    unsigned int(16) sequenceParameterSetExtLength;    bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;   }  }
+        */
+    }
+}, {
+    source: 'Quicktime',
+    field: 'pasp',
+    _parser: function _parser() {
+        this._procFullBox();
+        this._procField('h_spacing', 'uint', 32);
+        this._procField('b_spacing', 'uint', 32);
         if (this.sample_size == 0 && this.sample_count) {
             this._procEntries('samples', this.sample_count, function (sample) {
                 this._procEntryField(sample, 'entry_size', 'uint', 32);
@@ -3668,13 +4360,28 @@ var psshLookup = {
     // 4) Handle Arrays of plain Objects (eg. entries, references, samples) -- note * usually includes *_count !
     // 5) Handle raw binary (Uint8Array)
     var handleArray = {
-        'Object': function Object(value) {
+        'Object': function (_Object) {
+            function Object(_x2) {
+                return _Object.apply(this, arguments);
+            }
+
+            Object.toString = function () {
+                return _Object.toString();
+            };
+
+            return Object;
+        }(function (value) {
+            var excludeKeys = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
             return value.map(function (item, index) {
                 var cleanEntry = _extends({}, item);
+                if (Object.keys(cleanEntry).includes('sample_flags')) cleanEntry.sample_flags = handleArray.LongSampleDependency(cleanEntry.sample_flags);
+                if (excludeKeys) excludeKeys.forEach(function (key) {
+                    return delete cleanEntry[key];
+                });
                 cleanEntry.entryNumber = index + 1;
                 return cleanEntry;
             });
-        },
+        }),
         'String': function String(value) {
             return value.join(', ');
         },
@@ -3689,6 +4396,46 @@ var psshLookup = {
                     summary[flag.flag] = flag[(item & flag.bitmask) >> flag.shift];
                     return summary;
                 }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry;
+            });
+        },
+        'LongSampleDependency': function LongSampleDependency(value) {
+            /*
+            bit(4)	reserved=0;
+            unsigned int(2) is_leading;
+            unsigned int(2) sample_depends_on;
+            unsigned int(2) sample_is_depended_on;
+            unsigned int(2) sample_has_redundancy;
+            bit(3)	sample_padding_value;
+            bit(1)	sample_is_non_sync_sample;
+            unsigned int(16)	sample_degradation_priority;
+            */
+            var flags = [{ name: 'reserved1', bitmask: 4026531840, shift: 28 }, { name: 'is_leading', bitmask: 201326592, shift: 26, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' }, { name: 'sample_depends_on', bitmask: 50331648, shift: 24, 0: 'unknown', 1: 'depends on others (not an I frame)', 2: 'does not depend (I frame)' }, { name: 'sample_is_depended_on', bitmask: 12582912, shift: 22, 0: 'unknown', 1: 'not disposable', 2: 'disposable' }, { name: 'sample_has_redundancy', bitmask: 3145728, shift: 20, 0: 'unknown', 1: 'has redundant coding', 2: 'has no redundant coding' }, { name: 'sample_padding_value', bitmask: 917504, shift: 17 }, { name: 'sample_is_non_sync_sample', bitmask: 65536, shift: 16, 0: 'sync sample', 1: 'not a sync sample' }, { name: 'sample_degredation_priority', bitmask: 65535, shift: 0 }];
+            // do a bit comparison and return the lookup
+            // first, if it's an array then return an array
+            if (Array.isArray(value)) return value.map(function (item, index) {
+                // do a bit comparison and return the lookup
+                var cleanEntry = flags.reduce(function (summary, flag) {
+                    summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                    return summary;
+                }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry;
+            });
+            // otherwise, if it's a single value, just return a single value
+            return [].concat(flags.reduce(function (summary, flag) {
+                summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                return summary;
+            }, { entryNumber: 1 }));
+        },
+        'senc_samples': function senc_samples(value) {
+            return value.map(function (item, index) {
+                var cleanEntry = _extends({}, item, { InitializationVector: convertToHex(item.InitializationVector) });
+                // add an entry number to each subsample entry
+                cleanEntry.subsamples = cleanEntry.subsamples.map(function (subsample, subEntryNo) {
+                    return _extends({}, subsample, { entryNumber: subEntryNo + 1 });
+                });
                 cleanEntry.entryNumber = index + 1;
                 return cleanEntry;
             });
@@ -3717,8 +4464,20 @@ var psshLookup = {
                 }).join('') + ')\n' + convertToHex(value._data);
             case 'xfa_KID?':
                 return '' + formatUuid(value);
+            case 'default_KID':
+                return '' + formatUuid(value);
             case 'sample_dependency_table':
                 return handleArray.SampleDependency(value);
+            case 'sample_flags':
+                return handleArray.LongSampleDependency(value);
+            case 'references':
+                return handleArray[elementType](value, ['sap', 'reference']);
+            case 'senc_samples':
+                return handleArray.senc_samples(value);
+            case 'data_format':case 'scheme_type':
+                return value.map(function (b) {
+                    return String.fromCharCode(b);
+                }).join('');
             default:
                 // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
@@ -3726,6 +4485,10 @@ var psshLookup = {
     }
     // special case -- flags should show up as hex for easier comparison to standard
     if (key === 'flags') return '0x' + value.toString(16).padStart(2, '0').toUpperCase();
+    // Handle 'default_sample_flags' or 'first_sample_flags
+    if (key === 'default_sample_flags' || key === 'first_sample_flags') {
+        return handleArray.LongSampleDependency(value);
+    }
     // Handle string or Number or anything else that slips through
     return value;
 };
@@ -3740,7 +4503,8 @@ var postProcess = function postProcess(boxes) {
             size = _box.size,
             hex = _box.hex;
 
-        var boxContents = void 0;
+        var boxContents = void 0,
+            boxes = void 0;
         if (keyList.length) {
             boxContents = keyList.map(function (key) {
                 // first check if the key is for sub-boxes
@@ -3750,11 +4514,23 @@ var postProcess = function postProcess(boxes) {
                     const entryKeys = Object.keys(entry);
                     return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
                 }); */
+                if (key === 'config') return { name: key, display: null, hex: box[key] };
                 return { name: key, display: box[key], hex: hex || null };
             });
         }
-        // no keys, so it is a container box. If it has sub-boxes recurse to process those
-        return { type: type, start: start, size: size, boxes: box.boxes ? postProcess(box.boxes) : boxContents, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
+        // Merge the boxContents with sub-boxes if applicable. If it has sub-boxes recurse to process those
+        var subBoxes = box.boxes && box.boxes.length ? postProcess(box.boxes) : null;
+        if (!boxContents) {
+            //no keys, must be just a container box
+            boxes = subBoxes;
+        } else if (!subBoxes) {
+            //no subBoxes, but has contents, just a bottom-level box
+            boxes = boxContents;
+        } else if (boxContents && subBoxes) {
+            //has both its own contents and subboxes
+            boxes = boxContents.concat(subBoxes);
+        }
+        return { type: type, start: start, size: size, boxes: boxes, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
     });
 };
 
@@ -3774,16 +4550,23 @@ var convertBox = function convertBox(boxes) {
 
     var HIDE_KEYS = new Set(['type', 'start', 'end', '_offset', '_data', 'size', 'hex']);
 
-    // it isn't a map, must be a nested array of objects
     return boxes.reduce(function (result, box) {
+        if (box._incomplete) console.log(box.type + ' payload not parsed due to missing bytes');
         var keys = Object.keys(box).filter(function (key) {
             return !/^_/i.test(key) || key === '_offset' || key === '_data';
         });
         return result.concat(keys.reduce(function (newBox, key) {
             // recurse if the contents of a key are other ISOBoxes.
-            if (key === 'boxes' || Array.isArray(box[key]) && box[key][0].hasOwnProperty('_cursor')) {
-                if (key !== 'boxes') newBox.keys.push(key + '__altered');
-                key === 'boxes' ? newBox[key] = convertBox(box[key]) : newBox[key + '__altered'] = convertBox(box[key]);
+            // console.log('');
+            if (key === 'boxes' || Array.isArray(box[key]) && box[key][0] && box[key][0].hasOwnProperty('_cursor')) {
+                // for non-box keys, make it an __altered entry
+                if (key !== 'boxes') {
+                    newBox.keys.push(key + '__altered');
+                    newBox[key + '__altered'] = convertBox(box[key]);
+                } else {
+                    // if the key is boxes, recurse to return a converted key
+                    newBox[key] = convertBox(box[key]);
+                }
             } else {
                 if (key !== '_data' || box.type === 'uuid' && key === '_data') {
                     var _mappedKey = mappedKey(key, box),
@@ -3865,7 +4648,7 @@ module.exports = {"header":"header__2MqSo","active":"active__27Q54"};
 /***/ "unQC":
 /***/ (function(module, exports, __webpack_require__) {
 
-/*! codem-isoboxer v0.3.6 https://github.com/madebyhiro/codem-isoboxer/blob/master/LICENSE.txt */
+/*! codem-isoboxer v0.3.7 https://github.com/madebyhiro/codem-isoboxer/blob/master/LICENSE.txt */
 var ISOBoxer = {};
 
 ISOBoxer.parseBuffer = function (arrayBuffer) {
@@ -4121,7 +4904,7 @@ ISOBox.create = function (type) {
   return newBox;
 };
 
-ISOBox.prototype._boxContainers = ['ssix', 'dinf', 'edts', 'mdia', 'meco', 'mfra', 'minf', 'moof', 'moov', 'mvex', 'stbl', 'strk', 'traf', 'trak', 'tref', 'udta', 'vttc', 'sinf', 'schi', 'encv', 'enca'];
+ISOBox.prototype._boxContainers = ['dinf', 'edts', 'mdia', 'meco', 'mfra', 'minf', 'moof', 'moov', 'mvex', 'stbl', 'strk', 'traf', 'trak', 'tref', 'udta', 'vttc', 'sinf', 'schi', 'encv', 'enca'];
 
 ISOBox.prototype._boxProcessors = {};
 
@@ -4642,8 +5425,8 @@ ISOBox.prototype._writeField = function (type, size, value) {
   }
 };
 
-// ISO/IEC 14496-15:2014 - avc1 box
-ISOBox.prototype._boxProcessors['avc1'] = ISOBox.prototype._boxProcessors['encv'] = function () {
+// ISO/IEC 14496-15:2014 - avc1/2/3/4, hev1, hvc1, encv
+ISOBox.prototype._boxProcessors['avc1'] = ISOBox.prototype._boxProcessors['avc2'] = ISOBox.prototype._boxProcessors['avc3'] = ISOBox.prototype._boxProcessors['avc4'] = ISOBox.prototype._boxProcessors['hvc1'] = ISOBox.prototype._boxProcessors['hev1'] = ISOBox.prototype._boxProcessors['encv'] = function () {
   // SampleEntry fields
   this._procFieldArray('reserved1', 6, 'uint', 8);
   this._procField('data_reference_index', 'uint', 16);
@@ -4660,7 +5443,7 @@ ISOBox.prototype._boxProcessors['avc1'] = ISOBox.prototype._boxProcessors['encv'
   this._procFieldArray('compressorname', 32, 'uint', 8);
   this._procField('depth', 'uint', 16);
   this._procField('pre_defined3', 'int', 16);
-  // AVCSampleEntry fields
+  // Codec-specific fields
   this._procField('config', 'data', -1);
 };
 
