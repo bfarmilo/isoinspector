@@ -1,6 +1,44 @@
-const { convertToHex } = require('./tools.js');
+const { convertToHex, formatUuid } = require('./tools.js');
+
+let perSampleIVSize, subsampleCount;
 
 const additionalBoxes = [
+    {
+        source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 Bitrate box',
+        field: 'btrt',
+        _parser: function () {
+            this._procField('bufferSizeDB', 'uint', 32)
+            this._procField('maxBitrate', 'uint', 32)
+            this._procField('avgBitrate', 'uint', 32)
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2012 - 8.8.3.1 Track Extends Box',
+        field: 'trex',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('track_ID', 'uint', 32);
+            this._procField('default_sample_description_index', 'uint', 32);
+            this._procField('default_sample_duration', 'uint', 32);
+            this._procField('default_sample_size', 'uint', 32);
+            this._procField('default_sample_flags', 'uint', 32);
+            /*  this._procField('reserved1', 'bit', 4);
+             this._procField('is_leading', 'uint', 2);
+             this._procField('sample_depends_on', 'uint', 2);
+             this._procField('sample_is_depended_on', 'uint', 2);
+             this._procField('sample_has_redundancy', 'uint', 2);
+             this._procField('sample_padding_value', 'bit', 3);
+             this._procField('sample_is_non_sync_sample', 'bit', 1);
+             this._procField('sample_degredation_priority', 'uint', 16); */
+        }
+    }, {
+        source: 'ISO/IEC 14496-12:2012 - 8.12.2 Original Format Box',
+        field: 'frma',
+        _parser: function () {
+            // process this as a 4-byte array instead of a uint32 since it's actually ASCII text
+            this._procFieldArray('data_format', 4, 'uint', 8);
+        }
+    },
     {
         source: 'ISO/IEC 14496-12:2012 - 8.8.7 Track Fragment Header Box',
         field: 'tfhd',
@@ -77,6 +115,28 @@ const additionalBoxes = [
         source: 'ISO 14496-12_2012 Sample-to-Group 8.9.2',
         field: 'sbgp'
     }, {
+        source: 'ISO 23001-7 2016 Track Encryption 8.2.2',
+        field: 'tenc',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('reserved1', 'uint', 8);
+            if (this.version === 0) {
+                this._procField('reserved2', 'uint', 8);
+            } else {
+                this._procField('default_crypt_byte_block', 'uint', 4);
+                this._procField('default_skip_byte_block', 'uint', 4);
+            }
+            this._procField('default_isProtected', 'uint', 8);
+            this._procField('default_Per_Sample_IV_Size', 'uint', 8);
+            this._procFieldArray('default_KID', 16, 'uint', 8)
+            if (this.default_Per_Sample_IV_Size == 0) {
+                this._procField('default_constant_IV_size', 'uint', 8);
+                this._procFieldArray('default_constant_IV', this.default_constant_IV_size, 'uint', 8);
+            }
+            this.perSampleIVSize = this.default_Per_Sample_IV_Size || this.default_constant_IV_size;
+        }
+    },
+    {
         /*
         aligned(8) class SampleEncryptionBox extends FullBox(‘senc’, version=0, flags){
             unsigned int(32)  sample_count;
@@ -95,7 +155,24 @@ const additionalBoxes = [
     note Per_Sample_IV_Size and flags comes from 'tenc' box
      */
         source: 'ISO 23001-7_2016 Sample Encryption 7.2.1',
-        field: 'senc'
+        field: 'senc',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('sample_count', 'uint', 32);
+            if (this.flags & 1) {
+                this._procField('IV_size', 'uint', 8);
+            }
+            this._procEntries('senc_samples', this.sample_count, function (entry) {
+                this._procEntryField(entry, 'InitializationVector', 'data', 8);
+                if (this.flags & 2) {
+                    this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                    this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                        this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                        this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                    });
+                }
+            });
+        }
     }, {
         source: 'ISO 14496-12_2012', field: 'iods'
     }, {
@@ -159,6 +236,90 @@ const additionalBoxes = [
             }
         }
     }, {
+        source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+        field: 'encv',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // VisualSampleEntry fields
+            this._procField('pre_defined1', 'uint', 16);
+            this._procField('reserved2', 'uint', 16);
+            this._procFieldArray('pre_defined2', 3, 'uint', 32);
+            this._procField('width', 'uint', 16);
+            this._procField('height', 'uint', 16);
+            this._procField('horizresolution', 'template', 32);
+            this._procField('vertresolution', 'template', 32);
+            this._procField('reserved3', 'uint', 32);
+            this._procField('frame_count', 'uint', 16);
+            this._procFieldArray('compressorname', 32, 'uint', 8);
+            this._procField('depth', 'uint', 16);
+            this._procField('pre_defined3', 'int', 16);
+            // Codec-specific fields
+            this._procSubBoxes('config', 'data', -1);
+        }
+    }, {
+        source: 'EC3 Specific Box',
+        field: 'dec3',
+        _parser: function () {
+            this._procField('data_rate', 'uint', 13);
+            this._procField('num_ind_sub', 'uint', 3);
+            this._procField('fscod', 'uint', 2);
+            this._procField('bsid', 'uint', 5);
+            this._procField('bsmod', 'uint', 5);
+            this._procField('acmod', 'uint', 3)
+            this._procField('lfeon', 'uint', 1);
+            this._procField('reserved1', 'uint', 3);
+            this._procField('num_dep_sub', 'uint', 4);
+            if (this.num_dep_sub > 0) {
+                this._procField('chan_loc', 'uint', 9);
+            } else {
+                this._procField('reserved2', 'uint', 1)
+            }
+        }
+    }, {
+        source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+        field: 'avc1',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // VisualSampleEntry fields
+            this._procField('pre_defined1', 'uint', 16);
+            this._procField('reserved2', 'uint', 16);
+            this._procFieldArray('pre_defined2', 3, 'uint', 32);
+            this._procField('width', 'uint', 16);
+            this._procField('height', 'uint', 16);
+            this._procField('horizresolution', 'template', 32);
+            this._procField('vertresolution', 'template', 32);
+            this._procField('reserved3', 'uint', 32);
+            this._procField('frame_count', 'uint', 16);
+            this._procFieldArray('compressorname', 32, 'uint', 8);
+            this._procField('depth', 'uint', 16);
+            this._procField('pre_defined3', 'int', 16);
+            // Codec-specific fields
+            this._procSubBoxes('config', 'data', -1);
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
+        field: 'enca',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // AudioSampleEntry fields
+            this._procFieldArray('reserved2', 2, 'uint', 32);
+            this._procField('channelcount', 'uint', 16);
+            this._procField('samplesize', 'uint', 16);
+            this._procField('pre_defined', 'uint', 16);
+            this._procField('reserved3', 'uint', 16);
+            this._procField('samplerate', 'template', 32);
+            // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
+            this._procSubBoxes('esds', 'data', -1);
+        }
+    },
+    {
         /*
         aligned(8) class CompositionOffsetBox 
         extends FullBox(‘ctts’, version = 0, 0) { 
@@ -203,13 +364,142 @@ const additionalBoxes = [
                 })
             }
         }
+    }, {
+        source: 'ISO/IEC 14496-12:2012 - 8.12.5 Scheme Type Box',
+        field: 'schm',
+        _parser: function () {
+            this._procFullBox();
+            // turn this into a 4-byte array since it's actually text
+            this._procFieldArray('scheme_type', 4, 'uint', 8);
+            this._procField('scheme_version', 'uint', 32);
+
+            if (this.flags & 0x000001) {
+                this._procField('scheme_uri', 'string', -1);
+            }
+        }
+    },
+    {
+        source: 'ISO 14496-15 avc decoder configuration',
+        field: 'avcC',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('configuration_version', 'uint', 8);
+            this._procField('AVC_profile_indication', 'uint', 8);
+            this._procField('profile_compatibility', 'uint', 8);
+            this._procField('configuration_version', 'uint', 8);
+            this._procField('reserved1', 'bit', 6);
+            this._procField('length_size_minus_one', 'uint', 2)
+            this._procField('reserved1', 'bit', 3);
+            this._procField('num_of_sequence_parameter_sets', 'uint', 5);
+            // sequenceparamater
+            this._procField('num_of_picture_parameter_sets', 'uint', 8);
+            //picture parameters
+            // if this.profile_idc == 100 || 110 || 122 || 144
+            /*
+             {   bit(6) reserved = ‘111111’b;   unsigned int(2) chroma_format;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_luma_minus8;   bit(5) reserved = ‘11111’b;   unsigned int(3) bit_depth_chroma_minus8;   unsigned int(8) numOfSequenceParameterSetExt;   for (i=0; i< numOfSequenceParameterSetExt; i++) {    unsigned int(16) sequenceParameterSetExtLength;    bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;   }  }
+            */
+        }
+    },
+    {
+        source: 'Quicktime',
+        field: 'pasp',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('h_spacing', 'uint', 32);
+            this._procField('b_spacing', 'uint', 32);
+            if (this.sample_size == 0 && this.sample_count) {
+                this._procEntries('samples', this.sample_count, function (sample) {
+                    this._procEntryField(sample, 'entry_size', 'uint', 32);
+                })
+            }
+        }
+    },
+    {
+        source: 'Netflix Cadmium Player undocumented',
+        field: 'uuid',
+        _parser: function () {
+            const uuidString = this.usertype.map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join('');
+            const getUint64 = (byteOffset, littleEndian = false) => {
+                // split 64-bit number into two 32-bit (4-byte) parts
+                const left = this._raw.getUint32(byteOffset + 24, littleEndian);
+                const right = this._raw.getUint32(byteOffset + 4 + 24, littleEndian);
+
+                // combine the two 32-bit values
+                const combined = littleEndian ? left + 2 ** 32 * right : 2 ** 32 * left + right;
+
+                if (!Number.isSafeInteger(combined))
+                    //console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost');
+
+                    return combined;
+            }
+            if (uuidString === '4E6574666C6978506966665374726D21') {
+                console.log('NetflixPiffStream found !');
+                /*
+                function (a, b) { m(a, b); a.fileSize = b.Se(); a.X2 = b.Se(); a.duration = b.Se(); a.lka = b.Se(); a.Alb = b.Se(); 1 <= a.version && (a.cjb = b.Se(), a.djb = b.Ba(), a.mka = b.Se(), a.Gfa = b.Ba(), a.xfa = b.Jz()); }
+                Se = cd(8)
+                cd = function (a) { for (var b = 0; a--;)b = 256 * b + this.buffer[this.position++]; return b; }
+                
+                this.filesize = getUint64(0);
+                this.X2 = getUint64(8);
+                this.duration = getUint64(16);
+                this.lka_offset = getUint64(24);
+                this.Alb = getUint64(32);
+                this.cjb = getUint64(40);
+                this.djb = this._raw.getUint32(48 + 24);
+                this.mka = getUint64(52);
+                this.Gfa = this._raw.getUint32(60 + 24);
+                /*this._procField('X2', 'uint', 8); 8
+                this._procField('duration', 'uint', 8); 16
+                this._procField('lka_offset?', 'uint', 8); 24
+                this._procField('Alb', 'uint', 8); 32
+                this._procField('cjb', 'uint', 8); 40
+                this._procField('djb', 'uint', 4); 48
+                this._procField('mka_offset?', 'uint', 8); 52
+                this._procField('Gfa_size?', 'uint', 4); 60
+                this._procField('xfa_KID?', 'uint', 8); // just return the dataview*/
+            } else { }
+        }
     }
 ]
+
+/*
+UUID 	Reference 	Abstract
+5E629AF5-38DA-4063-8977-97FFBD9902D4 	Marlin Adaptive Streaming Specification – Simple Profile, V1.0 [9] 	Marlin, see the spec for the details of what can be further specified within the ContentProtection element.
+adb41c24-2dbf-4a6d-958b-4457c0d27b95 	Nagra MediaAccess PRM 3.0 , documentation available under NDA [12] 	Identifies Nagra MediaAccess PRM 3.0 and above
+A68129D3-575B-4F1A-9CBA-3223846CF7C3 	Cisco/NDS VideoGuard Everywhere DRM ™. Documentation is available under NDA [13] 	Cisco/NDS VideoGuard Everywhere DRM identification. For more information on VideoGuard Everywhere DRM go here
+9a04f079-9840-4286-ab92-e65be0885f95 	MPEG DASH Content Protection using Microsoft PlayReady [10], section 2.2.1 	Microsoft PlayReady
+9a27dd82-fde2-4725-8cbc-4234aa06ec09 	Verimatrix VCAS™ for DASH [11] 	Verimatrix ViewRight Web / DASH @value= “Verimatrix VCAS for DASH, ViewRightWeb VV.vv” (VV.vv will be the version number)This is the name of the company system and client version as recommended in DASH-AVC/264. If used, this can help the client to determine if the current DRM client can play the content.
+F239E769-EFA3-4850-9C16-A903C6932EFB 	Please contact Adobe for more information 	Adobe Primetime DRM, version 4
+1f83e1e8-6ee9-4f0d-ba2f-5ec4e3ed1a66 	No separate and public specification is available. The UUID is a version 4 UUID as per RFC 4122 [8]. The UUID will be made available in SecureMedia documentation shared with a partner or customer of SecureMedia. Please refer to http://www.securemedia.com/. 	SecureMedia, ArrisThe UUID of @schemeIdURIis a version 4 UUID as per RFC 4122.@valueshall be as follows: “Arris SecureMedia version XXXXXXX”XXXXXX will be specified in documentation associated with a particular version of the product. The documentation will be shared with a partner or customer of SecureMedia. Please refer to http://www.securemedia.com/.
+644FE7B5-260F-4FAD-949A-0762FFB054B4 	A draft version of the CMLA Technical Specification which is in process with involved adopters is not published. It’s planned to be chapter 18 of our CMLA Technical Specification upon completion and approval.Revisions of the CMLA Technical Specification become public upon CMLA approval.UUID will correlate to various related XML schema and PSSH components as well as elements of the content protection element relating to CMLA DASH mapping. 	CMLA (OMA DRM), for details see here http://www.cm-la.com.
+6a99532d-869f-5922-9a91-113ab7b1e2f3 	More information is available at http://www.mobitv.com/core-technologies/digital-rights-management/. 	MobiTV DRM: A generic identifier for any version of MobiDRM (MobiTV DRM). The version is signaled in the pssh box.
+35BF197B-530E-42D7-8B65-1B4BF415070F 	Please contact DivX for specifications. 	DivX DRM Series 5
+B4413586-C58C-FFB0-94A5-D4896C1AF6C3 	VODRM documentation is available under NDA. Please contact Viaccess-Orca for more information. 	This UUID identifies the Viaccess-Orca DRM (VODRM).
+edef8ba9-79d6-4ace-a3c8-27dcd51d21ed 	For more info: http://www.widevine.com 	Widevine Content Protection for MPEG DASH.
+80a6be7e-1448-4c37-9e70-d5aebe04c8d2 	Irdeto Protection documentation available under NDA. For more info: http://www.irdeto.com 	Irdeto Content Protection for DASH
+dcf4e3e3-62f1-5818-7ba6-0a6fe33ff3dd 	Documentation is available under NDA. For more info: http://www.digicaps.com/en/ 	DigiCAP SmartXess for DASH @value “CA/DRM_NAME VERSION” (CA 1.0, DRM+ 2.0)
+45d481cb-8fe0-49c0-ada9-ab2d2455b2f2 	For more information and specification, please contact CoreTurst. The contact detail is mktall@coretrust.com 	CoreCrypt : CoreTrust Content Protection for MPEG-DASH
+616C7469-6361-7374-2D50-726F74656374 	Please contact Alticast for more information, galtiprotect_drm@alticast.com. 	Alticast altiProtect, more information available at http://www.alticast.com/
+45d481cb-8fe0-49c0-ada9-ab2d2455b2f2 	For more information and specification, please contact CoreTurst. The contact detail is mktall@coretrust.com 	CoreCrypt : CoreTrust Content Protection for MPEG-DASH
+992c46e6-c437-4899-b6a0-50fa91ad0e39 	This UUID is a protection system specific identifier for SecureMedia SteelKnot. No separate and public specification is available. The UUID is as per RFC 4122 available at http://www.ietf.org/rfc/rfc4122.txt . The UUID will be made available in SecureMedia SteelKnot documentation shared with a partner or customer of SecureMedia SteelKnot. Please refer to http://www.securemedia.com/ 	The UUID of the attribute, @schemeIDURI is as per RFC 4122. The attribute, @value shall be as follows: “Arris SecureMedia SteelKnot version XXXXXXX”. The exact length and syntax of the placeholder denoted by XXXXXXX will be specified in documentation associated with a particular version of the product. The documentation will be shared with a partner or customer of SecureMedia SteelKnot. Please refer to http://www.securemedia.com/ .
+1077efec-c0b2-4d02-ace3-3c1e52e2fb4b 	https://w3c.github.io/encrypted-media/format-registry/initdata/cenc.html 	This identifier is to be used as the SystemID for the Common PSSH box format defined by the W3C (https://w3c.github.io/encrypted-media/format-registry/initdata/cenc.html), as a preferred alternative to DRM system specific PSSH box formats. This identifier may be used in PSSH boxes and MPEG-DASH ContentProtection elements.
+e2719d58-a985-b3c9-781a-b030af78d30e 	DASH-IF Interoperability Points v3.4: https://dashif.org/guidelines/ 	This identifier is meant to be used to signal availability of Clear Key content key delivery. Its use is mutually exclusive with the use of any other DRM System SystemIDs, including the Common PSSH Box Format System ID. This GUID may only be present in an MPEG-DASH ContentProtection element, and never in the media content PSSH Box.
+94CE86FB-07FF-4F43-ADB8-93D2FA968CA2 	Content Protection System Identifier for Apple FairPlay Streaming 	System ID to identify FairPlay Streaming
+279fe473-512c-48fe-ade8-d176fee6b40f 	Arris Titanium content protection. Documentation available under NDA. Contact multitrust.info@arris.com for further information. 	Arris Titanium. The UUID of @schemeiduri is a version 4 UUID as per RFC 4122. @value will be specified in documentation related to a specific version of the product. Contact multitrust.info@arris.com for further information.
+aa11967f-cc01-4a4a-8e99-c5d3dddfea2d 	Unitend Technologies Inc. applies this UUID to identify the Unitend DRM (UDRM). For further information, contact y.ren@unitend.com This UUID identifies the Unitend-DRM (UDRM). More information available at http://www.unitend.com/
+
+see also https://forums.developer.apple.com/thread/6185
+
+*/
 
 const psshLookup = {
     '10 77 EF EC C0 B2 4D 02 AC E3 3C 1E 52 E2 FB 4B': 'Clearkey',
     '9A 04 F0 79 98 40 42 86 AB 92 E6 5B E0 88 5F 95': 'PlayReady',
-    'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine'
+    'ED EF 8B A9 79 D6 4A CE A3 C8 27 DC D5 1D 21 ED': 'WideVine',
+    'F2 39 E7 69 EF A3 48 50 9C 16 A9 03 C6 93 2E FB': 'PrimeTime',
+    '94 CE 86 FB 07 FF 4F 43 AD B8 93 D2 FA 96 8C A2': 'FairPlay',
+    '29 70 1F E4 3C C7 4A 34 8C 5B AE 90 C7 43 9A 47': 'FairPlay-unofficial'
+
 }
 
 /** Looks at the box entry and returns proper formatting based on the type of data therein,
@@ -219,31 +509,97 @@ const psshLookup = {
  * @returns {String or Array<Object>} -> returns the unformatted contents in an array
  */
 const getISOData = (key, value) => {
-    console.log({ [key]: value });
     // little helper that returns the type
-    const getValueType = val => Object.prototype.toString.call(val).match(/ (\w+)\]/i)[1];
+    const valueType = Object.prototype.toString.call(value).match(/ (\w+)\]/i)[1];
 
     // 1) Handle Arrays of numbers
     // 2) Handle Arrays of things represented by numbers (pssh:SystemID, pssh:Data possibly (for PlayReady) for example)
     // 3) Handle lookups (psshLookup)
-    // 4) Handle Arrays of Objects (eg. entries, references, samples) -- note * usually includes *_count !
+    // 4) Handle Arrays of plain Objects (eg. entries, references, samples) -- note * usually includes *_count !
     // 5) Handle raw binary (Uint8Array)
     const handleArray = {
-        'Object': value => value.map((item, index) => {
+        'Object': (value, excludeKeys = false) => value.map((item, index) => {
             const cleanEntry = { ...item };
+            if (Object.keys(cleanEntry).includes('sample_flags')) cleanEntry.sample_flags = handleArray.LongSampleDependency(cleanEntry.sample_flags)
+            if (excludeKeys) excludeKeys.forEach(key => delete cleanEntry[key]);
             cleanEntry.entryNumber = index + 1;
             return cleanEntry;
         }),
         'String': value => value.join(', '),
-        'Number': value => value.join(', ')
+        'Number': value => value.join(', '),
+        'SampleDependency': value => {
+            const flags = [
+                { flag: 'is_leading', bitmask: 0b11000000, shift: 6, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' },
+                { flag: 'sample_depends_on', bitmask: 0b00110000, shift: 4, 0: 'unknown', 1: 'depends on others (not an I frame)', 2: 'does not depend (I frame)' },
+                { flag: 'sample_is_depended_on', bitmask: 0b00001100, shift: 2, 0: 'unknown', 1: 'not disposable', 2: 'disposable' },
+                { flag: 'sample_has_redundancy', bitmask: 0b00000011, shift: 0, 0: 'unknown', 1: 'has redundant coding', 2: 'has no redundant coding' }
+            ];
+            return value.map((item, index) => {
+                // do a bit comparison and return the lookup
+                const cleanEntry = flags.reduce((summary, flag) => {
+                    summary[flag.flag] = flag[(item & flag.bitmask) >> flag.shift]
+                    return summary;
+                }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry
+            })
+        },
+        'LongSampleDependency': value => {
+            /*
+            bit(4)	reserved=0;
+            unsigned int(2) is_leading;
+            unsigned int(2) sample_depends_on;
+            unsigned int(2) sample_is_depended_on;
+            unsigned int(2) sample_has_redundancy;
+            bit(3)	sample_padding_value;
+            bit(1)	sample_is_non_sync_sample;
+            unsigned int(16)	sample_degradation_priority;
+            */
+            const flags = [
+                { name: 'reserved1', bitmask: 0b11110000000000000000000000000000, shift: 28 },
+                { name: 'is_leading', bitmask: 0b00001100000000000000000000000000, shift: 26, 0: 'unknown', 1: 'is leading, dependency before', 2: 'not leading', 3: 'is leading, no dependency' },
+                { name: 'sample_depends_on', bitmask: 0b00000011000000000000000000000000, shift: 24, 0: 'unknown', 1: 'depends on others (not an I frame)', 2: 'does not depend (I frame)' },
+                { name: 'sample_is_depended_on', bitmask: 0b00000000110000000000000000000000, shift: 22, 0: 'unknown', 1: 'not disposable', 2: 'disposable' },
+                { name: 'sample_has_redundancy', bitmask: 0b00000000001100000000000000000000, shift: 20, 0: 'unknown', 1: 'has redundant coding', 2: 'has no redundant coding' },
+                { name: 'sample_padding_value', bitmask: 0b00000000000011100000000000000000, shift: 17 },
+                { name: 'sample_is_non_sync_sample', bitmask: 0b00000000000000010000000000000000, shift: 16, 0: 'sync sample', 1: 'not a sync sample' },
+                { name: 'sample_degredation_priority', bitmask: 0b00000000000000001111111111111111, shift: 0 }
+            ];
+            // do a bit comparison and return the lookup
+            // first, if it's an array then return an array
+            if (Array.isArray(value)) return value.map((item, index) => {
+                // do a bit comparison and return the lookup
+                const cleanEntry = flags.reduce((summary, flag) => {
+                    summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                    return summary;
+                }, {});
+                cleanEntry.entryNumber = index + 1;
+                return cleanEntry
+            })
+            // otherwise, if it's a single value, just return a single value
+            return [].concat(flags.reduce((summary, flag) => {
+                summary[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                return summary;
+            }, { entryNumber: 1 }));
+        },
+        'senc_samples': value => value.map((item, index) => {
+            const cleanEntry = { ...item, InitializationVector: convertToHex(item.InitializationVector) };
+            // add an entry number to each subsample entry
+            cleanEntry.subsamples = cleanEntry.subsamples.map((subsample, subEntryNo) => ({ ...subsample, entryNumber: subEntryNo + 1 }));
+            cleanEntry.entryNumber = index + 1;
+            return cleanEntry;
+        }),
     }
 
+
     // 5) Handle raw binary
-    if (getValueType(value) === 'Uint8Array') {
-        return { hex: convertToHex(value) } // an array of 16-byte entries
+    if (valueType === 'Uint8Array') {
+        return convertToHex(value) // an array of hex strings, each 16 bytes wide, max of 64 rows
     }
     // Handle arrays of ...
-    if (getValueType(value) === "Array") {
+    if (valueType === "Array") {
+        // get the type of the first element
+        const elementType = Object.prototype.toString.call(value[0]).match(/ (\w+)\]/i)[1];
         // first check for special handling by key
         switch (key) {
             case 'SystemID':
@@ -251,18 +607,117 @@ const getISOData = (key, value) => {
             case 'Data':
             case 'compressorname':
                 return value.map(b => String.fromCharCode(b)).join('');
+            case 'usertype':
+                return `${formatUuid(value)} (${value.map(b => String.fromCharCode(b)).join('')})\n${convertToHex(value._data)}`;
+            case 'xfa_KID?':
+                return `${formatUuid(value)}`;
+            case 'default_KID':
+                return `${formatUuid(value)}`;
+            case 'sample_dependency_table':
+                return handleArray.SampleDependency(value);
+            case 'sample_flags':
+                return handleArray.LongSampleDependency(value);
+            case 'references':
+                return handleArray[elementType](value, ['sap', 'reference']);
+            case 'senc_samples':
+                return handleArray.senc_samples(value);
+            case 'data_format': case 'scheme_type':
+                return value.map(b => String.fromCharCode(b)).join('');
             default: // Otherwise handle based on type of the first entry
-                return value.length ? handleArray[getValueType(value[0])](value) : [];
+                return value[0] ? handleArray[elementType](value) : [];
         }
     }
     // special case -- flags should show up as hex for easier comparison to standard
     if (key === 'flags') return `0x${value.toString(16).padStart(2, '0').toUpperCase()}`;
+    // Handle 'default_sample_flags' or 'first_sample_flags
+    if (key === 'default_sample_flags' || key === 'first_sample_flags') {
+        return handleArray.LongSampleDependency(value);
+    }
     // Handle string or Number or anything else that slips through
     return value;
+}
+
+const postProcess = boxes => {
+    return boxes.map(box => {
+        const keyList = box.keys;
+        const { type, start, size, hex } = { ...box };
+        let boxContents, boxes;
+        if (keyList.length) {
+            boxContents = keyList.map(key => {
+                // first check if the key is for sub-boxes
+                if (key.includes('__altered')) return { name: key.split('__altered')[0], start, size, boxes: postProcess(box[key]) };
+                // if the value of that key contains an array, map it to the new format
+                /* if (key !== 'data' && Array.isArray(box[key]) && box[key].length) return box[key].map(entry => {
+                    const entryKeys = Object.keys(entry);
+                    return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
+                }); */
+                if (key === 'config') return { name: key, display: null, hex: box[key] }
+                return { name: key, display: box[key], hex: hex || null }
+            })
+        }
+        // Merge the boxContents with sub-boxes if applicable. If it has sub-boxes recurse to process those
+        const subBoxes = box.boxes && box.boxes.length ? postProcess(box.boxes) : null;
+        if (!boxContents) {
+            //no keys, must be just a container box
+            boxes = subBoxes;
+        } else if (!subBoxes) {
+            //no subBoxes, but has contents, just a bottom-level box
+            boxes = boxContents
+        } else if (boxContents && subBoxes) {
+            //has both its own contents and subboxes
+            boxes = boxContents.concat(subBoxes);
+        }
+        return { type, start, size, boxes, hex: box.type === 'mdat' || box.type === 'free' ? hex : null };
+    });
+}
+
+const mappedKey = (oldKey, box) => {
+    switch (oldKey) {
+        case '_offset': return { newKey: 'start', value: box[oldKey] };
+        case '_data': case 'data': return { newKey: 'hex', value: box[oldKey] };
+        default: return { newKey: oldKey, value: box[oldKey] };
+    }
+}
+
+
+// fist stage of processing, filter out generic or unneeded keys.
+const convertBox = boxes => {
+
+    const HIDE_KEYS = new Set(['type', 'start', 'end', '_offset', '_data', 'size', 'hex']);
+
+    return boxes.reduce((result, box) => {
+        if (box._incomplete) console.log(`${box.type} payload not parsed due to missing bytes`);
+        const keys = Object.keys(box).filter(key => !/^_/i.test(key) || key === '_offset' || key === '_data');
+        return result.concat(
+            keys.reduce((newBox, key) => {
+                // recurse if the contents of a key are other ISOBoxes.
+                // console.log('');
+                if (key === 'boxes' || (Array.isArray(box[key]) && box[key][0] && box[key][0].hasOwnProperty('_cursor'))) {
+                    // for non-box keys, make it an __altered entry
+                    if (key !== 'boxes') {
+                        newBox.keys.push(`${key}__altered`);
+                        newBox[`${key}__altered`] = convertBox(box[key]);
+                    } else {
+                        // if the key is boxes, recurse to return a converted key
+                        newBox[key] = convertBox(box[key])
+                    }
+                } else {
+                    if (key !== '_data' || (box.type === 'uuid' && key === '_data')) {
+                        const { newKey, value } = mappedKey(key, box);
+                        newBox[newKey] = getISOData(key, value);
+                        if (!HIDE_KEYS.has(newKey)) newBox.keys.push(newKey);
+                    }
+                }
+                return newBox;
+            }, { keys: [] })
+        );
+    }, []);
 }
 
 module.exports = {
     getISOData,
     psshLookup,
-    additionalBoxes
+    additionalBoxes,
+    postProcess,
+    convertBox
 }

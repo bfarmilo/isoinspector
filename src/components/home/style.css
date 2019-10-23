@@ -13,7 +13,7 @@ details {
 	background-color: rgba(197, 197, 197, 0.6);
 	color: black;
 	padding: 2px 0px 0px 4px;
-	margin:2px;
+	margin: 2px;
 }
 
 .boxContainer {
@@ -34,37 +34,19 @@ details {
 
 .boxContents {
 	font-weight: normal;
+	margin-left: 0.5em;
 }
 
 .arrayEntry {
 	padding-right: 0.5em;
 }
 
-.inputArea {
-	display: grid;
-	grid-template-columns: 7em 2em 7em 20em;
-}
-
-.inputBox {
-	height: 10em;
-	width: 70%;
-	margin: 10px;
-}
-
-.parseButton {
-	width: 5em;
-	margin: 5px;
-	height: 3em;
-	padding: 0;
-	color:whitesmoke;
-	font-size:large;
-	background: #673ab7;
-	box-shadow: 0 0 5px rgba(0, 0, 0, .5);
-	z-index: 50;
-	border: none;
-}
 
 .hexEntry {
 	font-family: 'Courier New', Courier, monospace;
 	font-weight: normal;
+}
+
+body {
+	cursor: default;
 }

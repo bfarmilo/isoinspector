@@ -9,9 +9,11 @@ const Header = (props) => {
 	}
 	return (
 		<header class={style.header}>
-			<h1>{names[props.mode]} Inspector</h1>
+			<h1>Media Inspector</h1>
 			<nav>
-				<a onClick={props.toggleHex}>{props.showHex ? 'Load Local File' : 'Paste Hex Values'}</a>
+				<input type="file" style={{ opacity: 0 }} id="getFile" onChange={props.handleFiles} />
+				<label for="getFile"><a>Select Local File</a></label>
+				<a onClick={props.toggleHex}>{props.showHex ? 'Hide Hex Input' : 'Paste Hex Values'}</a>
 				<a onClick={props.togglePreview}>{props.showVideo ? 'Hide Preview' : 'Show Preview'}</a>
 			</nav>
 		</header>

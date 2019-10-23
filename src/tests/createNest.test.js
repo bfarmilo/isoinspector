@@ -15,18 +15,20 @@ const testOrder = [
     { dataType: 'end', payload: { name: 'Seek' } },
     { dataType: 'end', payload: { name: 'SeekHead' } }
 ]
-
-console.log(JSON.stringify(
-    testOrder.reduce((result, entry) => {
-        if (entry.dataType === 'start') {
-            // <detail><summary>{entry.payload.name}</summary>...
-        }
-        if (entry.dataType === 'tag') {
-            // <div><span>{entry.payload.name}:</span><span>{getWebMData(entry.payload)}</span></div> 
-        }
-        if (entry.dataType === 'end') {
-            // ...</detail>
-        }
-        return result;
-    }, { currentTag: [] })
-));
+test('simple webM parsing', () => {
+    const output = JSON.stringify(
+        testOrder.reduce((result, entry) => {
+            if (entry.dataType === 'start') {
+                // <detail><summary>{entry.payload.name}</summary>...
+            }
+            if (entry.dataType === 'tag') {
+                // <div><span>{entry.payload.name}:</span><span>{getWebMData(entry.payload)}</span></div> 
+            }
+            if (entry.dataType === 'end') {
+                // ...</detail>
+            }
+            return result;
+        }, { currentTag: [] })
+    );
+    expect(output).toBeTruthy;
+})

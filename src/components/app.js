@@ -1,12 +1,34 @@
 import { h, Component } from 'preact';
-const ISOBoxer = require('codem-isoboxer');
-import { additionalBoxes } from '../components/additionalBoxes';
-import { schema_ext } from '../components/additionalwebM';
-const ebml = require('ebml');
+import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
+import { ebmlBoxer } from './ebmlBoxer';
+import { additionalBoxes, convertBox, postProcess } from './additionalBoxes';
+import { m2tsBoxer } from './m2tsBoxer';
+
 
 import Header from './header';
 import Home from './home';
 import Video from './video';
+
+const styles = {
+	parseButton: {
+		width: '5em',
+		margin: '5px',
+		height: '3em',
+		padding: '0',
+		color: 'whitesmoke',
+		fontSize: 'large',
+		background: '#673ab7',
+		boxShadow: '0 0 5px rgba(0, 0, 0, .5)',
+		zIndex: '50',
+		border: 'none'
+	},
+	inputArea: {
+		display: 'grid',
+		gridTemplateColumns: '6fr 1fr 20fr',
+		gridTemplateRows: '2fr 1fr',
+		marginTop: '65px'
+	}
+}
 
 const modes = {
 	webm: 'mp4',
@@ -20,80 +42,29 @@ const niceError = {
 
 }
 
-const parseISO = buf => new Promise((resolve, reject) => {
+const parseISO = buf => new Promise(async (resolve, reject) => {
 	const VALID_START_BOX = new Set([
 		'ftyp',
 		'moof',
 		'styp',
 		'sidx'
 	]);
-	const parsedData = ISOBoxer.parseBuffer(buf.buffer);
-	console.log(parsedData);
-	if (VALID_START_BOX.has(parsedData.boxes[0].type)) return resolve(parsedData);
+	// get the boxes
+	const parsedData = await parseBuffer(buf.buffer);
+	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
+		// process the boxes
+		const preProcessed = convertBox(parsedData.boxes);
+		console.log(preProcessed);
+		const result = postProcess(preProcessed);
+		return resolve({ boxes: result });
+	}
 	return reject(new Error('not an ISOBMFF file'));
+
 });
 
-const parseWebM = buf => new Promise((resolve, reject) => {
-	const decoder = new ebml.Decoder(schema_ext, {});
-	let lastChunkTime;
-	let allData = [];
+const parseWebM = buf => ebmlBoxer(buf.buffer);
 
-	// poll in case the stream never sends a 'finish' or 'end' event.
-	const MAX_TIME = 1000;
-	const pollTime = setInterval(() => {
-		const currentTime = (new Date()).getTime();
-		lastChunkTime = lastChunkTime || currentTime;
-		if (allData.length && (currentTime - lastChunkTime) > MAX_TIME) {
-			clearInterval(pollTime);
-			// keep master result of parsed boxes
-			let resultVal = new Map();
-			// keep a list of parents up the tree
-			let parentList = [];
-			// handy helper to recursively work the way down the resultSet tree. Use 'start' as a hash since it's unique
-			const setBox = newVal => parentList.reduce((boxList, entry) => boxList.get(entry).boxes, resultVal).set(newVal.start, newVal);
-			// iterate through the boxes to create a box object like ISO box
-			allData.map(box => {
-				if (box.dataType === 'start') {
-					const newEntry = { name: box.payload.name, start: box.payload.start, boxes: new Map() };
-					// root level entries
-					if (parentList.length === 0) {
-						resultVal.set(newEntry.start, { ...newEntry });
-					} else {
-						setBox(newEntry);
-					};
-					parentList.push(box.payload.start);
-				}
-				if (box.dataType === 'tag') setBox({ ...box.payload });
-				if (box.dataType === 'end') parentList.pop();
-			});
-			// now recursively convert all maps into arrays of objects
-			const convertBox = boxMap => Array.from(boxMap).reduce((result, contents) => {
-				if (Object.hasOwnProperty.call(contents[1], 'boxes')) contents[1].boxes = convertBox(contents[1].boxes);
-				return result.concat(contents[1]);
-			}, []);
-			return resolve({ boxes: convertBox(resultVal) });
-		}
-	}, 500);
-	decoder.on('data', chunk => {
-		allData.push({ dataType: chunk[0], payload: chunk[1] });
-		lastChunkTime = (new Date()).getTime();
-	});
-	decoder.on('finish', () => {
-		console.log('got finish event');
-		return resolve(allData);
-	})
-	decoder.on('end', () => {
-		console.log('got end event');
-		return resolve(allData);
-	})
-	decoder.on('error', err => reject(err));
-	decoder.write(buf);
-});
-
-//placeholder for now
-const parseM2TS = buf => new Promise((resolve, reject) => {
-	return reject(new Error('m2ts mode not supported'));
-});
+const parseM2TS = buf => m2tsBoxer(buf);
 
 export default class App extends Component {
 	constructor(props) {
@@ -101,20 +72,23 @@ export default class App extends Component {
 		this.state = {
 			inputData: '',
 			parsedData: { boxes: [] },
-			mode: 'webm',
+			mode: 'mp4',
 			working: false,
 			errorMessage: '',
 			videoError: '',
 			decodeAttempts: 0,
 			showHex: false,
-			showVideo: false
+			showVideo: false,
+			hasFocus: -1,
+			fileName: 'raw base64 data',
+			base64: ''
 		}
 	}
 
 	componentWillMount = () => {
 		// add any custom box processors
 		additionalBoxes.map(box => {
-			if (Object.hasOwnProperty.call(box, '_parser')) ISOBoxer.addBoxProcessor(box.field, box._parser)
+			if (Object.hasOwnProperty.call(box, '_parser')) addBoxProcessor(box.field, box._parser)
 		});
 	}
 
@@ -135,11 +109,13 @@ export default class App extends Component {
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
 		this.createParsed(this.state.inputData)
-			.then(parsedData => {
-				this.setState({ parsedData, working: false, decodeAttempts: 0 });
+			.then(({ boxes }) => {
+				console.log(boxes);
+				this.setState({ parsedData: boxes, working: false, decodeAttempts: 0 });
 				return;
 			})
 			.catch(err => {
+				console.error(err);
 				this.setState({ errorMessage: err, working: false });
 				if (this.state.decodeAttempts < Object.keys(modes).length) {
 					let { decodeAttempts, mode } = this.state;
@@ -149,7 +125,6 @@ export default class App extends Component {
 					this.setState({ decodeAttempts, mode, working: true });
 					this.parseFile();
 				}
-				console.error(err);
 			})
 	}
 
@@ -161,8 +136,8 @@ export default class App extends Component {
 	}
 
 	handleFiles = e => {
-		this.setState({ working: true, showVideo: false, inputData: '' });
-		const file = e.target.files[0];
+		const fileName = e.target.files[0];
+		this.setState({ working: true, showVideo: false, inputData: '', fileName: fileName.name });
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
@@ -170,7 +145,7 @@ export default class App extends Component {
 			self.setState({ inputData });
 			self.parseFile();
 		}
-		reader.readAsDataURL(file);
+		reader.readAsDataURL(fileName);
 	}
 
 	toggleHex = e => {
@@ -181,6 +156,40 @@ export default class App extends Component {
 		this.setState({ showVideo: !this.state.showVideo })
 	}
 
+	handleFocus = (e, focusRow, showOffset) => {
+		console.log(`got mouse${showOffset ? 'Enter' : 'Leave'} event for row ${focusRow}`);
+		this.setState({ hasFocus: showOffset ? focusRow : -1 })
+	}
+
+	toggleBase64 = (e, boxData) => {
+		const extractHex = buffer => {
+			const getRow = start => (start + 16 < buffer.length) ?
+				[buffer.slice(start, start + 16).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')].concat(getRow(start + 16)) :
+				[buffer.slice(start).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')];
+			return getRow(0);
+		}
+		let mp4Hex, base64;
+
+		if (this.state.mode === 'mp4' && boxData) {
+			// need to extract the hex by size and start byte
+			const buf = Array.from(Uint8Array.from(atob(this.state.inputData), c => c.charCodeAt(0)).slice(boxData.start, boxData.start + boxData.size));
+			mp4Hex = extractHex(buf);
+		}
+		const hexData = boxData && (boxData.hex || mp4Hex);
+		// toggle from hidden => base64 => hex
+		if (!this.state.base64) {
+			// hidden => base64
+			base64 = hexData ? hexData.join(' ').split(' ').map(byte => String.fromCharCode(parseInt(byte, 16))).join('') : '';
+		} else if (this.state.base64 instanceof Array) {// /([0-F][0-F] ){3,}/i.test(this.state.base64)) {
+			// hex => hidden
+			base64 = ''
+		} else {
+			// base64 => hex
+			base64 = hexData;
+		}
+		this.setState({ base64 })
+	}
+
 	render() {
 		return (
 			<div id="app">
@@ -189,26 +198,40 @@ export default class App extends Component {
 					togglePreview={this.togglePreview}
 					showVideo={this.state.showVideo}
 					showHex={this.state.showHex}
+					hexCode={this.state.hexCode}
 					toggleHex={this.toggleHex}
-				/>
-				{this.state.showVideo ?
-					<Video
-						mimeType={this.state.mode}
-						data={this.state.inputData}
-						handleEncrypted={this.handleEncrypted}
-					/> : <div style={{ padding: '56px 20px' }}>{this.state.videoError}</div>}
-				<Home
-					decodeMode={this.state.mode}
-					working={this.state.working}
-					parseFile={this.parseFile}
-					updateInput={this.updateInput}
-					inputData={this.state.inputData}
-					parsedData={this.state.parsedData}
 					handleFiles={this.handleFiles}
-					error={this.state.errorMessage}
-					showHex={this.state.showHex}
 				/>
-			</div>
+				{this.state.showHex ? (
+					<div style={styles.inputArea}>
+						<div style={{ gridRow: '1/3' }}>
+							<textarea style={{ height: '90%', width: '95%', margin: '10px' }} onChange={e => this.updateInput(e)} value={this.state.inputData} />
+						</div>
+						<div style={{ gridRow: '2/3' }}>
+							<button style={styles.parseButton} onClick={e => this.parseFile(e)}>Go</button>
+						</div>
+					</div>) : <div />
+				}
+				<div>
+					{this.state.showVideo ?
+						<Video
+							mimeType={this.state.mode}
+							data={this.state.inputData}
+							handleEncrypted={this.handleEncrypted}
+						/> : <div style={{ padding: this.state.showHex ? '10px 10px' : '56px 10px' }}>{this.state.videoError}</div>}
+					<Home
+						fileName={this.state.fileName}
+						decodeMode={this.state.mode}
+						working={this.state.working}
+						parsedData={this.state.parsedData}
+						handleFocus={this.handleFocus}
+						error={this.state.errorMessage}
+						hasFocus={this.state.hasFocus}
+						base64={this.state.base64}
+						toggleBase64={this.toggleBase64}
+					/>
+				</div>
+			</div >
 		);
 	}
 }
