@@ -17,7 +17,7 @@ const Home = props => {
 		const showEntryDetails = (title, entry) => {
 
 			return (
-				<details>
+				<details open={props.expandAll}>
 					<summary class={style.boxProp}>{title.slice(0, -1)} {entry.entryNumber}</summary>
 					{Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
 						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
@@ -35,7 +35,7 @@ const Home = props => {
 		if (Object.hasOwnProperty.call(box, 'type')) {
 			return <div style={{ display: 'flex' }}>
 				<div style={{ minWidth: '30em' }}>
-					<details onToggle={e => props.toggleBase64(e, null)} key={box.start}>
+					<details open={props.expandAll} onToggle={e => props.toggleBase64(e, null)} key={box.start}>
 						<summary class={style.boxName} /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>
 							{boxLabel}
 						</summary>
@@ -55,7 +55,7 @@ const Home = props => {
 		let outputLabel = <span /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>{boxLabel}:</span>;
 		if (box.hex) {
 			// case 1
-			outputRow = <details onToggle={e => props.toggleBase64(e, null)}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
+			outputRow = <details open={props.expandAll} onToggle={e => props.toggleBase64(e, null)}><summary class={style.boxContents}>{box.display || ''}</summary>{box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} key={row} class={style.hexEntry}>{row}</div>)}</details>;
 		} else if (Array.isArray(box.display) && box.display[0] && box.display[0].entryNumber) {
 			// case 3
 			outputRow = box.display.map(display => showEntryDetails(boxLabel, display));

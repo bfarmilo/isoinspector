@@ -81,7 +81,8 @@ export default class App extends Component {
 			showVideo: false,
 			hasFocus: -1,
 			fileName: 'raw base64 data',
-			base64: ''
+			base64: '',
+			expanded: false
 		}
 	}
 
@@ -161,6 +162,12 @@ export default class App extends Component {
 		this.setState({ hasFocus: showOffset ? focusRow : -1 })
 	}
 
+	expandAll = e => {
+		console.log(`got command to ${this.state.expanded ? 'collapse' : 'expand'} the tree`);
+		this.setState({ working: true, expanded: !this.state.expanded });
+		setTimeout(() => this.setState({ working: false }), 2000);
+	}
+
 	toggleBase64 = (e, boxData) => {
 		const extractHex = buffer => {
 			const getRow = start => (start + 16 < buffer.length) ?
@@ -201,6 +208,8 @@ export default class App extends Component {
 					hexCode={this.state.hexCode}
 					toggleHex={this.toggleHex}
 					handleFiles={this.handleFiles}
+					expandAll={this.expandAll}
+					expanded={this.state.expanded}
 				/>
 				{this.state.showHex ? (
 					<div style={styles.inputArea}>
@@ -229,6 +238,7 @@ export default class App extends Component {
 						hasFocus={this.state.hasFocus}
 						base64={this.state.base64}
 						toggleBase64={this.toggleBase64}
+						expandAll={this.state.expanded}
 					/>
 				</div>
 			</div >
