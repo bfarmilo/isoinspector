@@ -15,7 +15,6 @@ const Header = (props) => {
 				<label for="getFile"><a>Select Local File</a></label>
 				<a onClick={props.toggleHex}>{props.showHex ? 'Hide Hex Input' : 'Paste Hex Values'}</a>
 				<a onClick={props.togglePreview}>{props.showVideo ? 'Hide Preview' : 'Show Preview'}</a>
-				<a onClick={props.expandAll}>{props.expanded ? 'Collapse Tree View' : 'Expand Tree View'}</a>
 			</nav>
 		</header>
 	)

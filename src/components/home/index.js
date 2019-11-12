@@ -15,9 +15,9 @@ const Home = props => {
 		// 
 
 		const showEntryDetails = (title, entry) => {
-
+			const expandBox = props.selectedBox && (props.selectedBox.target === title || props.selectedBox.parentList.includes(title));
 			return (
-				<details open={props.expandAll}>
+				<details open={props.expandAll || expandBox}>
 					<summary class={style.boxProp}>{title.slice(0, -1)} {entry.entryNumber}</summary>
 					{Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
 						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
@@ -33,9 +33,10 @@ const Home = props => {
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
+			const expandBox = props.selectedBox && (props.selectedBox.target === boxLabel || props.selectedBox.parentList.includes(boxLabel));
 			return <div style={{ display: 'flex' }}>
 				<div style={{ minWidth: '30em' }}>
-					<details open={props.expandAll} onToggle={e => props.toggleBase64(e, null)} key={box.start}>
+					<details open={props.expandAll || expandBox} onToggle={e => props.toggleBase64(e, null)} key={box.start}>
 						<summary class={style.boxName} /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>
 							{boxLabel}
 						</summary>

@@ -11,16 +11,18 @@ import Video from './video';
 
 const styles = {
 	parseButton: {
-		width: '5em',
+		width: '8em',
 		margin: '5px',
 		height: '3em',
-		padding: '0',
+		padding: '2px',
 		color: 'whitesmoke',
-		fontSize: 'large',
 		background: '#673ab7',
 		boxShadow: '0 0 5px rgba(0, 0, 0, .5)',
 		zIndex: '50',
-		border: 'none'
+		border: 'none',
+		borderRadius: '3px',
+		textAlign:'center',
+		alignContent:'center'
 	},
 	inputArea: {
 		display: 'grid',
@@ -82,7 +84,10 @@ export default class App extends Component {
 			hasFocus: -1,
 			fileName: 'raw base64 data',
 			base64: '',
-			expanded: false
+			expanded: false,
+			boxList: new Map(),
+			selectedBox: { target: '', parentList: [] },
+			searchTerm: ''
 		}
 	}
 
@@ -107,12 +112,59 @@ export default class App extends Component {
 	}
 
 	parseFile = e => {
+
+		const getBoxList = async (collection, resultMap) => {
+
+			let counter = 0;
+
+			const addElements = (elemList, parentPath) => new Promise((resolve, reject) => {
+				// first add all of the elements at this node
+				elemList.forEach(elem => {
+					console.log(elem);
+					// only add items with a 'type' (ie, box definition)
+					if (!!elem.type) {
+						if (resultMap.size && resultMap.has(elem.type)) {
+							resultMap.set(elem.type, resultMap.get(elem.type).concat(parentPath))
+						} else {
+							resultMap.set(elem.type, parentPath)
+						};
+						// now check for sub-boxes that are not null
+						if (!!elem.boxes) {
+							//quick check to see if the boxes have types
+							const validBoxes = elem.boxes.reduce((newList, box) => {
+								if (!!box.type) {
+									newList.push(box);
+								} else if (box.name && box.name === 'entries') {
+									newList.push(box.boxes[0]);
+								}
+								return newList;
+							}, []);
+							//recurse any sub-boxes
+							if (validBoxes.length) {
+								counter++;
+								return addElements(validBoxes, parentPath.concat(elem.type));
+							}
+						}
+					}
+				});
+				counter--;
+				if (counter == 0) return resolve(resultMap);
+			})
+
+			// start the chain using the full collection
+			counter++;
+			return await addElements(collection, []);
+		}
+
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
 		this.createParsed(this.state.inputData)
 			.then(({ boxes }) => {
-				console.log(boxes);
-				this.setState({ parsedData: boxes, working: false, decodeAttempts: 0 });
+				const listOfBoxes = new Map();
+				//extract a list of box names for the dropdown
+				//return Map([target, [parentList]]}
+				getBoxList(boxes, listOfBoxes).then(boxList => this.setState({ boxList, parsedData: boxes, working: false, decodeAttempts: 0 }));
+				;
 				return;
 			})
 			.catch(err => {
@@ -162,10 +214,23 @@ export default class App extends Component {
 		this.setState({ hasFocus: showOffset ? focusRow : -1 })
 	}
 
+	handleSearch = (e) => {
+		const searchTerm = e.target.value;
+		console.log(`searching box list for ${searchTerm}`);
+		console.log(this.state.boxList);
+		if (this.state.boxList.has(searchTerm)) {
+			console.log(`found ${searchTerm} with parents ${this.state.boxList.get(searchTerm)}`);
+			this.setState({ searchTerm, selectedBox: { target: searchTerm, parentList: this.state.boxList.get(searchTerm) } });
+		}
+		if (searchTerm == '') {
+			this.setState({ searchTerm, selectedBox: { target: '', parentList: [] } });
+		}
+	}
+
 	expandAll = e => {
 		console.log(`got command to ${this.state.expanded ? 'collapse' : 'expand'} the tree`);
 		this.setState({ working: true, expanded: !this.state.expanded });
-		setTimeout(() => this.setState({ working: false }), 2000);
+		setTimeout(() => this.setState({ working: false }), 100);
 	}
 
 	toggleBase64 = (e, boxData) => {
@@ -208,8 +273,6 @@ export default class App extends Component {
 					hexCode={this.state.hexCode}
 					toggleHex={this.toggleHex}
 					handleFiles={this.handleFiles}
-					expandAll={this.expandAll}
-					expanded={this.state.expanded}
 				/>
 				{this.state.showHex ? (
 					<div style={styles.inputArea}>
@@ -228,6 +291,10 @@ export default class App extends Component {
 							data={this.state.inputData}
 							handleEncrypted={this.handleEncrypted}
 						/> : <div style={{ padding: this.state.showHex ? '10px 10px' : '56px 10px' }}>{this.state.videoError}</div>}
+					<div class={'treeControl'}>
+						<div style={styles.parseButton} onClick={this.expandAll}>{this.state.expanded ? 'Collapse Tree View' : 'Expand Tree View'}</div>
+						<div style={styles.parseButton}><input class={'tagSearch'} placeholder="search for tag" type="search" size="14" onChange={this.handleSearch} value={this.state.searchTerm} /></div>
+					</div>
 					<Home
 						fileName={this.state.fileName}
 						decodeMode={this.state.mode}
@@ -239,6 +306,7 @@ export default class App extends Component {
 						base64={this.state.base64}
 						toggleBase64={this.toggleBase64}
 						expandAll={this.state.expanded}
+						selectedBox={this.state.selectedBox}
 					/>
 				</div>
 			</div >
