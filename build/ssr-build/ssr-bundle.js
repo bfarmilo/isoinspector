@@ -2906,10 +2906,10 @@ var home_Home = function Home(props) {
 		// 
 
 		var showEntryDetails = function showEntryDetails(title, entry) {
-
+			var expandBox = props.selectedBox && (props.selectedBox.target === title || props.selectedBox.parentList.includes(title));
 			return Object(preact_min["h"])(
 				'details',
-				null,
+				{ open: props.expandAll || expandBox },
 				Object(preact_min["h"])(
 					'summary',
 					{ 'class': home_style_default.a.boxProp },
@@ -2944,6 +2944,7 @@ var home_Home = function Home(props) {
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
+			var expandBox = props.selectedBox && (props.selectedBox.target === boxLabel || props.selectedBox.parentList.includes(boxLabel));
 			return Object(preact_min["h"])(
 				'div',
 				{ style: { display: 'flex' } },
@@ -2952,7 +2953,7 @@ var home_Home = function Home(props) {
 					{ style: { minWidth: '30em' } },
 					Object(preact_min["h"])(
 						'details',
-						{ onToggle: function onToggle(e) {
+						{ open: props.expandAll || expandBox, onToggle: function onToggle(e) {
 								return props.toggleBase64(e, null);
 							}, key: box.start },
 						Object(preact_min["h"])(
@@ -3001,7 +3002,7 @@ var home_Home = function Home(props) {
 			// case 1
 			outputRow = Object(preact_min["h"])(
 				'details',
-				{ onToggle: function onToggle(e) {
+				{ open: props.expandAll, onToggle: function onToggle(e) {
 						return props.toggleBase64(e, null);
 					} },
 				Object(preact_min["h"])(
@@ -3141,16 +3142,18 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 var styles = {
 	parseButton: {
-		width: '5em',
+		width: '8em',
 		margin: '5px',
 		height: '3em',
-		padding: '0',
+		padding: '2px',
 		color: 'whitesmoke',
-		fontSize: 'large',
 		background: '#673ab7',
 		boxShadow: '0 0 5px rgba(0, 0, 0, .5)',
 		zIndex: '50',
-		border: 'none'
+		border: 'none',
+		borderRadius: '3px',
+		textAlign: 'center',
+		alignContent: 'center'
 	},
 	inputArea: {
 		display: 'grid',
@@ -3237,13 +3240,68 @@ var app_App = function (_Component) {
 		};
 
 		_this.parseFile = function (e) {
+
+			var getBoxList = function getBoxList(collection, resultMap) {
+				return new Promise(function ($return, $error) {
+					var counter, addElements;
+
+
+					counter = 0;
+
+					addElements = function addElements(elemList, parentPath) {
+						return new Promise(function (resolve, reject) {
+							// first add all of the elements at this node
+							elemList.forEach(function (elem) {
+								console.log(elem);
+								// only add items with a 'type' (ie, box definition)
+								if (!!elem.type) {
+									if (resultMap.size && resultMap.has(elem.type)) {
+										resultMap.set(elem.type, resultMap.get(elem.type).concat(parentPath));
+									} else {
+										resultMap.set(elem.type, parentPath);
+									};
+									// now check for sub-boxes that are not null
+									if (!!elem.boxes) {
+										//quick check to see if the boxes have types
+										var validBoxes = elem.boxes.reduce(function (newList, box) {
+											if (!!box.type) {
+												newList.push(box);
+											} else if (box.name && box.name === 'entries') {
+												newList.push(box.boxes[0]);
+											}
+											return newList;
+										}, []);
+										//recurse any sub-boxes
+										if (validBoxes.length) {
+											counter++;
+											return addElements(validBoxes, parentPath.concat(elem.type));
+										}
+									}
+								}
+							});
+							counter--;
+							if (counter == 0) return resolve(resultMap);
+						});
+					};
+
+					// start the chain using the full collection
+					counter++;
+					return Promise.resolve(addElements(collection, [])).then($return, $error);
+				});
+			};
+
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
 			_this.createParsed(_this.state.inputData).then(function (_ref) {
 				var boxes = _ref.boxes;
 
-				console.log(boxes);
-				_this.setState({ parsedData: boxes, working: false, decodeAttempts: 0 });
+				var listOfBoxes = new Map();
+				//extract a list of box names for the dropdown
+				//return Map([target, [parentList]]}
+				getBoxList(boxes, listOfBoxes).then(function (boxList) {
+					return _this.setState({ boxList: boxList, parsedData: boxes, working: false, decodeAttempts: 0 });
+				});
+				;
 				return;
 			}).catch(function (err) {
 				console.error(err);
@@ -3293,6 +3351,27 @@ var app_App = function (_Component) {
 		_this.handleFocus = function (e, focusRow, showOffset) {
 			console.log('got mouse' + (showOffset ? 'Enter' : 'Leave') + ' event for row ' + focusRow);
 			_this.setState({ hasFocus: showOffset ? focusRow : -1 });
+		};
+
+		_this.handleSearch = function (e) {
+			var searchTerm = e.target.value;
+			console.log('searching box list for ' + searchTerm);
+			console.log(_this.state.boxList);
+			if (_this.state.boxList.has(searchTerm)) {
+				console.log('found ' + searchTerm + ' with parents ' + _this.state.boxList.get(searchTerm));
+				_this.setState({ searchTerm: searchTerm, selectedBox: { target: searchTerm, parentList: _this.state.boxList.get(searchTerm) } });
+			}
+			if (searchTerm == '') {
+				_this.setState({ searchTerm: searchTerm, selectedBox: { target: '', parentList: [] } });
+			}
+		};
+
+		_this.expandAll = function (e) {
+			console.log('got command to ' + (_this.state.expanded ? 'collapse' : 'expand') + ' the tree');
+			_this.setState({ working: true, expanded: !_this.state.expanded });
+			setTimeout(function () {
+				return _this.setState({ working: false });
+			}, 100);
 		};
 
 		_this.toggleBase64 = function (e, boxData) {
@@ -3346,7 +3425,11 @@ var app_App = function (_Component) {
 			showVideo: false,
 			hasFocus: -1,
 			fileName: 'raw base64 data',
-			base64: ''
+			base64: '',
+			expanded: false,
+			boxList: new Map(),
+			selectedBox: { target: '', parentList: [] },
+			searchTerm: ''
 		};
 		return _this;
 	}
@@ -3400,6 +3483,20 @@ var app_App = function (_Component) {
 					{ style: { padding: this.state.showHex ? '10px 10px' : '56px 10px' } },
 					this.state.videoError
 				),
+				Object(preact_min["h"])(
+					'div',
+					{ 'class': 'treeControl' },
+					Object(preact_min["h"])(
+						'div',
+						{ style: styles.parseButton, onClick: this.expandAll },
+						this.state.expanded ? 'Collapse Tree View' : 'Expand Tree View'
+					),
+					Object(preact_min["h"])(
+						'div',
+						{ style: styles.parseButton },
+						Object(preact_min["h"])('input', { 'class': 'tagSearch', placeholder: 'search for tag', type: 'search', size: '10', onChange: this.handleSearch, value: this.state.searchTerm })
+					)
+				),
 				Object(preact_min["h"])(home, {
 					fileName: this.state.fileName,
 					decodeMode: this.state.mode,
@@ -3409,7 +3506,9 @@ var app_App = function (_Component) {
 					error: this.state.errorMessage,
 					hasFocus: this.state.hasFocus,
 					base64: this.state.base64,
-					toggleBase64: this.toggleBase64
+					toggleBase64: this.toggleBase64,
+					expandAll: this.state.expanded,
+					selectedBox: this.state.selectedBox
 				})
 			)
 		);
