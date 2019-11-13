@@ -293,7 +293,7 @@ export default class App extends Component {
 						/> : <div style={{ padding: this.state.showHex ? '10px 10px' : '56px 10px' }}>{this.state.videoError}</div>}
 					<div class={'treeControl'}>
 						<div style={styles.parseButton} onClick={this.expandAll}>{this.state.expanded ? 'Collapse Tree View' : 'Expand Tree View'}</div>
-						<div style={styles.parseButton}><input class={'tagSearch'} placeholder="search for tag" type="search" size="14" onChange={this.handleSearch} value={this.state.searchTerm} /></div>
+						<div style={styles.parseButton}><input class={'tagSearch'} placeholder="search for tag" type="search" size="10" onChange={this.handleSearch} value={this.state.searchTerm} /></div>
 					</div>
 					<Home
 						fileName={this.state.fileName}

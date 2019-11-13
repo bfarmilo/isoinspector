@@ -8,7 +8,6 @@
 	background: #673AB7;
 	box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 	z-index: 50;
-	display:flex;
 }
 
 .header h1 {
