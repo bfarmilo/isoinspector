@@ -4179,7 +4179,7 @@ var additionalBoxes = [{
         }
     }
 }, {
-    source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+    source: 'ISO/IEC 14496-12 2015 8.5.2.2 Sample Entry, modified as described in 8.12',
     field: 'encv',
     _parser: function _parser() {
         // SampleEntry fields
@@ -4221,7 +4221,7 @@ var additionalBoxes = [{
         }
     }
 }, {
-    source: 'ISO/IEC 14496-12 2015 12.1.3.2 Sample Entry, modified as described in 8.12',
+    source: 'ISO/IEC 14496-12 2015 8.5.2.2 Sample Entry, modified as described in 8.12',
     field: 'avc1',
     _parser: function _parser() {
         // SampleEntry fields
@@ -4344,13 +4344,13 @@ var additionalBoxes = [{
     field: 'pasp',
     _parser: function _parser() {
         this._procFullBox();
-        this._procField('h_spacing', 'uint', 32);
-        this._procField('b_spacing', 'uint', 32);
-        if (this.sample_size == 0 && this.sample_count) {
+        this._procField('h_spacing', 'uint', 4);
+        this._procField('b_spacing', 'uint', 4);
+        /* if (this.sample_size == 0 && this.sample_count) {
             this._procEntries('samples', this.sample_count, function (sample) {
                 this._procEntryField(sample, 'entry_size', 'uint', 32);
-            });
-        }
+            })
+        } */
     }
 }, {
     source: 'Netflix Cadmium Player undocumented',
