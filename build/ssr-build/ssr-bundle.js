@@ -4343,14 +4343,8 @@ var additionalBoxes = [{
     source: 'Quicktime',
     field: 'pasp',
     _parser: function _parser() {
-        this._procFullBox();
-        this._procField('h_spacing', 'uint', 4);
-        this._procField('b_spacing', 'uint', 4);
-        /* if (this.sample_size == 0 && this.sample_count) {
-            this._procEntries('samples', this.sample_count, function (sample) {
-                this._procEntryField(sample, 'entry_size', 'uint', 32);
-            })
-        } */
+        this._procField('h_spacing', 'uint', 32);
+        this._procField('v_spacing', 'uint', 32);
     }
 }, {
     source: 'Netflix Cadmium Player undocumented',
