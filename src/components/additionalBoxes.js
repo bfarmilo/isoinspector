@@ -409,6 +409,16 @@ const additionalBoxes = [
         }
     },
     {
+        source: 'Quicktime',
+        field: 'colr',
+        _parser: function () {
+            this._procField('color_param_type', 'string', 4);
+            this._procField('primaries_index', 'uint', 16);
+            this._procField('transfer_func_index', 'uint', 16);
+            this._procField('matrix_index', 'uint', 16);
+        }
+    },
+    {
         source: 'Netflix Cadmium Player undocumented',
         field: 'uuid',
         _parser: function () {
@@ -451,7 +461,24 @@ const additionalBoxes = [
                 this._procField('mka_offset?', 'uint', 8); 52
                 this._procField('Gfa_size?', 'uint', 4); 60
                 this._procField('xfa_KID?', 'uint', 8); // just return the dataview*/
-            } else { }
+            } else if (uuidString === 'A2394F525A9B4F14A2446C427C648DF4') {
+                console.log('Netflix senc box found!')
+                this._procField('flags', 'uint', 32);
+                this._procField('sample_count', 'uint', 32);
+                if (this.flags & 1) {
+                    this._procField('IV_size', 'uint', 8);
+                }
+                this._procEntries('senc_samples', this.sample_count, function (entry) {
+                    this._procEntryField(entry, 'InitializationVector', 'data', 8);
+                    if (this.flags & 2) {
+                        this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                        this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                            this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                            this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                        });
+                    }
+                });
+            }
         }
     }
 ]
@@ -578,7 +605,7 @@ const getISOData = (key, value) => {
         },
         'senc_samples': value => value.map((item, index) => {
             const cleanEntry = { ...item, InitializationVector: convertToHex(item.InitializationVector) };
-            // add an entry number to each subsample entry
+            // add an entry number to each subsample entry, using the index in the subsample array + 1
             cleanEntry.subsamples = cleanEntry.subsamples.map((subsample, subEntryNo) => ({ ...subsample, entryNumber: subEntryNo + 1 }));
             cleanEntry.entryNumber = index + 1;
             return cleanEntry;
@@ -631,6 +658,7 @@ const getISOData = (key, value) => {
     return value;
 }
 
+// TODO: fix subsample handling !!
 const postProcess = boxes => {
     return boxes.map(box => {
         const keyList = box.keys;
@@ -708,10 +736,57 @@ const convertBox = boxes => {
     }, []);
 }
 
+const getBoxList = async (collection, resultMap) => {
+
+    let counter = 0;
+
+    const addElements = (elemList, parentPath) => new Promise((resolve, reject) => {
+        // first add all of the elements at this node
+        elemList.forEach(elem => {
+            // only add items with a 'type' (ie, box definition) -- extend for special cases like encv entries
+            if (!!elem.type || elem.name==='entries') {
+                // get all children
+                const boxContents = !!elem.boxes && elem.boxes.reduce((allChildren, current) => {
+                    if (!!current.type) allChildren.children.push({box: current.type, start: current.start});
+                    if (!!current.name && elem.type==='stsd' && current.name==='entries') allChildren.children.push({box:current.boxes[0].type, start:current.boxes[0].start})
+                    if (!!current.name) allChildren.values.push(current);
+                    return allChildren;
+                }, { children: [], values: [] });
+                resultMap.set({box: elem.type, start:elem.start}, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values});
+                console.log('extracted element', elem);
+                // now check for sub-boxes that are not null
+                if (!!elem.boxes) {
+                    //quick check to see if the boxes have types
+                    const validBoxes = elem.boxes.reduce((newList, box) => {
+                        if (!!box.type) {
+                            newList.push(box);
+                        } else if (box.name && box.name === 'entries' && box.boxes) {
+                            newList.push(box.boxes[0]);
+                        }
+                        return newList;
+                    }, []);
+                    //recurse any sub-boxes
+                    if (validBoxes.length) {
+                        counter++;
+                        return addElements(validBoxes, parentPath.concat(elem.type));
+                    }
+                }
+            }
+        });
+        counter--;
+        if (counter == 0) return resolve(resultMap);
+    });
+
+    // start the chain using the full collection
+    counter++;
+    return await addElements(collection, []);
+}
+
 module.exports = {
     getISOData,
     psshLookup,
     additionalBoxes,
     postProcess,
-    convertBox
+    convertBox,
+    getBoxList
 }
