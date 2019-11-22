@@ -40,8 +40,12 @@ Performance of multiple passes, or carving up the hex, is *really bad*
 
 Need way to keep track of which box is selected for hex display. Probably need a map (type/name: {start, end}) then create arrays as needed.
 
-## Issues List
+## Release Notes
+* Implemented search box
+* Implemented expand-all tree component
 
+## Action List
+
+1. Multi-view display similar to iso inspector
 1. Allow this to also run the service (Nflx, etc. etc.) by acting as a desktop web Browser (electron). Then capture keys etc. to allow replaying. parse-on-the-fly?
-1. Expand-all tree component
-1. Search by box name, expands tree down to and including that box, jumps cursor to start of box entry
+1. Add additional (missing) box processors as required
