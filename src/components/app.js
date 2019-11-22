@@ -1,13 +1,15 @@
 import { h, Component } from 'preact';
 import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from './ebmlBoxer';
-import { additionalBoxes, convertBox, postProcess } from './additionalBoxes';
+import { additionalBoxes, convertBox, postProcess, getBoxList } from './additionalBoxes';
 import { m2tsBoxer } from './m2tsBoxer';
 
 
 import Header from './header';
 import Home from './home';
 import Video from './video';
+// debugging
+import MultiView from './multiview';
 
 const styles = {
 	parseButton: {
@@ -21,8 +23,8 @@ const styles = {
 		zIndex: '50',
 		border: 'none',
 		borderRadius: '3px',
-		textAlign:'center',
-		alignContent:'center'
+		textAlign: 'center',
+		alignContent: 'center'
 	},
 	inputArea: {
 		display: 'grid',
@@ -56,7 +58,7 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 		// process the boxes
 		const preProcessed = convertBox(parsedData.boxes);
-		console.log(preProcessed);
+		console.log('pre-processed box data:', preProcessed);
 		const result = postProcess(preProcessed);
 		return resolve({ boxes: result });
 	}
@@ -87,7 +89,8 @@ export default class App extends Component {
 			expanded: false,
 			boxList: new Map(),
 			selectedBox: { target: '', parentList: [] },
-			searchTerm: ''
+			searchTerm: '',
+			viewMode: false
 		}
 	}
 
@@ -113,48 +116,7 @@ export default class App extends Component {
 
 	parseFile = e => {
 
-		const getBoxList = async (collection, resultMap) => {
 
-			let counter = 0;
-
-			const addElements = (elemList, parentPath) => new Promise((resolve, reject) => {
-				// first add all of the elements at this node
-				elemList.forEach(elem => {
-					console.log(elem);
-					// only add items with a 'type' (ie, box definition)
-					if (!!elem.type) {
-						if (resultMap.size && resultMap.has(elem.type)) {
-							resultMap.set(elem.type, resultMap.get(elem.type).concat(parentPath))
-						} else {
-							resultMap.set(elem.type, parentPath)
-						};
-						// now check for sub-boxes that are not null
-						if (!!elem.boxes) {
-							//quick check to see if the boxes have types
-							const validBoxes = elem.boxes.reduce((newList, box) => {
-								if (!!box.type) {
-									newList.push(box);
-								} else if (box.name && box.name === 'entries') {
-									newList.push(box.boxes[0]);
-								}
-								return newList;
-							}, []);
-							//recurse any sub-boxes
-							if (validBoxes.length) {
-								counter++;
-								return addElements(validBoxes, parentPath.concat(elem.type));
-							}
-						}
-					}
-				});
-				counter--;
-				if (counter == 0) return resolve(resultMap);
-			})
-
-			// start the chain using the full collection
-			counter++;
-			return await addElements(collection, []);
-		}
 
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
@@ -217,10 +179,11 @@ export default class App extends Component {
 	handleSearch = (e) => {
 		const searchTerm = e.target.value;
 		console.log(`searching box list for ${searchTerm}`);
-		console.log(this.state.boxList);
-		if (this.state.boxList.has(searchTerm)) {
-			console.log(`found ${searchTerm} with parents ${this.state.boxList.get(searchTerm)}`);
-			this.setState({ searchTerm, selectedBox: { target: searchTerm, parentList: this.state.boxList.get(searchTerm) } });
+		const keyList = Array.from(this.state.boxList.keys()).filter(({ box, start }) => box === searchTerm);
+		console.log(keyList);
+		if (keyList.length) {
+			const parentList = keyList.reduce((result, key) => this.state.boxList.get(key).parent.concat(result), []);
+			this.setState({ searchTerm, selectedBox: { target: searchTerm, parentList } });
 		}
 		if (searchTerm == '') {
 			this.setState({ searchTerm, selectedBox: { target: '', parentList: [] } });
@@ -262,6 +225,10 @@ export default class App extends Component {
 		this.setState({ base64 })
 	}
 
+	changeViewMode = e => {
+		this.setState({ viewMode: !this.state.viewMode })
+	}
+
 	render() {
 		return (
 			<div id="app">
@@ -273,6 +240,8 @@ export default class App extends Component {
 					hexCode={this.state.hexCode}
 					toggleHex={this.toggleHex}
 					handleFiles={this.handleFiles}
+					viewMode={this.state.viewMode}
+					changeViewMode={this.changeViewMode}
 				/>
 				{this.state.showHex ? (
 					<div style={styles.inputArea}>
@@ -293,21 +262,35 @@ export default class App extends Component {
 						/> : <div style={{ padding: this.state.showHex ? '10px 10px' : '56px 10px' }}>{this.state.videoError}</div>}
 					<div class={'treeControl'}>
 						<div style={styles.parseButton} onClick={this.expandAll}>{this.state.expanded ? 'Collapse Tree View' : 'Expand Tree View'}</div>
-						<div style={styles.parseButton}><input class={'tagSearch'} placeholder="search for tag" type="search" size="10" onChange={this.handleSearch} value={this.state.searchTerm} /></div>
+						<div style={styles.parseButton}><input list="tags" class={'tagSearch'} placeholder="search for tag" size="8" onChange={this.handleSearch} value={this.state.searchTerm}>
+							<datalist style={styles.parseButton} id="tags">
+								{Array.from(this.state.boxList.keys()).map(boxName => {
+									if (boxName) return <option value={boxName}>{boxName}</option>
+									return <option />
+								})}
+							</datalist>
+						</input></div>
 					</div>
-					<Home
-						fileName={this.state.fileName}
-						decodeMode={this.state.mode}
-						working={this.state.working}
-						parsedData={this.state.parsedData}
-						handleFocus={this.handleFocus}
-						error={this.state.errorMessage}
-						hasFocus={this.state.hasFocus}
-						base64={this.state.base64}
-						toggleBase64={this.toggleBase64}
-						expandAll={this.state.expanded}
-						selectedBox={this.state.selectedBox}
-					/>
+					{this.state.viewMode ?
+						<MultiView
+							preProcessed={{}}
+							postProcessed={this.state.parsedData}
+							boxList={this.state.boxList}
+							fileName={this.state.fileName}
+						/> :
+						<Home
+							fileName={this.state.fileName}
+							decodeMode={this.state.mode}
+							working={this.state.working}
+							parsedData={this.state.parsedData}
+							handleFocus={this.handleFocus}
+							error={this.state.errorMessage}
+							hasFocus={this.state.hasFocus}
+							base64={this.state.base64}
+							toggleBase64={this.toggleBase64}
+							expandAll={this.state.expanded}
+							selectedBox={this.state.selectedBox}
+						/>}
 				</div>
 			</div >
 		);
