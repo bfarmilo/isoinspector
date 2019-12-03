@@ -66,6 +66,14 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
+/***/ "7pDz":
+/***/ (function(module, exports) {
+
+// removed by extract-text-webpack-plugin
+module.exports = {"filename":"filename__2d2Hu"};
+
+/***/ }),
+
 /***/ "97RM":
 /***/ (function(module, exports) {
 
@@ -2832,7 +2840,7 @@ var header_style_default = /*#__PURE__*/__webpack_require__.n(header_style);
 
 
 
-var _ref = Object(preact_min["h"])(
+var header__ref = Object(preact_min["h"])(
 	'h1',
 	null,
 	'Media Inspector'
@@ -2857,7 +2865,7 @@ var header_Header = function Header(props) {
 	return Object(preact_min["h"])(
 		'header',
 		{ 'class': header_style_default.a.header },
-		_ref,
+		header__ref,
 		Object(preact_min["h"])(
 			'nav',
 			null,
@@ -2872,6 +2880,11 @@ var header_Header = function Header(props) {
 				'a',
 				{ onClick: props.togglePreview },
 				props.showVideo ? 'Hide Preview' : 'Show Preview'
+			),
+			Object(preact_min["h"])(
+				'a',
+				{ onClick: props.changeViewMode },
+				props.viewMode ? 'Show Tree View' : 'Show Multiview'
 			)
 		)
 	);
@@ -3121,7 +3134,11 @@ var video_Video = function Video(props) {
 };
 
 /* harmony default export */ var video = (video_Video);
-// CONCATENATED MODULE: ./components/app.js
+// EXTERNAL MODULE: ./components/multiview/style.css
+var multiview_style = __webpack_require__("7pDz");
+var multiview_style_default = /*#__PURE__*/__webpack_require__.n(multiview_style);
+
+// CONCATENATED MODULE: ./components/multiview/index.js
 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -3132,12 +3149,281 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 
 
+/** @jsx h */
+
+var multiview_TagTree = function TagTree(props) {
+    //create indents based on children
+    var renderKids = function renderKids(boxKey) {
+        try {
+            // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
+            var _tag = Array.from(props.tags.keys()).filter(function (_ref) {
+                var box = _ref.box,
+                    start = _ref.start;
+                return box === boxKey.box && start === boxKey.start;
+            })[0];
+            var entry = props.tags.get(_tag);
+            return Object(preact_min["h"])(
+                'li',
+                {
+                    style: { fontWeight: props.selected === _tag ? "bold" : "normal" },
+                    onClick: function onClick(e) {
+                        return props.handleClick(e, _tag);
+                    },
+                    key: _tag.start
+                },
+                _tag.box,
+                !!entry.children && entry.children.length > 0 ? entry.children.map(renderKids) : ''
+            );
+        } catch (e) {
+            console.error('error processing tag', tag, e);
+        }
+    };
+
+    var rootTags = Array.from(props.tags).reduce(function (result, _ref2) {
+        var key = _ref2[0],
+            entry = _ref2[1];
+
+        if (entry.parent.length === 0) result.push(key);
+        return result;
+    }, []);
+
+    return Object(preact_min["h"])(
+        'div',
+        {
+            style: {
+                background: props.background,
+                display: "grid",
+                gridArea: "tree"
+            }
+        },
+        Object(preact_min["h"])(
+            'li',
+            { onClick: function onClick(e) {
+                    return props.handleClick(e, "");
+                }, 'class': multiview_style_default.a.filename },
+            props.fileName,
+            rootTags.map(renderKids)
+        )
+    );
+};
+
+var multiview_Data = function Data(props) {
+
+    var dataToShow = function dataToShow(box) {
+        if (box.display && Array.isArray(box.display)) {
+            if (box.display.length === 0) return Object(preact_min["h"])(
+                'div',
+                { style: { margin: 'inherit' } },
+                '[]'
+            );
+            return Object(preact_min["h"])(
+                'div',
+                { style: { margin: 'inherit' }, onClick: function onClick(e) {
+                        return props.arraySelected(e, box, props.tagName);
+                    } },
+                'Click for Details'
+            );
+        }
+        return Object(preact_min["h"])(
+            'div',
+            { style: { margin: 'inherit' } },
+            box.display
+        );
+    };
+
+    return Object(preact_min["h"])(
+        'div',
+        {
+            style: {
+                background: props.background,
+                display: 'flex',
+                flexDirection: 'column',
+                gridArea: "data",
+                overflowY: 'scroll'
+            }
+        },
+        props.tagData && props.tagData.map(function (value) {
+            return Object(preact_min["h"])(
+                'div',
+                { style: {
+                        display: 'flex',
+                        margin: '2px 2px 2px 10px'
+                    } },
+                Object(preact_min["h"])(
+                    'div',
+                    { style: { margin: 'inherit', fontWeight: 'bold' } },
+                    value.name,
+                    ':'
+                ),
+                dataToShow(value)
+            );
+        })
+    );
+};
+
+var _ref3 = Object(preact_min["h"])('div', null);
+
+var multiview_SubArray = function SubArray(props) {
+    return Object(preact_min["h"])(
+        'div',
+        { style: {
+                overflowY: 'scroll'
+            } },
+        props.entryName ? Object(preact_min["h"])(
+            'h2',
+            null,
+            props.entryName
+        ) : _ref3,
+        Object(preact_min["h"])(
+            'div',
+            {
+                style: {
+                    background: props.background,
+                    display: "flex",
+                    gridArea: "array",
+                    flexDirection: 'column'
+                }
+            },
+            props.subArray.map(function (entry) {
+                return Object(preact_min["h"])(
+                    'div',
+                    { style: { display: 'flex', background: entry.entryNumber % 2 ? 'lightgray' : 'darkgray' } },
+                    Object(preact_min["h"])(
+                        'div',
+                        { style: { display: 'flex', alignSelf: 'center' } },
+                        entry.entryNumber
+                    ),
+                    Object(preact_min["h"])(
+                        'div',
+                        null,
+                        Object.keys(entry).filter(function (entry) {
+                            return entry !== 'entryNumber';
+                        }).map(function (key) {
+                            return Object(preact_min["h"])(
+                                'div',
+                                { style: { display: 'flex', margin: '2px 2px 2px 10px' } },
+                                Object(preact_min["h"])(
+                                    'div',
+                                    { style: { margin: 'inherit' } },
+                                    key,
+                                    ':'
+                                ),
+                                Object(preact_min["h"])(
+                                    'div',
+                                    { style: { margin: 'inherit' } },
+                                    entry[key]
+                                )
+                            );
+                        })
+                    )
+                );
+            })
+        )
+    );
+};
+
+var multiview_Hex = function Hex(props) {
+    return Object(preact_min["h"])('div', {
+        style: { background: props.background, display: "grid", gridArea: "hex" }
+    });
+};
+
+var _ref4 = Object(preact_min["h"])(multiview_Hex, { background: 'green' });
+
+var multiview_MultiView = function (_Component) {
+    _inherits(MultiView, _Component);
+
+    function MultiView(props) {
+        _classCallCheck(this, MultiView);
+
+        var _this = _possibleConstructorReturn(this, _Component.call(this, props));
+
+        _this.handleClick = function (event, boxName) {
+            event.stopPropagation();
+            console.log(boxName, _this.state.boxList.get(boxName).values);
+            _this.setState({
+                detailBox: '',
+                arrayData: [],
+                selectedTag: boxName.box,
+                selectedBox: _this.state.boxList.get(boxName).values
+            });
+        };
+
+        _this.arraySelected = function (event, boxName, arrayTag) {
+            console.log(boxName.name + '->' + arrayTag + ' selected, contains array entries');
+            var arrayData = boxName.display;
+            _this.setState({ arrayData: arrayData, detailBox: boxName.name });
+        };
+
+        _this.state = {
+            fileName: _this.props.fileName,
+            selectedTag: "",
+            selectedBox: [],
+            arrayData: [],
+            detailBox: '',
+            boxList: _this.props.boxList,
+            preProcessed: _this.props.preProcessed,
+            postProcessed: _this.props.postProcessed
+        };
+        return _this;
+    }
+
+    MultiView.prototype.render = function render() {
+        return Object(preact_min["h"])(
+            'div',
+            {
+                style: {
+                    display: "grid",
+                    gridTemplateAreas: '\'tree data array\'\n                                        \'tree hex hex\'\n                                        \'tree hex hex\'',
+                    gridTemplateRows: "25em 25em",
+                    gridTemplateColumns: "1fr 3fr 3fr"
+                }
+            },
+            Object(preact_min["h"])(multiview_TagTree, {
+                background: 'lightgrey',
+                tags: this.state.boxList,
+                handleClick: this.handleClick,
+                fileName: this.state.fileName,
+                selected: this.state.selectedTag
+            }),
+            Object(preact_min["h"])(multiview_Data, {
+                background: 'white',
+                tagData: this.state.selectedBox,
+                tagName: this.state.selectedTag,
+                arraySelected: this.arraySelected
+            }),
+            Object(preact_min["h"])(multiview_SubArray, {
+                background: 'white',
+                subArray: this.state.arrayData,
+                entryName: this.state.detailBox
+            }),
+            _ref4
+        );
+    };
+
+    return MultiView;
+}(preact_min["Component"]);
+
+/* harmony default export */ var multiview = (multiview_MultiView);
+// CONCATENATED MODULE: ./components/app.js
+
+
+function app__classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function app__possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function app__inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 
 
 
 
 
+
+
+
+
+// debugging
 
 
 var styles = {
@@ -3186,7 +3472,7 @@ var app_parseISO = function parseISO(buf) {
 					parsedData = $await_1;
 					if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 						preProcessed = Object(additionalBoxes["convertBox"])(parsedData.boxes);
-						console.log(preProcessed);
+						console.log('pre-processed box data:', preProcessed);
 						result = Object(additionalBoxes["postProcess"])(preProcessed);
 						return $return(resolve({ boxes: result }));
 					}
@@ -3207,15 +3493,17 @@ var app_parseM2TS = function parseM2TS(buf) {
 	return m2tsBoxer(buf);
 };
 
-var app__ref2 = Object(preact_min["h"])('div', null);
+var app__ref3 = Object(preact_min["h"])('div', null);
+
+var app__ref4 = Object(preact_min["h"])('option', null);
 
 var app_App = function (_Component) {
-	_inherits(App, _Component);
+	app__inherits(App, _Component);
 
 	function App(props) {
-		_classCallCheck(this, App);
+		app__classCallCheck(this, App);
 
-		var _this = _possibleConstructorReturn(this, _Component.call(this, props));
+		var _this = app__possibleConstructorReturn(this, _Component.call(this, props));
 
 		_this.componentWillMount = function () {
 			// add any custom box processors
@@ -3241,55 +3529,6 @@ var app_App = function (_Component) {
 
 		_this.parseFile = function (e) {
 
-			var getBoxList = function getBoxList(collection, resultMap) {
-				return new Promise(function ($return, $error) {
-					var counter, addElements;
-
-
-					counter = 0;
-
-					addElements = function addElements(elemList, parentPath) {
-						return new Promise(function (resolve, reject) {
-							// first add all of the elements at this node
-							elemList.forEach(function (elem) {
-								console.log(elem);
-								// only add items with a 'type' (ie, box definition)
-								if (!!elem.type) {
-									if (resultMap.size && resultMap.has(elem.type)) {
-										resultMap.set(elem.type, resultMap.get(elem.type).concat(parentPath));
-									} else {
-										resultMap.set(elem.type, parentPath);
-									};
-									// now check for sub-boxes that are not null
-									if (!!elem.boxes) {
-										//quick check to see if the boxes have types
-										var validBoxes = elem.boxes.reduce(function (newList, box) {
-											if (!!box.type) {
-												newList.push(box);
-											} else if (box.name && box.name === 'entries') {
-												newList.push(box.boxes[0]);
-											}
-											return newList;
-										}, []);
-										//recurse any sub-boxes
-										if (validBoxes.length) {
-											counter++;
-											return addElements(validBoxes, parentPath.concat(elem.type));
-										}
-									}
-								}
-							});
-							counter--;
-							if (counter == 0) return resolve(resultMap);
-						});
-					};
-
-					// start the chain using the full collection
-					counter++;
-					return Promise.resolve(addElements(collection, [])).then($return, $error);
-				});
-			};
-
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
 			_this.createParsed(_this.state.inputData).then(function (_ref) {
@@ -3298,7 +3537,7 @@ var app_App = function (_Component) {
 				var listOfBoxes = new Map();
 				//extract a list of box names for the dropdown
 				//return Map([target, [parentList]]}
-				getBoxList(boxes, listOfBoxes).then(function (boxList) {
+				Object(additionalBoxes["getBoxList"])(boxes, listOfBoxes).then(function (boxList) {
 					return _this.setState({ boxList: boxList, parsedData: boxes, working: false, decodeAttempts: 0 });
 				});
 				;
@@ -3356,10 +3595,17 @@ var app_App = function (_Component) {
 		_this.handleSearch = function (e) {
 			var searchTerm = e.target.value;
 			console.log('searching box list for ' + searchTerm);
-			console.log(_this.state.boxList);
-			if (_this.state.boxList.has(searchTerm)) {
-				console.log('found ' + searchTerm + ' with parents ' + _this.state.boxList.get(searchTerm));
-				_this.setState({ searchTerm: searchTerm, selectedBox: { target: searchTerm, parentList: _this.state.boxList.get(searchTerm) } });
+			var keyList = Array.from(_this.state.boxList.keys()).filter(function (_ref2) {
+				var box = _ref2.box,
+				    start = _ref2.start;
+				return box === searchTerm;
+			});
+			console.log(keyList);
+			if (keyList.length) {
+				var parentList = keyList.reduce(function (result, key) {
+					return _this.state.boxList.get(key).parent.concat(result);
+				}, []);
+				_this.setState({ searchTerm: searchTerm, selectedBox: { target: searchTerm, parentList: parentList } });
 			}
 			if (searchTerm == '') {
 				_this.setState({ searchTerm: searchTerm, selectedBox: { target: '', parentList: [] } });
@@ -3413,6 +3659,10 @@ var app_App = function (_Component) {
 			_this.setState({ base64: base64 });
 		};
 
+		_this.changeViewMode = function (e) {
+			_this.setState({ viewMode: !_this.state.viewMode });
+		};
+
 		_this.state = {
 			inputData: '',
 			parsedData: { boxes: [] },
@@ -3429,7 +3679,8 @@ var app_App = function (_Component) {
 			expanded: false,
 			boxList: new Map(),
 			selectedBox: { target: '', parentList: [] },
-			searchTerm: ''
+			searchTerm: '',
+			viewMode: false
 		};
 		return _this;
 	}
@@ -3447,7 +3698,9 @@ var app_App = function (_Component) {
 				showHex: this.state.showHex,
 				hexCode: this.state.hexCode,
 				toggleHex: this.toggleHex,
-				handleFiles: this.handleFiles
+				handleFiles: this.handleFiles,
+				viewMode: this.state.viewMode,
+				changeViewMode: this.changeViewMode
 			}),
 			this.state.showHex ? Object(preact_min["h"])(
 				'div',
@@ -3470,7 +3723,7 @@ var app_App = function (_Component) {
 						'Go'
 					)
 				)
-			) : app__ref2,
+			) : app__ref3,
 			Object(preact_min["h"])(
 				'div',
 				null,
@@ -3494,10 +3747,30 @@ var app_App = function (_Component) {
 					Object(preact_min["h"])(
 						'div',
 						{ style: styles.parseButton },
-						Object(preact_min["h"])('input', { 'class': 'tagSearch', placeholder: 'search for tag', type: 'search', size: '10', onChange: this.handleSearch, value: this.state.searchTerm })
+						Object(preact_min["h"])(
+							'input',
+							{ list: 'tags', 'class': 'tagSearch', placeholder: 'search for tag', size: '8', onChange: this.handleSearch, value: this.state.searchTerm },
+							Object(preact_min["h"])(
+								'datalist',
+								{ style: styles.parseButton, id: 'tags' },
+								Array.from(this.state.boxList.keys()).map(function (boxName) {
+									if (boxName) return Object(preact_min["h"])(
+										'option',
+										{ value: boxName },
+										boxName
+									);
+									return app__ref4;
+								})
+							)
+						)
 					)
 				),
-				Object(preact_min["h"])(home, {
+				this.state.viewMode ? Object(preact_min["h"])(multiview, {
+					preProcessed: {},
+					postProcessed: this.state.parsedData,
+					boxList: this.state.boxList,
+					fileName: this.state.fileName
+				}) : Object(preact_min["h"])(home, {
 					fileName: this.state.fileName,
 					decodeMode: this.state.mode,
 					working: this.state.working,
@@ -4347,6 +4620,15 @@ var additionalBoxes = [{
         this._procField('v_spacing', 'uint', 32);
     }
 }, {
+    source: 'Quicktime',
+    field: 'colr',
+    _parser: function _parser() {
+        this._procField('color_param_type', 'string', 4);
+        this._procField('primaries_index', 'uint', 16);
+        this._procField('transfer_func_index', 'uint', 16);
+        this._procField('matrix_index', 'uint', 16);
+    }
+}, {
     source: 'Netflix Cadmium Player undocumented',
     field: 'uuid',
     _parser: function _parser() {
@@ -4395,7 +4677,24 @@ var additionalBoxes = [{
             this._procField('mka_offset?', 'uint', 8); 52
             this._procField('Gfa_size?', 'uint', 4); 60
             this._procField('xfa_KID?', 'uint', 8); // just return the dataview*/
-        } else {}
+        } else if (uuidString === 'A2394F525A9B4F14A2446C427C648DF4') {
+            console.log('Netflix senc box found!');
+            this._procField('flags', 'uint', 32);
+            this._procField('sample_count', 'uint', 32);
+            if (this.flags & 1) {
+                this._procField('IV_size', 'uint', 8);
+            }
+            this._procEntries('senc_samples', this.sample_count, function (entry) {
+                this._procEntryField(entry, 'InitializationVector', 'data', 8);
+                if (this.flags & 2) {
+                    this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                    this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                        this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                        this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                    });
+                }
+            });
+        }
     }
 }];
 
@@ -4525,7 +4824,7 @@ var psshLookup = {
         'senc_samples': function senc_samples(value) {
             return value.map(function (item, index) {
                 var cleanEntry = _extends({}, item, { InitializationVector: convertToHex(item.InitializationVector) });
-                // add an entry number to each subsample entry
+                // add an entry number to each subsample entry, using the index in the subsample array + 1
                 cleanEntry.subsamples = cleanEntry.subsamples.map(function (subsample, subEntryNo) {
                     return _extends({}, subsample, { entryNumber: subEntryNo + 1 });
                 });
@@ -4586,6 +4885,7 @@ var psshLookup = {
     return value;
 };
 
+// TODO: fix subsample handling !!
 var postProcess = function postProcess(boxes) {
     return boxes.map(function (box) {
         var keyList = box.keys;
@@ -4675,12 +4975,65 @@ var convertBox = function convertBox(boxes) {
     }, []);
 };
 
+var getBoxList = function getBoxList(collection, resultMap) {
+    return new Promise(function ($return, $error) {
+        var counter, addElements;
+
+
+        counter = 0;
+
+        addElements = function addElements(elemList, parentPath) {
+            return new Promise(function (resolve, reject) {
+                // first add all of the elements at this node
+                elemList.forEach(function (elem) {
+                    // only add items with a 'type' (ie, box definition) -- extend for special cases like encv entries
+                    if (!!elem.type || elem.name === 'entries') {
+                        // get all children
+                        var boxContents = !!elem.boxes && elem.boxes.reduce(function (allChildren, current) {
+                            if (!!current.type) allChildren.children.push({ box: current.type, start: current.start });
+                            if (!!current.name && elem.type === 'stsd' && current.name === 'entries') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start });
+                            if (!!current.name) allChildren.values.push(current);
+                            return allChildren;
+                        }, { children: [], values: [] });
+                        resultMap.set({ box: elem.type, start: elem.start }, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values });
+                        console.log('extracted element', elem);
+                        // now check for sub-boxes that are not null
+                        if (!!elem.boxes) {
+                            //quick check to see if the boxes have types
+                            var validBoxes = elem.boxes.reduce(function (newList, box) {
+                                if (!!box.type) {
+                                    newList.push(box);
+                                } else if (box.name && box.name === 'entries' && box.boxes) {
+                                    newList.push(box.boxes[0]);
+                                }
+                                return newList;
+                            }, []);
+                            //recurse any sub-boxes
+                            if (validBoxes.length) {
+                                counter++;
+                                return addElements(validBoxes, parentPath.concat(elem.type));
+                            }
+                        }
+                    }
+                });
+                counter--;
+                if (counter == 0) return resolve(resultMap);
+            });
+        };
+
+        // start the chain using the full collection
+        counter++;
+        return Promise.resolve(addElements(collection, [])).then($return, $error);
+    });
+};
+
 module.exports = {
     getISOData: getISOData,
     psshLookup: psshLookup,
     additionalBoxes: additionalBoxes,
     postProcess: postProcess,
-    convertBox: convertBox
+    convertBox: convertBox,
+    getBoxList: getBoxList
 };
 
 /***/ }),
