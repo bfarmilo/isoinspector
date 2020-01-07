@@ -1,5 +1,6 @@
 import { convertToHex } from './tools';
 const parser = require('mpeg2ts-parser')();
+const { createWorker } = require('@ffmpeg/ffmpeg');
 const MAX_TIME = 10;
 
 const pidLookup = new Map([
@@ -50,6 +51,14 @@ const streamTypeLookup = {
     0x1B: 'AVC video stream', // as defined in ITU-T Rec. H.264 | ISO/IEC 14496-10 Video',
     0x7F: 'IPMP stream'
 }
+
+const generateM3U8 = (keyFile, IV, segmentList) => `#EXTM3U
+#EXT-X-TARGETDURATION:5
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-KEY:METHOD=AES-128,URI="${keyFile}",IV=0x${IV}
+${segmentList.map(segmentFile => `#EXTINF:5,
+${segmentFile}`)}
+#EXT-X-ENDLIST`;
 
 const parsePAT = buf => {
     // need to parse the PAT
@@ -110,7 +119,7 @@ const parsePMT = buf => {
         i += 5;
     }
     pmt.boxes = boxes;
-    pmt.crc_32 = buf[i] << 24 | buf[i+1] << 16 | buf[i+2] << 8 | buf[i+3];
+    pmt.crc_32 = buf[i] << 24 | buf[i + 1] << 16 | buf[i + 2] << 8 | buf[i + 3];
     return pmt;
 }
 
@@ -194,4 +203,34 @@ const m2tsBoxer = buf => new Promise((resolve, reject) => {
     }
 });
 
-export { m2tsBoxer };
+const decodeM2TS = (playList, keyFile, segmentFile, segmentCount = 0) => new Promise(async (resolve, reject) => {
+    try {
+        // should take a playList (buffer), keyFile (buffer), and a segmentFile (buffer)
+        // remap to a new playList (buffer)
+
+        // first get IV from old playlist
+        const IV = playList.match(/IV=0x([0123456789ABCDEF]*)\s/);
+        const newPlayList = generateM3U8('keyFile.key', IV ? IV[1] : '0000000000000001', ['segment.ts']);
+        const [keyFileBuffer, segmentBuffer] = [keyFile, segmentFile].map(data => Uint8Array.from(atob(data), c=>c.charCodeAt(0)));
+        // now run ffmpeg and send the resulting buffer to processData(decoded)
+        const worker = createWorker({ logger: ({message}) => console.log(message) });
+        await worker.load();
+        // load files into virtual file system
+        console.log('worker loaded');
+        await worker.writeText('playlist.m3u8', newPlayList);
+        await worker.write('keyFile.key', keyFileBuffer);
+        await worker.write('segment.ts', segmentBuffer);
+        // now run the decryption
+        await worker.run('-loglevel debug -allowed_extensions ALL -i /data/playlist.m3u8 -c copy decrypt.ts', {
+            input: ['playlist.m3u8', 'keyFile.key', 'segment.ts'],
+            output: 'decrypt.ts',
+            del: true
+        });
+        const { data } = await worker.read('decrypt.ts');
+        return resolve(m2tsBoxer(segmentCount ? data.slice(0,188*segmentCount) : data));
+    } catch (err) {
+        return reject(err);
+    }
+})
+
+export { m2tsBoxer, decodeM2TS };

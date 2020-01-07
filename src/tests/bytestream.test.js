@@ -2,7 +2,7 @@ import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from '../components/ebmlBoxer';
 import { EbmlDecoder } from '../components/ebmlSchema';
 import { additionalBoxes, convertBox, postProcess, getBoxList } from '../components/additionalBoxes';
-import { m2tsBoxer } from '../components/m2tsBoxer';
+import { m2tsBoxer, decodeM2TS } from '../components/m2tsBoxer';
 
 import * as fse from 'fs-extra';
 
@@ -53,7 +53,7 @@ describe.skip('webM handling', () => {
     test('jumps to a tag and reads the hex values');
 });
 
-describe('ISOBMFF init handling', () => {
+describe.skip('ISOBMFF init handling', () => {
     let buf;
     let result;
 
@@ -79,11 +79,11 @@ describe('ISOBMFF init handling', () => {
         fse.writeJSON('./src/tests/ISOPostTestInit.json', processed);
     })
 
-    test('generates a tag tree', async() => {
+    test('generates a tag tree', async () => {
         result = result || await fse.readJSON('./src/tests/ISOPostTestInit.json');
         const tagTree = await getBoxList(result, new Map());
         result = tagTree;
-        fse.writeJSON('./src/tests/ISOInitBoxList.json', Array.from(tagTree));        
+        fse.writeJSON('./src/tests/ISOInitBoxList.json', Array.from(tagTree));
     })
 })
 
@@ -111,15 +111,23 @@ describe.skip('ISOBMFF moof handling', () => {
     });
 });
 
-describe.skip('M2TS handling', () => {
+describe('M2TS handling', () => {
 
+    const segment = {};
+    const key = {};
     const buf = {};
+    let playlist = '';
 
     beforeAll(async () => {
+        playlist = await fse.readFile('./src/tests/playlist.m3u8', 'utf-8');
+        key.buffer = await fse.readFile('./src/tests/hls_300_keyfile_0.key');
+        // encrypted segment
+        segment.buffer = await fse.readFile('./src/tests/hls_300-00000.ts');
+        // plaintext segment
         buf.buffer = await fse.readFile('./src/tests/segment1_450000_av.ts');
     });
 
-    test('processes a MPEG2-TS file', async () => {
+    test.skip('processes a plaintext MPEG2-TS file', async () => {
         try {
             const result = (await parseM2TS(buf));
             expect(result).not.toBeFalsy;
@@ -128,4 +136,12 @@ describe.skip('M2TS handling', () => {
             console.error(e);
         }
     }, 10000);
+
+    test('produces a plaintext MPEG-TS file given a keyfile and playlist', async () => {
+        try {
+            const result = (await decodeM2TS(playlist, key.buffer, segment.buffer));
+        } catch (e) {
+            console.error(e)
+        }
+    }, 20000);
 });

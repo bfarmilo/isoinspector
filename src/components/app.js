@@ -2,7 +2,7 @@ import { h, Component } from 'preact';
 import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from './ebmlBoxer';
 import { additionalBoxes, convertBox, postProcess, getBoxList } from './additionalBoxes';
-import { m2tsBoxer } from './m2tsBoxer';
+import { m2tsBoxer, decodeM2TS } from './m2tsBoxer';
 
 
 import Header from './header';
@@ -10,6 +10,9 @@ import Home from './home';
 import Video from './video';
 // debugging
 import MultiView from './multiview';
+
+// for M2TS segments, how many to parse? 
+const SEGMENT_COUNT = 100;
 
 const styles = {
 	parseButton: {
@@ -42,7 +45,10 @@ const modes = {
 
 const niceError = {
 	3: 'This video appears to be encrypted',
-	4: 'Can\'t parse metadata. Is this not an initialization segment?'
+	4: 'Can\'t parse metadata. Is this not an initialization segment?',
+	99: `MP2T file appears to be encrypted. 
+	Please select a '.key' file and a '.m3u8' file
+	using 'Select Local File' above`
 
 }
 
@@ -74,6 +80,9 @@ export default class App extends Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			playlist: null,
+			keyFile: null,
+			fileName: 'raw base64 data',
 			inputData: '',
 			parsedData: { boxes: [] },
 			mode: 'mp4',
@@ -84,7 +93,6 @@ export default class App extends Component {
 			showHex: false,
 			showVideo: false,
 			hasFocus: -1,
-			fileName: 'raw base64 data',
 			base64: '',
 			expanded: false,
 			boxList: new Map(),
@@ -105,7 +113,17 @@ export default class App extends Component {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
 		if (this.state.mode === 'webm') return parseWebM(inputBuffer);
 		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
-		if (this.state.mode === 'MP2T') return parseM2TS(inputBuffer);
+		if (this.state.mode === 'MP2T') {
+			if (inputBuffer[0] !== 0x47) {
+				if (this.state.playlist && this.state.keyFile) return decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT);
+				this.setState({
+					videoError:niceError[99], working: false
+				});
+				console.log(niceError[99]);
+				return;
+			};
+			return parseM2TS(inputBuffer)
+		};
 	}
 
 	updateInput = e => {
@@ -115,9 +133,6 @@ export default class App extends Component {
 	}
 
 	parseFile = e => {
-
-
-
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
 		this.createParsed(this.state.inputData)
@@ -152,13 +167,24 @@ export default class App extends Component {
 
 	handleFiles = e => {
 		const fileName = e.target.files[0];
-		this.setState({ working: true, showVideo: false, inputData: '', fileName: fileName.name });
+		this.setState({ working: true, showVideo: false, inputData: '' });
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
-			const inputData = r.target.result.split(/base64,/)[1];
-			self.setState({ inputData });
-			self.parseFile();
+			switch (fileName.name.split(/\./)[1]) {
+				case 'm3u8':
+					const playlist = atob(r.target.result.split(/base64,/)[1]);
+					self.setState({ playlist, working:false, fileName: `Loaded Playlist ${fileName.name}`});
+					break;
+				case 'key': 
+					const keyFile = r.target.result.split(/base64,/)[1];
+					self.setState({ keyFile, working:false, fileName: `Loaded key file ${fileName.name}` });
+					break;
+				default:
+					const inputData = r.target.result.split(/base64,/)[1];
+					self.setState({ inputData, fileName: fileName.name });
+					self.parseFile();
+			}
 		}
 		reader.readAsDataURL(fileName);
 	}
