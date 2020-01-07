@@ -17,6 +17,14 @@
   "eslintIgnore": [
     "build/*"
   ],
+  "jest": {
+    "moduleNameMapper": {
+      "react": "preact-compat",
+      "react-dom/test-utils": "preact/test-utils",
+      "react-dom": "preact-compat",
+      ".*css$": "identity-obj-proxy"
+    }
+  },
   "devDependencies": {
     "enzyme": "^3.10.0",
     "enzyme-adapter-preact-pure": "^2.2.0",
@@ -28,9 +36,11 @@
     "jest": "^21.2.1",
     "preact-cli": "^2.2.1",
     "preact-cli-plugin-fast-async": "^1.0.1",
-    "preact-render-spy": "^1.2.1"
+    "preact-render-spy": "^1.2.1",
+    "protobuf.js": "^1.1.2"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.5.2",
     "codem-isoboxer": "^0.3.7",
     "mpeg2ts-parser": "^1.0.2",
     "preact": "^8.5.3",
