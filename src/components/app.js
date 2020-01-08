@@ -72,10 +72,6 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 
 });
 
-const parseWebM = buf => ebmlBoxer(buf.buffer);
-
-const parseM2TS = buf => m2tsBoxer(buf);
-
 export default class App extends Component {
 	constructor(props) {
 		super(props);
@@ -111,18 +107,18 @@ export default class App extends Component {
 
 	createParsed = inputData => {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-		if (this.state.mode === 'webm') return parseWebM(inputBuffer);
+		if (this.state.mode === 'webm') return ebmlBoxer(buf.buffer);
 		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
 		if (this.state.mode === 'MP2T') {
+			// check first byte for the start code
 			if (inputBuffer[0] !== 0x47) {
+				// it's not a start code, and we're in MP2T mode, so try decrypting
 				if (this.state.playlist && this.state.keyFile) return decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT);
-				this.setState({
-					videoError:niceError[99], working: false
-				});
-				console.log(niceError[99]);
+				this.setState({ videoError: niceError[99], working: false});
 				return;
 			};
-			return parseM2TS(inputBuffer)
+			// start code is valid, so just parse
+			return m2tsBoxer(inputBuffer, SEGMENT_COUNT);
 		};
 	}
 
@@ -168,17 +164,20 @@ export default class App extends Component {
 	handleFiles = e => {
 		const fileName = e.target.files[0];
 		this.setState({ working: true, showVideo: false, inputData: '' });
+		console.log(fileName);
+		if (fileName.type.includes('webm')) this.setState({ mode: 'webm' });
+		if (fileName.type.includes('mp4')) this.setState({ mode: 'mp4' });
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
 			switch (fileName.name.split(/\./)[1]) {
 				case 'm3u8':
 					const playlist = atob(r.target.result.split(/base64,/)[1]);
-					self.setState({ playlist, working:false, fileName: `Loaded Playlist ${fileName.name}`});
+					self.setState({ playlist, working: false, fileName: `Loaded Playlist ${fileName.name}` });
 					break;
-				case 'key': 
+				case 'key':
 					const keyFile = r.target.result.split(/base64,/)[1];
-					self.setState({ keyFile, working:false, fileName: `Loaded key file ${fileName.name}` });
+					self.setState({ keyFile, working: false, fileName: `Loaded key file ${fileName.name}` });
 					break;
 				default:
 					const inputData = r.target.result.split(/base64,/)[1];

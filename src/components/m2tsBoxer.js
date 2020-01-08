@@ -169,7 +169,7 @@ const processData = data => {
     }
 }
 
-const m2tsBoxer = buf => new Promise((resolve, reject) => {
+const m2tsBoxer = (buf, segmentCount = 0) => new Promise((resolve, reject) => {
     let allData = [];
     let lastChunkTime = (new Date()).getTime();
     let currentTime = lastChunkTime;
@@ -195,7 +195,7 @@ const m2tsBoxer = buf => new Promise((resolve, reject) => {
         parser.on('error', err => {
             return reject(err);
         });
-        parser.write(buf, () => {
+        parser.write(segmentCount ? buf.slice(0,188*segmentCount) : buf, () => {
             return resolve(processData(allData));
         });
     } catch (e) {
@@ -227,7 +227,7 @@ const decodeM2TS = (playList, keyFile, segmentFile, segmentCount = 0) => new Pro
             del: true
         });
         const { data } = await worker.read('decrypt.ts');
-        return resolve(m2tsBoxer(segmentCount ? data.slice(0,188*segmentCount) : data));
+        return resolve(m2tsBoxer(data, segmentCount));
     } catch (err) {
         return reject(err);
     }
