@@ -81,7 +81,7 @@ export default class App extends Component {
 			fileName: 'raw base64 data',
 			inputData: '',
 			parsedData: { boxes: [] },
-			mode: 'mp4',
+			mode: 'MP2T',
 			working: false,
 			errorMessage: '',
 			videoError: '',
@@ -107,7 +107,7 @@ export default class App extends Component {
 
 	createParsed = inputData => {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
-		if (this.state.mode === 'webm') return ebmlBoxer(buf.buffer);
+		if (this.state.mode === 'webm') return ebmlBoxer(inputBuffer.buffer);
 		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
 		if (this.state.mode === 'MP2T') {
 			// check first byte for the start code
