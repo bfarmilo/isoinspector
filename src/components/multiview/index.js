@@ -5,10 +5,10 @@ import style from './style.css';
 const TagTree = props => {
     //create indents based on children
     const renderKids = boxKey => {
+        // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
+        const tag = Array.from(props.tags.keys()).filter(({ box, start }) => box === boxKey.box && start === boxKey.start)[0];
+        const entry = props.tags.get(tag);
         try {
-            // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
-            const tag = Array.from(props.tags.keys()).filter(({ box, start }) => box === boxKey.box && start === boxKey.start)[0];
-            const entry = props.tags.get(tag);
             return (
                 <li
                     style={{ fontWeight: props.selected === tag ? "bold" : "normal" }}
@@ -22,7 +22,7 @@ const TagTree = props => {
                 </li>
             );
         } catch (e) {
-            console.error('error processing tag', tag, e)
+            console.error('error processing tag', entry, e)
         }
     };
 
@@ -40,7 +40,7 @@ const TagTree = props => {
             }}
         >
             <li onClick={e => props.handleClick(e, "")} class={style.filename}>
-                {props.fileName}{rootTags.map(renderKids)}
+                {props.fileName}{rootTags && rootTags.map(renderKids)}
             </li>
         </div>
     );
@@ -107,8 +107,19 @@ const SubArray = props => (
 
 const Hex = props => (
     <div
-        style={{ background: props.background, display: "grid", gridArea: "hex" }}
-    />
+        style={{ background: props.background,  display:'grid', gridTemplateRows: `repeat(${props.hex.length+1}, 1em)`, gridArea: "hex" }}
+    >
+        {props.hex.map(row => (
+        <div style={{fontFamily: 'courier', display: "grid", gridTemplateColumns: '30% 30% 40%'}}>
+            <div>{row}</div>
+            <div>{row.split(' ').map(byte => {
+                const code = parseInt(byte, 16);
+                return (code>31) ? String.fromCharCode(code) : '.'
+            })}</div>
+            <div></div>
+        </div>
+        ))}
+    </div>
 );
 
 class MultiView extends Component {
@@ -119,6 +130,7 @@ class MultiView extends Component {
             selectedTag: "",
             selectedBox: [],
             arrayData: [],
+            selectedHex: [],
             detailBox: '',
             boxList: this.props.boxList,
             preProcessed: this.props.preProcessed,
@@ -129,12 +141,13 @@ class MultiView extends Component {
 
     handleClick = (event, boxName) => {
         event.stopPropagation();
-        console.log(boxName, this.state.boxList.get(boxName).values);
+        console.log(boxName, this.state.boxList.get(boxName));
         this.setState({
             detailBox: '',
             arrayData: [],
             selectedTag: boxName.box,
-            selectedBox: this.state.boxList.get(boxName).values
+            selectedBox: this.state.boxList.get(boxName).values,
+            selectedHex: this.state.boxList.get(boxName).hex
         });
     };
 
@@ -174,7 +187,10 @@ class MultiView extends Component {
                     subArray={this.state.arrayData}
                     entryName={this.state.detailBox}
                 />
-                <Hex background="green" />
+                <Hex
+                    background="white"
+                    hex={this.state.selectedHex}
+                />
             </div>
         );
     }

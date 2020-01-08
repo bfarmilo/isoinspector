@@ -752,7 +752,7 @@ const getBoxList = async (collection, resultMap) => {
                     if (!!current.name) allChildren.values.push(current);
                     return allChildren;
                 }, { children: [], values: [] });
-                resultMap.set({box: elem.type, start:elem.start}, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values});
+                resultMap.set({box: elem.type, start:elem.start}, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex:elem.hex});
                 console.log('extracted element', elem);
                 // now check for sub-boxes that are not null
                 if (!!elem.boxes) {
