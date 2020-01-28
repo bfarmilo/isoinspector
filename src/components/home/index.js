@@ -29,7 +29,7 @@ const Home = props => {
 				</details>)
 		}
 
-		const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type && box.end ? ` (${box.size} bytes)` : ''}`;
+		const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type && box.end ? ` (${box.size || box.end-box.start+1} bytes)` : ''}`;
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
