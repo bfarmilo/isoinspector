@@ -191,7 +191,7 @@ const processData = data => {
             return {
                 start: index * 188,
                 end: (index + 1) * 188 - 1,
-                type: `PID ${segment.pid}${pidLookup.has(segment.pid) ? ` (${pidLookup.get(segment.pid)})` : ''} number ${segment.continuity_counter}`,
+                type: `PID ${segment.pid}${pidLookup.has(segment.pid) ? ` (${pidLookup.get(segment.pid)})` : ''} #${segment.continuity_counter}`,
                 hex: convertToHex(segment.packet),
                 packet: convertToHex(segment.packet),
                 boxes: processEntry(segment, index * 188)
@@ -237,7 +237,28 @@ const m2tsBoxer = (buf, segmentCount = 0) => new Promise((resolve, reject) => {
     }
 });
 
-const decodeM2TS = (playList, keyFile, segmentFile, segmentCount = 0) => new Promise(async (resolve, reject) => {
+const convertM2TS = (segmentFile) => new Promise(async (resolve, reject) => {
+    try {
+        // now run ffmpeg and send the resulting buffer to processData(decoded)
+        const worker = createWorker({ logger: ({ message }) => console.log(message) });
+        await worker.load();
+        // load files into virtual file system
+        console.log('worker loaded');
+        await worker.write('segment.ts', segmentFile);
+        // now run the decryption
+        await worker.run(`-loglevel debug -allowed_extensions ALL -i /data/segment.ts -c copy -bsf:a aac_adtstoasc decrypt.mp4`, {
+            input: 'segment.ts',
+            output: `decrypt.mp4`,
+            del: true
+        });
+        const { data } = await worker.read(`decrypt.mp4`);
+        return resolve(data);
+    } catch (e) {
+        return reject(e);
+    }
+})
+
+const decodeM2TS = (playList, keyFile, segmentFile) => new Promise(async (resolve, reject) => {
     try {
         // should take a playList (buffer), keyFile (buffer), and a segmentFile (buffer)
         // remap to a new playList (buffer)
@@ -255,16 +276,16 @@ const decodeM2TS = (playList, keyFile, segmentFile, segmentCount = 0) => new Pro
         await worker.write('keyFile.key', keyFileBuffer);
         await worker.write('segment.ts', segmentBuffer);
         // now run the decryption
-        await worker.run('-loglevel debug -allowed_extensions ALL -i /data/playlist.m3u8 -c copy decrypt.ts', {
+        await worker.run(`-loglevel debug -allowed_extensions ALL -i /data/playlist.m3u8 -c copy decrypt.ts`, {
             input: ['playlist.m3u8', 'keyFile.key', 'segment.ts'],
-            output: 'decrypt.ts',
+            output: `decrypt.ts`,
             del: true
         });
-        const { data } = await worker.read('decrypt.ts');
-        return resolve(m2tsBoxer(data, segmentCount));
+        const { data } = await worker.read(`decrypt.ts`);
+        return resolve(data);
     } catch (err) {
         return reject(err);
     }
 })
 
-export { m2tsBoxer, decodeM2TS };
+export { m2tsBoxer, decodeM2TS, convertM2TS };
