@@ -2,7 +2,7 @@ import { h, Component } from 'preact';
 import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from './ebmlBoxer';
 import { additionalBoxes, convertBox, postProcess, getBoxList } from './additionalBoxes';
-import { m2tsBoxer, decodeM2TS } from './m2tsBoxer';
+import { m2tsBoxer, decodeM2TS, convertM2TS } from './m2tsBoxer';
 
 
 import Header from './header';
@@ -12,7 +12,7 @@ import Video from './video';
 import MultiView from './multiview';
 
 // for M2TS segments, how many to parse? 
-const SEGMENT_COUNT = 100;
+const SEGMENT_COUNT = 512;
 
 const styles = {
 	parseButton: {
@@ -80,6 +80,7 @@ export default class App extends Component {
 			keyFile: null,
 			fileName: 'raw base64 data',
 			inputData: '',
+			videoData: '',
 			parsedData: { boxes: [] },
 			mode: 'MP2T',
 			working: false,
@@ -105,19 +106,28 @@ export default class App extends Component {
 		});
 	}
 
-	createParsed = inputData => {
+	createParsed = async inputData => {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
 		if (this.state.mode === 'webm') return ebmlBoxer(inputBuffer.buffer);
 		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
 		if (this.state.mode === 'MP2T') {
 			// check first byte for the start code
 			if (inputBuffer[0] !== 0x47) {
+				let decryptedData;
 				// it's not a start code, and we're in MP2T mode, so try decrypting
-				if (this.state.playlist && this.state.keyFile) return decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT);
-				this.setState({ videoError: niceError[99], working: false});
-				return;
-			};
+				if (this.state.playlist && this.state.keyFile) {
+					decryptedData = await decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT);
+					// store the converted output in inputData
+					this.setState({ videoData: decryptedData });
+					// now process the boxes
+					return m2tsBoxer(decryptedData, SEGMENT_COUNT);
+				} else {
+					this.setState({ videoError: niceError[99], working: false });
+					return;
+				};
+			}
 			// start code is valid, so just parse
+			this.setState({ videoData: inputBuffer });
 			return m2tsBoxer(inputBuffer, SEGMENT_COUNT);
 		};
 	}
@@ -128,29 +138,29 @@ export default class App extends Component {
 		this.setState({ inputData });
 	}
 
-	parseFile = e => {
+	parseFile = inputData => {
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
-		this.createParsed(this.state.inputData)
+		this.createParsed(inputData)
 			.then(({ boxes }) => {
 				const listOfBoxes = new Map();
 				//extract a list of box names for the dropdown
 				//return Map([target, [parentList]]}
-				getBoxList(boxes, listOfBoxes).then(boxList => this.setState({ boxList, parsedData: boxes, working: false, decodeAttempts: 0 }));
+				getBoxList(boxes, listOfBoxes).then(boxList => this.setState({ boxList, inputData, parsedData: boxes, working: false, decodeAttempts: 0 }));
 				;
 				return;
 			})
 			.catch(err => {
 				console.error(err);
 				this.setState({ errorMessage: err, working: false });
-				if (this.state.decodeAttempts < Object.keys(modes).length) {
+				/* if (this.state.decodeAttempts < Object.keys(modes).length) {
 					let { decodeAttempts, mode } = this.state;
 					decodeAttempts += 1;
 					mode = modes[mode];
 					console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
 					this.setState({ decodeAttempts, mode, working: true });
-					this.parseFile();
-				}
+					this.parseFile(this.state.inputData);
+				} */
 			})
 	}
 
@@ -161,17 +171,22 @@ export default class App extends Component {
 		this.setState({ showVideo: false, videoError });
 	}
 
-	handleFiles = e => {
+	handleFiles = (e, fileType) => {
 		const fileName = e.target.files[0];
 		this.setState({ working: true, showVideo: false, inputData: '' });
 		console.log(fileName);
-		if (fileName.type.includes('webm')) this.setState({ mode: 'webm' });
-		if (fileName.type.includes('mp4')) this.setState({ mode: 'mp4' });
+		if (fileName.type.includes('webm')) {
+			this.setState({ mode: 'webm' });
+		} else if (fileName.type.includes('mp4')) {
+			this.setState({ mode: 'mp4' });
+		} else {
+			this.setState({ mode: 'MP2T' });
+		}
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
-			switch (fileName.name.split(/\./)[1]) {
-				case 'm3u8':
+			switch (fileType) {
+				case 'playlist':
 					const playlist = atob(r.target.result.split(/base64,/)[1]);
 					self.setState({ playlist, working: false, fileName: `Loaded Playlist ${fileName.name}` });
 					break;
@@ -182,18 +197,30 @@ export default class App extends Component {
 				default:
 					const inputData = r.target.result.split(/base64,/)[1];
 					self.setState({ inputData, fileName: fileName.name });
-					self.parseFile();
+					self.parseFile(inputData);
 			}
 		}
 		reader.readAsDataURL(fileName);
 	}
 
 	toggleHex = e => {
-		this.setState({ showHex: !this.state.showHex });
+		const showHex = !this.state.showHex;
+		this.setState({ showHex });
 	}
 
-	togglePreview = e => {
-		this.setState({ showVideo: !this.state.showVideo })
+	togglePreview = async e => {
+		this.setState({ working: true });
+		const showVideo = !this.state.showVideo;
+		const inputBuffer = this.state.videoData;
+		let videoData;
+		if (this.state.mode === 'MP2T' && showVideo) {
+			const convertedFile = await convertM2TS(inputBuffer);
+			// it's a buffer, so make it into base64 for rendering
+			videoData = btoa(Array.from(convertedFile).map(byte => String.fromCharCode(byte)).join(''));
+		} else {
+			videoData = this.state.inputData;
+		}
+		this.setState({ working: false, showVideo, videoData });
 	}
 
 	handleFocus = (e, focusRow, showOffset) => {
@@ -217,7 +244,8 @@ export default class App extends Component {
 
 	expandAll = e => {
 		console.log(`got command to ${this.state.expanded ? 'collapse' : 'expand'} the tree`);
-		this.setState({ working: true, expanded: !this.state.expanded });
+		const expanded = !this.state.expanded;
+		this.setState({ working: true, expanded });
 		setTimeout(() => this.setState({ working: false }), 100);
 	}
 
@@ -251,7 +279,8 @@ export default class App extends Component {
 	}
 
 	changeViewMode = e => {
-		this.setState({ viewMode: !this.state.viewMode })
+		const viewMode = !this.state.viewMode;
+		this.setState({ viewMode });
 	}
 
 	render() {
@@ -274,15 +303,15 @@ export default class App extends Component {
 							<textarea style={{ height: '90%', width: '95%', margin: '10px' }} onChange={e => this.updateInput(e)} value={this.state.inputData} />
 						</div>
 						<div style={{ gridRow: '2/3' }}>
-							<button style={styles.parseButton} onClick={e => this.parseFile(e)}>Go</button>
+							<button style={styles.parseButton} onClick={e => this.parseFile(this.state.inputData)}>Go</button>
 						</div>
 					</div>) : <div />
 				}
 				<div>
 					{this.state.showVideo ?
 						<Video
-							mimeType={this.state.mode}
-							data={this.state.inputData}
+							mimeType={this.state.mode === 'MP2T' ? 'mp4' : this.state.mode}
+							data={this.state.videoData}
 							handleEncrypted={this.handleEncrypted}
 						/> : <div style={{ padding: this.state.showHex ? '10px 10px' : '56px 10px' }}>{this.state.videoError}</div>}
 					<div class={'treeControl'}>
@@ -298,7 +327,6 @@ export default class App extends Component {
 					</div>
 					{this.state.viewMode ?
 						<MultiView
-							preProcessed={{}}
 							postProcessed={this.state.parsedData}
 							boxList={this.state.boxList}
 							fileName={this.state.fileName}
