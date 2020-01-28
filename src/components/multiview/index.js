@@ -11,7 +11,7 @@ const TagTree = props => {
         try {
             return (
                 <li
-                    style={{ fontWeight: props.selected === tag ? "bold" : "normal" }}
+                    style={{ padding:'2px', fontWeight: (props.selected.box === tag.box && props.selected.start === tag.start) ? "bold" : "normal" }}
                     onClick={e => props.handleClick(e, tag)}
                     key={tag.start}
                 >
@@ -36,7 +36,9 @@ const TagTree = props => {
             style={{
                 background: props.background,
                 display: "grid",
-                gridArea: "tree"
+                gridArea: "tree",
+                overflowY:'scroll',
+                height:'50em'
             }}
         >
             <li onClick={e => props.handleClick(e, "")} class={style.filename}>
@@ -110,7 +112,7 @@ const Hex = props => (
         style={{ background: props.background,  display:'grid', gridTemplateRows: `repeat(${props.hex.length+1}, 1em)`, gridArea: "hex" }}
     >
         {props.hex.map(row => (
-        <div style={{fontFamily: 'courier', display: "grid", gridTemplateColumns: '30% 30% 40%'}}>
+        <div style={{fontFamily: 'courier', display: "grid", gridTemplateColumns: '500px 200px auto'}}>
             <div>{row}</div>
             <div>{row.split(' ').map(byte => {
                 const code = parseInt(byte, 16);
@@ -142,12 +144,13 @@ class MultiView extends Component {
     handleClick = (event, boxName) => {
         event.stopPropagation();
         console.log(boxName, this.state.boxList.get(boxName));
+        const {values, hex} = this.state.boxList.get(boxName);
         this.setState({
             detailBox: '',
             arrayData: [],
-            selectedTag: boxName.box,
-            selectedBox: this.state.boxList.get(boxName).values,
-            selectedHex: this.state.boxList.get(boxName).hex
+            selectedTag: {...boxName},
+            selectedBox: values,
+            selectedHex: hex
         });
     };
 
@@ -166,7 +169,7 @@ class MultiView extends Component {
                                         'tree hex hex'
                                         'tree hex hex'`,
                     gridTemplateRows: "25em 25em",
-                    gridTemplateColumns: "1fr 3fr 3fr"
+                    gridTemplateColumns: "1.5fr 3fr 3fr"
                 }}
             >
                 <TagTree
@@ -189,7 +192,7 @@ class MultiView extends Component {
                 />
                 <Hex
                     background="white"
-                    hex={this.state.selectedHex}
+                    hex={this.state.selectedHex || ['00']}
                 />
             </div>
         );
