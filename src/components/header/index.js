@@ -20,7 +20,7 @@ const Header = (props) => {
 				<label for="getKey"><a style={props.mode !== 'MP2T' ? { color: 'grey' } : {}}>Select Key File</a></label>
 				<a onClick={props.toggleHex}>{props.showHex ? 'Hide Hex Input' : 'Paste Hex Values'}</a>
 				<a onClick={props.togglePreview}>{props.showVideo ? 'Hide Preview' : 'Show Preview'}</a>
-				<a onClick={props.changeViewMode}>{props.viewMode ? 'Show Tree View' : 'Show Multiview'}</a>
+				{/*<a onClick={props.changeViewMode}>{props.viewMode ? 'Show Tree View' : 'Show Multiview'}</a>*/}
 			</nav>
 		</header>
 	)
