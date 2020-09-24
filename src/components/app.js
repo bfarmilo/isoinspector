@@ -108,6 +108,7 @@ export default class App extends Component {
 
 	createParsed = async inputData => {
 		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
+		//console.log('hex dump',new TextDecoder('utf-8').decode(inputBuffer));
 		if (this.state.mode === 'webm') return ebmlBoxer(inputBuffer.buffer);
 		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
 		if (this.state.mode === 'MP2T') {
@@ -283,6 +284,10 @@ export default class App extends Component {
 		this.setState({ viewMode });
 	}
 
+	changeFileMode = (e, mode) => {
+		this.setState({ mode });
+	}
+
 	render() {
 		return (
 			<div id="app">
@@ -301,6 +306,13 @@ export default class App extends Component {
 					<div style={styles.inputArea}>
 						<div style={{ gridRow: '1/3' }}>
 							<textarea style={{ height: '90%', width: '95%', margin: '10px' }} onChange={e => this.updateInput(e)} value={this.state.inputData} />
+						</div>
+						<div style={{margin:'18px 0 0 7px'}}>
+							{['mp4', 'webm', 'MP2T'].map(type => (
+								<div>
+									<input id={type} type="radio" name={type} value={type} checked={this.state.mode === type} onChange={e => this.changeFileMode(e, type)} />
+									<label htmlFor={type}><span><span></span></span>{type}</label>
+								</div>))}
 						</div>
 						<div style={{ gridRow: '2/3' }}>
 							<button style={styles.parseButton} onClick={e => this.parseFile(this.state.inputData)}>Go</button>
