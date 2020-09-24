@@ -66,6 +66,7 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
+
 /***/ "1v4d":
 /***/ (function(module, exports) {
 
@@ -274,6 +275,7 @@ void function (root, factory) {
 
 /***/ }),
 
+
 /***/ "7pDz":
 /***/ (function(module, exports) {
 
@@ -297,6 +299,7 @@ module.exports = function (worker, packet) {
 };
 
 /***/ }),
+
 
 /***/ "97RM":
 /***/ (function(module, exports) {
@@ -5345,6 +5348,11 @@ var header_Header = function Header(props) {
 				'a',
 				{ onClick: props.togglePreview },
 				props.showVideo ? 'Hide Preview' : 'Show Preview'
+			),
+			Object(preact_min["h"])(
+				'a',
+				{ onClick: props.changeViewMode },
+				props.viewMode ? 'Show Tree View' : 'Show Multiview'
 			)
 		)
 	);
@@ -5605,6 +5613,7 @@ var multiview_style = __webpack_require__("7pDz");
 var multiview_style_default = /*#__PURE__*/__webpack_require__.n(multiview_style);
 
 // CONCATENATED MODULE: ./components/multiview/index.js
+
 var multiview__extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 
@@ -5622,6 +5631,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var multiview_TagTree = function TagTree(props) {
     //create indents based on children
     var renderKids = function renderKids(boxKey) {
+
         // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
         var tag = Array.from(props.tags.keys()).filter(function (_ref) {
             var box = _ref.box,
@@ -5644,6 +5654,7 @@ var multiview_TagTree = function TagTree(props) {
             );
         } catch (e) {
             console.error('error processing tag', entry, e);
+
         }
     };
 
@@ -5661,9 +5672,11 @@ var multiview_TagTree = function TagTree(props) {
             style: {
                 background: props.background,
                 display: "grid",
+
                 gridArea: "tree",
                 overflowY: 'scroll',
                 height: '50em'
+
             }
         },
         Object(preact_min["h"])(
@@ -5672,7 +5685,9 @@ var multiview_TagTree = function TagTree(props) {
                     return props.handleClick(e, "");
                 }, 'class': multiview_style_default.a.filename },
             props.fileName,
+
             rootTags && rootTags.map(renderKids)
+
         )
     );
 };
@@ -5734,6 +5749,7 @@ var multiview_Data = function Data(props) {
 var _ref3 = Object(preact_min["h"])('div', null);
 
 var multiview_SubArray = function SubArray(props) {
+
     return (
         // TODO - deal with arrays of arrays like senc samples
         Object(preact_min["h"])(
@@ -5797,9 +5813,11 @@ var multiview_SubArray = function SubArray(props) {
                     );
                 })
             )
+
         )
     );
 };
+
 
 var _ref4 = Object(preact_min["h"])('div', null);
 
@@ -5832,6 +5850,7 @@ var multiview_Hex = function Hex(props) {
     );
 };
 
+
 var multiview_MultiView = function (_Component) {
     _inherits(MultiView, _Component);
 
@@ -5842,6 +5861,7 @@ var multiview_MultiView = function (_Component) {
 
         _this.handleClick = function (event, boxName) {
             event.stopPropagation();
+
             console.log(boxName, _this.state.boxList.get(boxName));
 
             var _this$state$boxList$g = _this.state.boxList.get(boxName),
@@ -5854,6 +5874,7 @@ var multiview_MultiView = function (_Component) {
                 selectedTag: multiview__extends({}, boxName),
                 selectedBox: values,
                 selectedHex: hex
+
             });
         };
 
@@ -5868,7 +5889,9 @@ var multiview_MultiView = function (_Component) {
             selectedTag: "",
             selectedBox: [],
             arrayData: [],
+
             selectedHex: [],
+
             detailBox: '',
             boxList: _this.props.boxList,
             preProcessed: _this.props.preProcessed,
@@ -5885,7 +5908,9 @@ var multiview_MultiView = function (_Component) {
                     display: "grid",
                     gridTemplateAreas: '\'tree data array\'\n                                        \'tree hex hex\'\n                                        \'tree hex hex\'',
                     gridTemplateRows: "25em 25em",
+
                     gridTemplateColumns: "1.5fr 3fr 3fr"
+
                 }
             },
             Object(preact_min["h"])(multiview_TagTree, {
@@ -5906,15 +5931,30 @@ var multiview_MultiView = function (_Component) {
                 subArray: this.state.arrayData,
                 entryName: this.state.detailBox
             }),
+
             Object(preact_min["h"])(multiview_Hex, {
                 background: 'white',
                 hex: this.state.selectedHex || ['00']
             })
+
         );
     };
 
     return MultiView;
 }(preact_min["Component"]);
+
+
+/* harmony default export */ var multiview = (multiview_MultiView);
+// CONCATENATED MODULE: ./components/app.js
+
+
+function app__classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function app__possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function app__inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+
 
 /* harmony default export */ var multiview = (multiview_MultiView);
 // CONCATENATED MODULE: ./components/app.js
@@ -5929,17 +5969,19 @@ function app__inherits(subClass, superClass) { if (typeof superClass !== "functi
 
 
 
-
-
-
-
-
-
 // debugging
 
 
 // for M2TS segments, how many to parse? 
 var SEGMENT_COUNT = 512;
+=======
+
+
+
+
+
+
+
 
 var styles = {
 	parseButton: {
@@ -6009,7 +6051,9 @@ var app__ref3 = Object(preact_min["h"])(
 
 var app__ref4 = Object(preact_min["h"])('div', null);
 
+
 var _ref5 = Object(preact_min["h"])('option', null);
+
 
 var app_App = function (_Component) {
 	app__inherits(App, _Component);
@@ -6078,7 +6122,9 @@ var app_App = function (_Component) {
 			_this.setState({ inputData: inputData });
 		};
 
+
 		_this.parseFile = function (inputData) {
+
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
 			_this.createParsed(inputData).then(function (_ref) {
@@ -6088,7 +6134,9 @@ var app_App = function (_Component) {
 				//extract a list of box names for the dropdown
 				//return Map([target, [parentList]]}
 				Object(additionalBoxes["getBoxList"])(boxes, listOfBoxes).then(function (boxList) {
+
 					return _this.setState({ boxList: boxList, inputData: inputData, parsedData: boxes, working: false, decodeAttempts: 0 });
+
 				});
 				;
 				return;
@@ -6257,12 +6305,13 @@ var app_App = function (_Component) {
 		};
 
 		_this.changeViewMode = function (e) {
-			var viewMode = !_this.state.viewMode;
+	var viewMode = !_this.state.viewMode;
 			_this.setState({ viewMode: viewMode });
 		};
 
 		_this.changeFileMode = function (e, mode) {
 			_this.setState({ mode: mode });
+
 		};
 
 		_this.state = {
@@ -6347,7 +6396,9 @@ var app_App = function (_Component) {
 						'Go'
 					)
 				)
+
 			) : app__ref4,
+
 			Object(preact_min["h"])(
 				'div',
 				null,
@@ -6383,13 +6434,17 @@ var app_App = function (_Component) {
 										{ value: boxName },
 										boxName
 									);
+
 									return _ref5;
+
 								})
 							)
 						)
 					)
 				),
 				this.state.viewMode ? Object(preact_min["h"])(multiview, {
+
+
 					postProcessed: this.state.parsedData,
 					boxList: this.state.boxList,
 					fileName: this.state.fileName
@@ -7928,7 +7983,9 @@ var getBoxList = function getBoxList(collection, resultMap) {
                             if (!!current.name) allChildren.values.push(current);
                             return allChildren;
                         }, { children: [], values: [] });
+
                         resultMap.set({ box: elem.type, start: elem.start }, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex: elem.hex });
+
                         console.log('extracted element', elem);
                         // now check for sub-boxes that are not null
                         if (!!elem.boxes) {
@@ -7967,6 +8024,7 @@ module.exports = {
     postProcess: postProcess,
     convertBox: convertBox,
     getBoxList: getBoxList
+
 };
 
 /***/ }),
@@ -8006,6 +8064,7 @@ module.exports = {
   send: send,
   fetchFile: fetchFile,
   fs: fs
+
 };
 
 /***/ }),
