@@ -66,10 +66,2225 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
+/***/ "1v4d":
+/***/ (function(module, exports) {
+
+module.exports = require("path");
+
+/***/ }),
+
+/***/ "3oLT":
+/***/ (function(module, exports) {
+
+
+/**
+ * Expose `isUrl`.
+ */
+
+module.exports = isUrl;
+
+/**
+ * RegExps.
+ * A URL must match #1 and then at least one of #2/#3.
+ * Use two levels of REs to avoid REDOS.
+ */
+
+var protocolAndDomainRE = /^(?:\w+:)?\/\/(\S+)$/;
+
+var localhostDomainRE = /^localhost[\:?\d]*(?:[^\:?\d]\S*)?$/;
+var nonLocalhostDomainRE = /^[^\s\.]+\.\S{2,}$/;
+
+/**
+ * Loosely validate a URL `string`.
+ *
+ * @param {String} string
+ * @return {Boolean}
+ */
+
+function isUrl(string) {
+  if (typeof string !== 'string') {
+    return false;
+  }
+
+  var match = string.match(protocolAndDomainRE);
+  if (!match) {
+    return false;
+  }
+
+  var everythingAfterProtocol = match[1];
+  if (!everythingAfterProtocol) {
+    return false;
+  }
+
+  if (localhostDomainRE.test(everythingAfterProtocol) || nonLocalhostDomainRE.test(everythingAfterProtocol)) {
+    return true;
+  }
+
+  return false;
+}
+
+/***/ }),
+
+/***/ "4PTo":
+/***/ (function(module, exports, __webpack_require__) {
+
+var util = __webpack_require__("Bcfi");
+var fs = __webpack_require__("vHs2");
+var fetch = __webpack_require__("AsQL");
+var isURL = __webpack_require__("3oLT");
+
+module.exports = function (_data) {
+  return new Promise(function ($return, $error) {
+    var data, res;
+
+    data = _data;
+    if (typeof _data === 'undefined') {
+      return $return(_data);
+    }
+
+    if (typeof _data === 'string') {
+      if (isURL(_data) || _data.startsWith('chrome-extension://') || _data.startsWith('file://')) {
+        return Promise.resolve(fetch(_data)).then(function ($await_4) {
+          try {
+            res = $await_4;
+            return Promise.resolve(res.arrayBuffer()).then(function ($await_5) {
+              try {
+                data = $await_5;
+                return $If_2.call(this);
+              } catch ($boundEx) {
+                return $error($boundEx);
+              }
+            }.bind(this), $error);
+          } catch ($boundEx) {
+            return $error($boundEx);
+          }
+        }.bind(this), $error);
+      } else {
+        if (/data:_data\/([a-zA-Z]*);base64,([^"]*)/.test(_data)) {
+          data = Buffer.from(_data.split(',')[1], 'base64');
+          return $If_3.call(this);
+        } else {
+          return Promise.resolve(util.promisify(fs.readFile)(_data)).then(function ($await_6) {
+            try {
+              data = $await_6;
+              return $If_3.call(this);
+            } catch ($boundEx) {
+              return $error($boundEx);
+            }
+          }.bind(this), $error);
+        }
+
+        function $If_3() {
+          return $If_2.call(this);
+        }
+      }
+      function $If_2() {
+        return $If_1.call(this);
+      }
+    } else {
+      if (Buffer.isBuffer(_data)) {
+        data = _data;
+      }
+
+      return $If_1.call(this);
+    }
+    function $If_1() {
+      return $return(data);
+    }
+  });
+};
+
+/***/ }),
+
+/***/ "5hGE":
+/***/ (function(module, exports, __webpack_require__) {
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var isBrowser = __webpack_require__("Hjji")('type') === 'browser';
+var resolveURL = isBrowser ? __webpack_require__("6A2Q") : function (s) {
+  return s;
+}; // eslint-disable-line
+
+module.exports = function (options) {
+  var opts = _extends({}, options);
+  ['corePath', 'workerPath'].forEach(function (key) {
+    if (typeof options[key] !== 'undefined') {
+      opts[key] = resolveURL(opts[key]);
+    }
+  });
+  return opts;
+};
+
+/***/ }),
+
+/***/ "6A2Q":
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;// Copyright 2014 Simon Lydell
+// X11 (“MIT”) Licensed. (See LICENSE.)
+
+void function (root, factory) {
+  if (true) {
+    !(__WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
+				__WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+  } else if (typeof exports === "object") {
+    module.exports = factory();
+  } else {
+    root.resolveUrl = factory();
+  }
+}(this, function () {
+
+  function resolveUrl() /* ...urls */{
+    var numUrls = arguments.length;
+
+    if (numUrls === 0) {
+      throw new Error("resolveUrl requires at least one argument; got none.");
+    }
+
+    var base = document.createElement("base");
+    base.href = arguments[0];
+
+    if (numUrls === 1) {
+      return base.href;
+    }
+
+    var head = document.getElementsByTagName("head")[0];
+    head.insertBefore(base, head.firstChild);
+
+    var a = document.createElement("a");
+    var resolved;
+
+    for (var index = 1; index < numUrls; index++) {
+      a.href = arguments[index];
+      resolved = a.href;
+      base.href = resolved;
+    }
+
+    head.removeChild(base);
+
+    return resolved;
+  }
+
+  return resolveUrl;
+});
+
+/***/ }),
+
+/***/ "7pDz":
+/***/ (function(module, exports) {
+
+// removed by extract-text-webpack-plugin
+module.exports = {"filename":"filename__2d2Hu"};
+
+/***/ }),
+
+/***/ "8XbC":
+/***/ (function(module, exports) {
+
+/**
+ * send
+ *
+ * @name send
+ * @function send packet to worker and create a job
+ * @access public
+ */
+module.exports = function (worker, packet) {
+  worker.send(packet);
+};
+
+/***/ }),
+
 /***/ "97RM":
 /***/ (function(module, exports) {
 
 module.exports = require("stream");
+
+/***/ }),
+
+/***/ "9BjC":
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__("v9pv");
+
+var _require = __webpack_require__("MKEY"),
+    logging = _require.logging,
+    setLogging = _require.setLogging;
+
+var createWorker = __webpack_require__("BUvb");
+
+module.exports = {
+  logging: logging,
+  setLogging: setLogging,
+  createWorker: createWorker
+};
+
+/***/ }),
+
+/***/ "AsQL":
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Headers", function() { return Headers; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Request", function() { return Request; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Response", function() { return Response; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "FetchError", function() { return FetchError; });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_stream__ = __webpack_require__("97RM");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_stream___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_stream__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_http__ = __webpack_require__("gHkb");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_http___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_http__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_url__ = __webpack_require__("Vy1O");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_url___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_2_url__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_https__ = __webpack_require__("XgVs");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_https___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_3_https__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4_zlib__ = __webpack_require__("epkN");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4_zlib___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_4_zlib__);
+
+
+
+
+
+
+// Based on https://github.com/tmpvar/jsdom/blob/aa85b2abf07766ff7bf5c1f6daafb3726f2f2db5/lib/jsdom/living/blob.js
+
+// fix for "Readable" isn't a named export issue
+const Readable = __WEBPACK_IMPORTED_MODULE_0_stream___default.a.Readable;
+
+const BUFFER = Symbol('buffer');
+const TYPE = Symbol('type');
+
+class Blob {
+	constructor() {
+		this[TYPE] = '';
+
+		const blobParts = arguments[0];
+		const options = arguments[1];
+
+		const buffers = [];
+		let size = 0;
+
+		if (blobParts) {
+			const a = blobParts;
+			const length = Number(a.length);
+			for (let i = 0; i < length; i++) {
+				const element = a[i];
+				let buffer;
+				if (element instanceof Buffer) {
+					buffer = element;
+				} else if (ArrayBuffer.isView(element)) {
+					buffer = Buffer.from(element.buffer, element.byteOffset, element.byteLength);
+				} else if (element instanceof ArrayBuffer) {
+					buffer = Buffer.from(element);
+				} else if (element instanceof Blob) {
+					buffer = element[BUFFER];
+				} else {
+					buffer = Buffer.from(typeof element === 'string' ? element : String(element));
+				}
+				size += buffer.length;
+				buffers.push(buffer);
+			}
+		}
+
+		this[BUFFER] = Buffer.concat(buffers);
+
+		let type = options && options.type !== undefined && String(options.type).toLowerCase();
+		if (type && !/[^\u0020-\u007E]/.test(type)) {
+			this[TYPE] = type;
+		}
+	}
+	get size() {
+		return this[BUFFER].length;
+	}
+	get type() {
+		return this[TYPE];
+	}
+	text() {
+		return Promise.resolve(this[BUFFER].toString());
+	}
+	arrayBuffer() {
+		const buf = this[BUFFER];
+		const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+		return Promise.resolve(ab);
+	}
+	stream() {
+		const readable = new Readable();
+		readable._read = function () {};
+		readable.push(this[BUFFER]);
+		readable.push(null);
+		return readable;
+	}
+	toString() {
+		return '[object Blob]';
+	}
+	slice() {
+		const size = this.size;
+
+		const start = arguments[0];
+		const end = arguments[1];
+		let relativeStart, relativeEnd;
+		if (start === undefined) {
+			relativeStart = 0;
+		} else if (start < 0) {
+			relativeStart = Math.max(size + start, 0);
+		} else {
+			relativeStart = Math.min(start, size);
+		}
+		if (end === undefined) {
+			relativeEnd = size;
+		} else if (end < 0) {
+			relativeEnd = Math.max(size + end, 0);
+		} else {
+			relativeEnd = Math.min(end, size);
+		}
+		const span = Math.max(relativeEnd - relativeStart, 0);
+
+		const buffer = this[BUFFER];
+		const slicedBuffer = buffer.slice(relativeStart, relativeStart + span);
+		const blob = new Blob([], { type: arguments[2] });
+		blob[BUFFER] = slicedBuffer;
+		return blob;
+	}
+}
+
+Object.defineProperties(Blob.prototype, {
+	size: { enumerable: true },
+	type: { enumerable: true },
+	slice: { enumerable: true }
+});
+
+Object.defineProperty(Blob.prototype, Symbol.toStringTag, {
+	value: 'Blob',
+	writable: false,
+	enumerable: false,
+	configurable: true
+});
+
+/**
+ * fetch-error.js
+ *
+ * FetchError interface for operational errors
+ */
+
+/**
+ * Create FetchError instance
+ *
+ * @param   String      message      Error message for human
+ * @param   String      type         Error type for machine
+ * @param   String      systemError  For Node.js system error
+ * @return  FetchError
+ */
+function FetchError(message, type, systemError) {
+  Error.call(this, message);
+
+  this.message = message;
+  this.type = type;
+
+  // when err.type is `system`, err.code contains system error code
+  if (systemError) {
+    this.code = this.errno = systemError.code;
+  }
+
+  // hide custom error implementation details from end-users
+  Error.captureStackTrace(this, this.constructor);
+}
+
+FetchError.prototype = Object.create(Error.prototype);
+FetchError.prototype.constructor = FetchError;
+FetchError.prototype.name = 'FetchError';
+
+let convert;
+try {
+	convert = __webpack_require__(!(function webpackMissingModule() { var e = new Error("Cannot find module \"encoding\""); e.code = 'MODULE_NOT_FOUND'; throw e; }())).convert;
+} catch (e) {}
+
+const INTERNALS = Symbol('Body internals');
+
+// fix an issue where "PassThrough" isn't a named export for node <10
+const PassThrough = __WEBPACK_IMPORTED_MODULE_0_stream___default.a.PassThrough;
+
+/**
+ * Body mixin
+ *
+ * Ref: https://fetch.spec.whatwg.org/#body
+ *
+ * @param   Stream  body  Readable stream
+ * @param   Object  opts  Response options
+ * @return  Void
+ */
+function Body(body) {
+	var _this = this;
+
+	var _ref = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+	    _ref$size = _ref.size;
+
+	let size = _ref$size === undefined ? 0 : _ref$size;
+	var _ref$timeout = _ref.timeout;
+	let timeout = _ref$timeout === undefined ? 0 : _ref$timeout;
+
+	if (body == null) {
+		// body is undefined or null
+		body = null;
+	} else if (isURLSearchParams(body)) {
+		// body is a URLSearchParams
+		body = Buffer.from(body.toString());
+	} else if (isBlob(body)) ; else if (Buffer.isBuffer(body)) ; else if (Object.prototype.toString.call(body) === '[object ArrayBuffer]') {
+		// body is ArrayBuffer
+		body = Buffer.from(body);
+	} else if (ArrayBuffer.isView(body)) {
+		// body is ArrayBufferView
+		body = Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+	} else if (body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a) ; else {
+		// none of the above
+		// coerce to string then buffer
+		body = Buffer.from(String(body));
+	}
+	this[INTERNALS] = {
+		body,
+		disturbed: false,
+		error: null
+	};
+	this.size = size;
+	this.timeout = timeout;
+
+	if (body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a) {
+		body.on('error', function (err) {
+			const error = err.name === 'AbortError' ? err : new FetchError(`Invalid response body while trying to fetch ${_this.url}: ${err.message}`, 'system', err);
+			_this[INTERNALS].error = error;
+		});
+	}
+}
+
+Body.prototype = {
+	get body() {
+		return this[INTERNALS].body;
+	},
+
+	get bodyUsed() {
+		return this[INTERNALS].disturbed;
+	},
+
+	/**
+  * Decode response as ArrayBuffer
+  *
+  * @return  Promise
+  */
+	arrayBuffer() {
+		return consumeBody.call(this).then(function (buf) {
+			return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+		});
+	},
+
+	/**
+  * Return raw response as Blob
+  *
+  * @return Promise
+  */
+	blob() {
+		let ct = this.headers && this.headers.get('content-type') || '';
+		return consumeBody.call(this).then(function (buf) {
+			return Object.assign(
+			// Prevent copying
+			new Blob([], {
+				type: ct.toLowerCase()
+			}), {
+				[BUFFER]: buf
+			});
+		});
+	},
+
+	/**
+  * Decode response as json
+  *
+  * @return  Promise
+  */
+	json() {
+		var _this2 = this;
+
+		return consumeBody.call(this).then(function (buffer) {
+			try {
+				return JSON.parse(buffer.toString());
+			} catch (err) {
+				return Body.Promise.reject(new FetchError(`invalid json response body at ${_this2.url} reason: ${err.message}`, 'invalid-json'));
+			}
+		});
+	},
+
+	/**
+  * Decode response as text
+  *
+  * @return  Promise
+  */
+	text() {
+		return consumeBody.call(this).then(function (buffer) {
+			return buffer.toString();
+		});
+	},
+
+	/**
+  * Decode response as buffer (non-spec api)
+  *
+  * @return  Promise
+  */
+	buffer() {
+		return consumeBody.call(this);
+	},
+
+	/**
+  * Decode response as text, while automatically detecting the encoding and
+  * trying to decode to UTF-8 (non-spec api)
+  *
+  * @return  Promise
+  */
+	textConverted() {
+		var _this3 = this;
+
+		return consumeBody.call(this).then(function (buffer) {
+			return convertBody(buffer, _this3.headers);
+		});
+	}
+};
+
+// In browsers, all properties are enumerable.
+Object.defineProperties(Body.prototype, {
+	body: { enumerable: true },
+	bodyUsed: { enumerable: true },
+	arrayBuffer: { enumerable: true },
+	blob: { enumerable: true },
+	json: { enumerable: true },
+	text: { enumerable: true }
+});
+
+Body.mixIn = function (proto) {
+	for (const name of Object.getOwnPropertyNames(Body.prototype)) {
+		// istanbul ignore else: future proof
+		if (!(name in proto)) {
+			const desc = Object.getOwnPropertyDescriptor(Body.prototype, name);
+			Object.defineProperty(proto, name, desc);
+		}
+	}
+};
+
+/**
+ * Consume and convert an entire Body to a Buffer.
+ *
+ * Ref: https://fetch.spec.whatwg.org/#concept-body-consume-body
+ *
+ * @return  Promise
+ */
+function consumeBody() {
+	var _this4 = this;
+
+	if (this[INTERNALS].disturbed) {
+		return Body.Promise.reject(new TypeError(`body used already for: ${this.url}`));
+	}
+
+	this[INTERNALS].disturbed = true;
+
+	if (this[INTERNALS].error) {
+		return Body.Promise.reject(this[INTERNALS].error);
+	}
+
+	let body = this.body;
+
+	// body is null
+	if (body === null) {
+		return Body.Promise.resolve(Buffer.alloc(0));
+	}
+
+	// body is blob
+	if (isBlob(body)) {
+		body = body.stream();
+	}
+
+	// body is buffer
+	if (Buffer.isBuffer(body)) {
+		return Body.Promise.resolve(body);
+	}
+
+	// istanbul ignore if: should never happen
+	if (!(body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a)) {
+		return Body.Promise.resolve(Buffer.alloc(0));
+	}
+
+	// body is stream
+	// get ready to actually consume the body
+	let accum = [];
+	let accumBytes = 0;
+	let abort = false;
+
+	return new Body.Promise(function (resolve, reject) {
+		let resTimeout;
+
+		// allow timeout on slow response body
+		if (_this4.timeout) {
+			resTimeout = setTimeout(function () {
+				abort = true;
+				reject(new FetchError(`Response timeout while trying to fetch ${_this4.url} (over ${_this4.timeout}ms)`, 'body-timeout'));
+			}, _this4.timeout);
+		}
+
+		// handle stream errors
+		body.on('error', function (err) {
+			if (err.name === 'AbortError') {
+				// if the request was aborted, reject with this Error
+				abort = true;
+				reject(err);
+			} else {
+				// other errors, such as incorrect content-encoding
+				reject(new FetchError(`Invalid response body while trying to fetch ${_this4.url}: ${err.message}`, 'system', err));
+			}
+		});
+
+		body.on('data', function (chunk) {
+			if (abort || chunk === null) {
+				return;
+			}
+
+			if (_this4.size && accumBytes + chunk.length > _this4.size) {
+				abort = true;
+				reject(new FetchError(`content size at ${_this4.url} over limit: ${_this4.size}`, 'max-size'));
+				return;
+			}
+
+			accumBytes += chunk.length;
+			accum.push(chunk);
+		});
+
+		body.on('end', function () {
+			if (abort) {
+				return;
+			}
+
+			clearTimeout(resTimeout);
+
+			try {
+				resolve(Buffer.concat(accum, accumBytes));
+			} catch (err) {
+				// handle streams that have accumulated too much data (issue #414)
+				reject(new FetchError(`Could not create Buffer from response body for ${_this4.url}: ${err.message}`, 'system', err));
+			}
+		});
+	});
+}
+
+/**
+ * Detect buffer encoding and convert to target encoding
+ * ref: http://www.w3.org/TR/2011/WD-html5-20110113/parsing.html#determining-the-character-encoding
+ *
+ * @param   Buffer  buffer    Incoming buffer
+ * @param   String  encoding  Target encoding
+ * @return  String
+ */
+function convertBody(buffer, headers) {
+	if (typeof convert !== 'function') {
+		throw new Error('The package `encoding` must be installed to use the textConverted() function');
+	}
+
+	const ct = headers.get('content-type');
+	let charset = 'utf-8';
+	let res, str;
+
+	// header
+	if (ct) {
+		res = /charset=([^;]*)/i.exec(ct);
+	}
+
+	// no charset in content type, peek at response body for at most 1024 bytes
+	str = buffer.slice(0, 1024).toString();
+
+	// html5
+	if (!res && str) {
+		res = /<meta.+?charset=(['"])(.+?)\1/i.exec(str);
+	}
+
+	// html4
+	if (!res && str) {
+		res = /<meta[\s]+?http-equiv=(['"])content-type\1[\s]+?content=(['"])(.+?)\2/i.exec(str);
+
+		if (res) {
+			res = /charset=(.*)/i.exec(res.pop());
+		}
+	}
+
+	// xml
+	if (!res && str) {
+		res = /<\?xml.+?encoding=(['"])(.+?)\1/i.exec(str);
+	}
+
+	// found charset
+	if (res) {
+		charset = res.pop();
+
+		// prevent decode issues when sites use incorrect encoding
+		// ref: https://hsivonen.fi/encoding-menu/
+		if (charset === 'gb2312' || charset === 'gbk') {
+			charset = 'gb18030';
+		}
+	}
+
+	// turn raw buffers into a single utf-8 buffer
+	return convert(buffer, 'UTF-8', charset).toString();
+}
+
+/**
+ * Detect a URLSearchParams object
+ * ref: https://github.com/bitinn/node-fetch/issues/296#issuecomment-307598143
+ *
+ * @param   Object  obj     Object to detect by type or brand
+ * @return  String
+ */
+function isURLSearchParams(obj) {
+	// Duck-typing as a necessary condition.
+	if (typeof obj !== 'object' || typeof obj.append !== 'function' || typeof obj.delete !== 'function' || typeof obj.get !== 'function' || typeof obj.getAll !== 'function' || typeof obj.has !== 'function' || typeof obj.set !== 'function') {
+		return false;
+	}
+
+	// Brand-checking and more duck-typing as optional condition.
+	return obj.constructor.name === 'URLSearchParams' || Object.prototype.toString.call(obj) === '[object URLSearchParams]' || typeof obj.sort === 'function';
+}
+
+/**
+ * Check if `obj` is a W3C `Blob` object (which `File` inherits from)
+ * @param  {*} obj
+ * @return {boolean}
+ */
+function isBlob(obj) {
+	return typeof obj === 'object' && typeof obj.arrayBuffer === 'function' && typeof obj.type === 'string' && typeof obj.stream === 'function' && typeof obj.constructor === 'function' && typeof obj.constructor.name === 'string' && /^(Blob|File)$/.test(obj.constructor.name) && /^(Blob|File)$/.test(obj[Symbol.toStringTag]);
+}
+
+/**
+ * Clone body given Res/Req instance
+ *
+ * @param   Mixed  instance  Response or Request instance
+ * @return  Mixed
+ */
+function clone(instance) {
+	let p1, p2;
+	let body = instance.body;
+
+	// don't allow cloning a used body
+	if (instance.bodyUsed) {
+		throw new Error('cannot clone body after it is used');
+	}
+
+	// check that body is a stream and not form-data object
+	// note: we can't clone the form-data object without having it as a dependency
+	if (body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a && typeof body.getBoundary !== 'function') {
+		// tee instance body
+		p1 = new PassThrough();
+		p2 = new PassThrough();
+		body.pipe(p1);
+		body.pipe(p2);
+		// set instance body to teed body and return the other teed body
+		instance[INTERNALS].body = p1;
+		body = p2;
+	}
+
+	return body;
+}
+
+/**
+ * Performs the operation "extract a `Content-Type` value from |object|" as
+ * specified in the specification:
+ * https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+ *
+ * This function assumes that instance.body is present.
+ *
+ * @param   Mixed  instance  Any options.body input
+ */
+function extractContentType(body) {
+	if (body === null) {
+		// body is null
+		return null;
+	} else if (typeof body === 'string') {
+		// body is string
+		return 'text/plain;charset=UTF-8';
+	} else if (isURLSearchParams(body)) {
+		// body is a URLSearchParams
+		return 'application/x-www-form-urlencoded;charset=UTF-8';
+	} else if (isBlob(body)) {
+		// body is blob
+		return body.type || null;
+	} else if (Buffer.isBuffer(body)) {
+		// body is buffer
+		return null;
+	} else if (Object.prototype.toString.call(body) === '[object ArrayBuffer]') {
+		// body is ArrayBuffer
+		return null;
+	} else if (ArrayBuffer.isView(body)) {
+		// body is ArrayBufferView
+		return null;
+	} else if (typeof body.getBoundary === 'function') {
+		// detect form data input from form-data module
+		return `multipart/form-data;boundary=${body.getBoundary()}`;
+	} else if (body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a) {
+		// body is stream
+		// can't really do much about this
+		return null;
+	} else {
+		// Body constructor defaults other things to string
+		return 'text/plain;charset=UTF-8';
+	}
+}
+
+/**
+ * The Fetch Standard treats this as if "total bytes" is a property on the body.
+ * For us, we have to explicitly get it with a function.
+ *
+ * ref: https://fetch.spec.whatwg.org/#concept-body-total-bytes
+ *
+ * @param   Body    instance   Instance of Body
+ * @return  Number?            Number of bytes, or null if not possible
+ */
+function getTotalBytes(instance) {
+	const body = instance.body;
+
+
+	if (body === null) {
+		// body is null
+		return 0;
+	} else if (isBlob(body)) {
+		return body.size;
+	} else if (Buffer.isBuffer(body)) {
+		// body is buffer
+		return body.length;
+	} else if (body && typeof body.getLengthSync === 'function') {
+		// detect form data input from form-data module
+		if (body._lengthRetrievers && body._lengthRetrievers.length == 0 || // 1.x
+		body.hasKnownLength && body.hasKnownLength()) {
+			// 2.x
+			return body.getLengthSync();
+		}
+		return null;
+	} else {
+		// body is stream
+		return null;
+	}
+}
+
+/**
+ * Write a Body to a Node.js WritableStream (e.g. http.Request) object.
+ *
+ * @param   Body    instance   Instance of Body
+ * @return  Void
+ */
+function writeToStream(dest, instance) {
+	const body = instance.body;
+
+
+	if (body === null) {
+		// body is null
+		dest.end();
+	} else if (isBlob(body)) {
+		body.stream().pipe(dest);
+	} else if (Buffer.isBuffer(body)) {
+		// body is buffer
+		dest.write(body);
+		dest.end();
+	} else {
+		// body is stream
+		body.pipe(dest);
+	}
+}
+
+// expose Promise
+Body.Promise = global.Promise;
+
+/**
+ * headers.js
+ *
+ * Headers class offers convenient helpers
+ */
+
+const invalidTokenRegex = /[^\^_`a-zA-Z\-0-9!#$%&'*+.|~]/;
+const invalidHeaderCharRegex = /[^\t\x20-\x7e\x80-\xff]/;
+
+function validateName(name) {
+	name = `${name}`;
+	if (invalidTokenRegex.test(name) || name === '') {
+		throw new TypeError(`${name} is not a legal HTTP header name`);
+	}
+}
+
+function validateValue(value) {
+	value = `${value}`;
+	if (invalidHeaderCharRegex.test(value)) {
+		throw new TypeError(`${value} is not a legal HTTP header value`);
+	}
+}
+
+/**
+ * Find the key in the map object given a header name.
+ *
+ * Returns undefined if not found.
+ *
+ * @param   String  name  Header name
+ * @return  String|Undefined
+ */
+function find(map, name) {
+	name = name.toLowerCase();
+	for (const key in map) {
+		if (key.toLowerCase() === name) {
+			return key;
+		}
+	}
+	return undefined;
+}
+
+const MAP = Symbol('map');
+class Headers {
+	/**
+  * Headers class
+  *
+  * @param   Object  headers  Response headers
+  * @return  Void
+  */
+	constructor() {
+		let init = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : undefined;
+
+		this[MAP] = Object.create(null);
+
+		if (init instanceof Headers) {
+			const rawHeaders = init.raw();
+			const headerNames = Object.keys(rawHeaders);
+
+			for (const headerName of headerNames) {
+				for (const value of rawHeaders[headerName]) {
+					this.append(headerName, value);
+				}
+			}
+
+			return;
+		}
+
+		// We don't worry about converting prop to ByteString here as append()
+		// will handle it.
+		if (init == null) ; else if (typeof init === 'object') {
+			const method = init[Symbol.iterator];
+			if (method != null) {
+				if (typeof method !== 'function') {
+					throw new TypeError('Header pairs must be iterable');
+				}
+
+				// sequence<sequence<ByteString>>
+				// Note: per spec we have to first exhaust the lists then process them
+				const pairs = [];
+				for (const pair of init) {
+					if (typeof pair !== 'object' || typeof pair[Symbol.iterator] !== 'function') {
+						throw new TypeError('Each header pair must be iterable');
+					}
+					pairs.push(Array.from(pair));
+				}
+
+				for (const pair of pairs) {
+					if (pair.length !== 2) {
+						throw new TypeError('Each header pair must be a name/value tuple');
+					}
+					this.append(pair[0], pair[1]);
+				}
+			} else {
+				// record<ByteString, ByteString>
+				for (const key of Object.keys(init)) {
+					const value = init[key];
+					this.append(key, value);
+				}
+			}
+		} else {
+			throw new TypeError('Provided initializer must be an object');
+		}
+	}
+
+	/**
+  * Return combined header value given name
+  *
+  * @param   String  name  Header name
+  * @return  Mixed
+  */
+	get(name) {
+		name = `${name}`;
+		validateName(name);
+		const key = find(this[MAP], name);
+		if (key === undefined) {
+			return null;
+		}
+
+		return this[MAP][key].join(', ');
+	}
+
+	/**
+  * Iterate over all headers
+  *
+  * @param   Function  callback  Executed for each item with parameters (value, name, thisArg)
+  * @param   Boolean   thisArg   `this` context for callback function
+  * @return  Void
+  */
+	forEach(callback) {
+		let thisArg = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : undefined;
+
+		let pairs = getHeaders(this);
+		let i = 0;
+		while (i < pairs.length) {
+			var _pairs$i = pairs[i];
+			const name = _pairs$i[0],
+			      value = _pairs$i[1];
+
+			callback.call(thisArg, value, name, this);
+			pairs = getHeaders(this);
+			i++;
+		}
+	}
+
+	/**
+  * Overwrite header values given name
+  *
+  * @param   String  name   Header name
+  * @param   String  value  Header value
+  * @return  Void
+  */
+	set(name, value) {
+		name = `${name}`;
+		value = `${value}`;
+		validateName(name);
+		validateValue(value);
+		const key = find(this[MAP], name);
+		this[MAP][key !== undefined ? key : name] = [value];
+	}
+
+	/**
+  * Append a value onto existing header
+  *
+  * @param   String  name   Header name
+  * @param   String  value  Header value
+  * @return  Void
+  */
+	append(name, value) {
+		name = `${name}`;
+		value = `${value}`;
+		validateName(name);
+		validateValue(value);
+		const key = find(this[MAP], name);
+		if (key !== undefined) {
+			this[MAP][key].push(value);
+		} else {
+			this[MAP][name] = [value];
+		}
+	}
+
+	/**
+  * Check for header name existence
+  *
+  * @param   String   name  Header name
+  * @return  Boolean
+  */
+	has(name) {
+		name = `${name}`;
+		validateName(name);
+		return find(this[MAP], name) !== undefined;
+	}
+
+	/**
+  * Delete all header values given name
+  *
+  * @param   String  name  Header name
+  * @return  Void
+  */
+	delete(name) {
+		name = `${name}`;
+		validateName(name);
+		const key = find(this[MAP], name);
+		if (key !== undefined) {
+			delete this[MAP][key];
+		}
+	}
+
+	/**
+  * Return raw headers (non-spec api)
+  *
+  * @return  Object
+  */
+	raw() {
+		return this[MAP];
+	}
+
+	/**
+  * Get an iterator on keys.
+  *
+  * @return  Iterator
+  */
+	keys() {
+		return createHeadersIterator(this, 'key');
+	}
+
+	/**
+  * Get an iterator on values.
+  *
+  * @return  Iterator
+  */
+	values() {
+		return createHeadersIterator(this, 'value');
+	}
+
+	/**
+  * Get an iterator on entries.
+  *
+  * This is the default iterator of the Headers object.
+  *
+  * @return  Iterator
+  */
+	[Symbol.iterator]() {
+		return createHeadersIterator(this, 'key+value');
+	}
+}
+Headers.prototype.entries = Headers.prototype[Symbol.iterator];
+
+Object.defineProperty(Headers.prototype, Symbol.toStringTag, {
+	value: 'Headers',
+	writable: false,
+	enumerable: false,
+	configurable: true
+});
+
+Object.defineProperties(Headers.prototype, {
+	get: { enumerable: true },
+	forEach: { enumerable: true },
+	set: { enumerable: true },
+	append: { enumerable: true },
+	has: { enumerable: true },
+	delete: { enumerable: true },
+	keys: { enumerable: true },
+	values: { enumerable: true },
+	entries: { enumerable: true }
+});
+
+function getHeaders(headers) {
+	let kind = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'key+value';
+
+	const keys = Object.keys(headers[MAP]).sort();
+	return keys.map(kind === 'key' ? function (k) {
+		return k.toLowerCase();
+	} : kind === 'value' ? function (k) {
+		return headers[MAP][k].join(', ');
+	} : function (k) {
+		return [k.toLowerCase(), headers[MAP][k].join(', ')];
+	});
+}
+
+const INTERNAL = Symbol('internal');
+
+function createHeadersIterator(target, kind) {
+	const iterator = Object.create(HeadersIteratorPrototype);
+	iterator[INTERNAL] = {
+		target,
+		kind,
+		index: 0
+	};
+	return iterator;
+}
+
+const HeadersIteratorPrototype = Object.setPrototypeOf({
+	next() {
+		// istanbul ignore if
+		if (!this || Object.getPrototypeOf(this) !== HeadersIteratorPrototype) {
+			throw new TypeError('Value of `this` is not a HeadersIterator');
+		}
+
+		var _INTERNAL = this[INTERNAL];
+		const target = _INTERNAL.target,
+		      kind = _INTERNAL.kind,
+		      index = _INTERNAL.index;
+
+		const values = getHeaders(target, kind);
+		const len = values.length;
+		if (index >= len) {
+			return {
+				value: undefined,
+				done: true
+			};
+		}
+
+		this[INTERNAL].index = index + 1;
+
+		return {
+			value: values[index],
+			done: false
+		};
+	}
+}, Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())));
+
+Object.defineProperty(HeadersIteratorPrototype, Symbol.toStringTag, {
+	value: 'HeadersIterator',
+	writable: false,
+	enumerable: false,
+	configurable: true
+});
+
+/**
+ * Export the Headers object in a form that Node.js can consume.
+ *
+ * @param   Headers  headers
+ * @return  Object
+ */
+function exportNodeCompatibleHeaders(headers) {
+	const obj = Object.assign({ __proto__: null }, headers[MAP]);
+
+	// http.request() only supports string as Host header. This hack makes
+	// specifying custom Host header possible.
+	const hostHeaderKey = find(headers[MAP], 'Host');
+	if (hostHeaderKey !== undefined) {
+		obj[hostHeaderKey] = obj[hostHeaderKey][0];
+	}
+
+	return obj;
+}
+
+/**
+ * Create a Headers object from an object of headers, ignoring those that do
+ * not conform to HTTP grammar productions.
+ *
+ * @param   Object  obj  Object of headers
+ * @return  Headers
+ */
+function createHeadersLenient(obj) {
+	const headers = new Headers();
+	for (const name of Object.keys(obj)) {
+		if (invalidTokenRegex.test(name)) {
+			continue;
+		}
+		if (Array.isArray(obj[name])) {
+			for (const val of obj[name]) {
+				if (invalidHeaderCharRegex.test(val)) {
+					continue;
+				}
+				if (headers[MAP][name] === undefined) {
+					headers[MAP][name] = [val];
+				} else {
+					headers[MAP][name].push(val);
+				}
+			}
+		} else if (!invalidHeaderCharRegex.test(obj[name])) {
+			headers[MAP][name] = [obj[name]];
+		}
+	}
+	return headers;
+}
+
+const INTERNALS$1 = Symbol('Response internals');
+
+// fix an issue where "STATUS_CODES" aren't a named export for node <10
+const STATUS_CODES = __WEBPACK_IMPORTED_MODULE_1_http___default.a.STATUS_CODES;
+
+/**
+ * Response class
+ *
+ * @param   Stream  body  Readable stream
+ * @param   Object  opts  Response options
+ * @return  Void
+ */
+class Response {
+	constructor() {
+		let body = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+		let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+		Body.call(this, body, opts);
+
+		const status = opts.status || 200;
+		const headers = new Headers(opts.headers);
+
+		if (body != null && !headers.has('Content-Type')) {
+			const contentType = extractContentType(body);
+			if (contentType) {
+				headers.append('Content-Type', contentType);
+			}
+		}
+
+		this[INTERNALS$1] = {
+			url: opts.url,
+			status,
+			statusText: opts.statusText || STATUS_CODES[status],
+			headers,
+			counter: opts.counter
+		};
+	}
+
+	get url() {
+		return this[INTERNALS$1].url || '';
+	}
+
+	get status() {
+		return this[INTERNALS$1].status;
+	}
+
+	/**
+  * Convenience property representing if the request ended normally
+  */
+	get ok() {
+		return this[INTERNALS$1].status >= 200 && this[INTERNALS$1].status < 300;
+	}
+
+	get redirected() {
+		return this[INTERNALS$1].counter > 0;
+	}
+
+	get statusText() {
+		return this[INTERNALS$1].statusText;
+	}
+
+	get headers() {
+		return this[INTERNALS$1].headers;
+	}
+
+	/**
+  * Clone this response
+  *
+  * @return  Response
+  */
+	clone() {
+		return new Response(clone(this), {
+			url: this.url,
+			status: this.status,
+			statusText: this.statusText,
+			headers: this.headers,
+			ok: this.ok,
+			redirected: this.redirected
+		});
+	}
+}
+
+Body.mixIn(Response.prototype);
+
+Object.defineProperties(Response.prototype, {
+	url: { enumerable: true },
+	status: { enumerable: true },
+	ok: { enumerable: true },
+	redirected: { enumerable: true },
+	statusText: { enumerable: true },
+	headers: { enumerable: true },
+	clone: { enumerable: true }
+});
+
+Object.defineProperty(Response.prototype, Symbol.toStringTag, {
+	value: 'Response',
+	writable: false,
+	enumerable: false,
+	configurable: true
+});
+
+const INTERNALS$2 = Symbol('Request internals');
+
+// fix an issue where "format", "parse" aren't a named export for node <10
+const parse_url = __WEBPACK_IMPORTED_MODULE_2_url___default.a.parse;
+const format_url = __WEBPACK_IMPORTED_MODULE_2_url___default.a.format;
+
+const streamDestructionSupported = 'destroy' in __WEBPACK_IMPORTED_MODULE_0_stream___default.a.Readable.prototype;
+
+/**
+ * Check if a value is an instance of Request.
+ *
+ * @param   Mixed   input
+ * @return  Boolean
+ */
+function isRequest(input) {
+	return typeof input === 'object' && typeof input[INTERNALS$2] === 'object';
+}
+
+function isAbortSignal(signal) {
+	const proto = signal && typeof signal === 'object' && Object.getPrototypeOf(signal);
+	return !!(proto && proto.constructor.name === 'AbortSignal');
+}
+
+/**
+ * Request class
+ *
+ * @param   Mixed   input  Url or Request instance
+ * @param   Object  init   Custom options
+ * @return  Void
+ */
+class Request {
+	constructor(input) {
+		let init = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+		let parsedURL;
+
+		// normalize input
+		if (!isRequest(input)) {
+			if (input && input.href) {
+				// in order to support Node.js' Url objects; though WHATWG's URL objects
+				// will fall into this branch also (since their `toString()` will return
+				// `href` property anyway)
+				parsedURL = parse_url(input.href);
+			} else {
+				// coerce input to a string before attempting to parse
+				parsedURL = parse_url(`${input}`);
+			}
+			input = {};
+		} else {
+			parsedURL = parse_url(input.url);
+		}
+
+		let method = init.method || input.method || 'GET';
+		method = method.toUpperCase();
+
+		if ((init.body != null || isRequest(input) && input.body !== null) && (method === 'GET' || method === 'HEAD')) {
+			throw new TypeError('Request with GET/HEAD method cannot have body');
+		}
+
+		let inputBody = init.body != null ? init.body : isRequest(input) && input.body !== null ? clone(input) : null;
+
+		Body.call(this, inputBody, {
+			timeout: init.timeout || input.timeout || 0,
+			size: init.size || input.size || 0
+		});
+
+		const headers = new Headers(init.headers || input.headers || {});
+
+		if (inputBody != null && !headers.has('Content-Type')) {
+			const contentType = extractContentType(inputBody);
+			if (contentType) {
+				headers.append('Content-Type', contentType);
+			}
+		}
+
+		let signal = isRequest(input) ? input.signal : null;
+		if ('signal' in init) signal = init.signal;
+
+		if (signal != null && !isAbortSignal(signal)) {
+			throw new TypeError('Expected signal to be an instanceof AbortSignal');
+		}
+
+		this[INTERNALS$2] = {
+			method,
+			redirect: init.redirect || input.redirect || 'follow',
+			headers,
+			parsedURL,
+			signal
+		};
+
+		// node-fetch-only options
+		this.follow = init.follow !== undefined ? init.follow : input.follow !== undefined ? input.follow : 20;
+		this.compress = init.compress !== undefined ? init.compress : input.compress !== undefined ? input.compress : true;
+		this.counter = init.counter || input.counter || 0;
+		this.agent = init.agent || input.agent;
+	}
+
+	get method() {
+		return this[INTERNALS$2].method;
+	}
+
+	get url() {
+		return format_url(this[INTERNALS$2].parsedURL);
+	}
+
+	get headers() {
+		return this[INTERNALS$2].headers;
+	}
+
+	get redirect() {
+		return this[INTERNALS$2].redirect;
+	}
+
+	get signal() {
+		return this[INTERNALS$2].signal;
+	}
+
+	/**
+  * Clone this request
+  *
+  * @return  Request
+  */
+	clone() {
+		return new Request(this);
+	}
+}
+
+Body.mixIn(Request.prototype);
+
+Object.defineProperty(Request.prototype, Symbol.toStringTag, {
+	value: 'Request',
+	writable: false,
+	enumerable: false,
+	configurable: true
+});
+
+Object.defineProperties(Request.prototype, {
+	method: { enumerable: true },
+	url: { enumerable: true },
+	headers: { enumerable: true },
+	redirect: { enumerable: true },
+	clone: { enumerable: true },
+	signal: { enumerable: true }
+});
+
+/**
+ * Convert a Request to Node.js http request options.
+ *
+ * @param   Request  A Request instance
+ * @return  Object   The options object to be passed to http.request
+ */
+function getNodeRequestOptions(request) {
+	const parsedURL = request[INTERNALS$2].parsedURL;
+	const headers = new Headers(request[INTERNALS$2].headers);
+
+	// fetch step 1.3
+	if (!headers.has('Accept')) {
+		headers.set('Accept', '*/*');
+	}
+
+	// Basic fetch
+	if (!parsedURL.protocol || !parsedURL.hostname) {
+		throw new TypeError('Only absolute URLs are supported');
+	}
+
+	if (!/^https?:$/.test(parsedURL.protocol)) {
+		throw new TypeError('Only HTTP(S) protocols are supported');
+	}
+
+	if (request.signal && request.body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a.Readable && !streamDestructionSupported) {
+		throw new Error('Cancellation of streamed requests with AbortSignal is not supported in node < 8');
+	}
+
+	// HTTP-network-or-cache fetch steps 2.4-2.7
+	let contentLengthValue = null;
+	if (request.body == null && /^(POST|PUT)$/i.test(request.method)) {
+		contentLengthValue = '0';
+	}
+	if (request.body != null) {
+		const totalBytes = getTotalBytes(request);
+		if (typeof totalBytes === 'number') {
+			contentLengthValue = String(totalBytes);
+		}
+	}
+	if (contentLengthValue) {
+		headers.set('Content-Length', contentLengthValue);
+	}
+
+	// HTTP-network-or-cache fetch step 2.11
+	if (!headers.has('User-Agent')) {
+		headers.set('User-Agent', 'node-fetch/1.0 (+https://github.com/bitinn/node-fetch)');
+	}
+
+	// HTTP-network-or-cache fetch step 2.15
+	if (request.compress && !headers.has('Accept-Encoding')) {
+		headers.set('Accept-Encoding', 'gzip,deflate');
+	}
+
+	let agent = request.agent;
+	if (typeof agent === 'function') {
+		agent = agent(parsedURL);
+	}
+
+	if (!headers.has('Connection') && !agent) {
+		headers.set('Connection', 'close');
+	}
+
+	// HTTP-network fetch step 4.2
+	// chunked encoding is handled by Node.js
+
+	return Object.assign({}, parsedURL, {
+		method: request.method,
+		headers: exportNodeCompatibleHeaders(headers),
+		agent
+	});
+}
+
+/**
+ * abort-error.js
+ *
+ * AbortError interface for cancelled requests
+ */
+
+/**
+ * Create AbortError instance
+ *
+ * @param   String      message      Error message for human
+ * @return  AbortError
+ */
+function AbortError(message) {
+  Error.call(this, message);
+
+  this.type = 'aborted';
+  this.message = message;
+
+  // hide custom error implementation details from end-users
+  Error.captureStackTrace(this, this.constructor);
+}
+
+AbortError.prototype = Object.create(Error.prototype);
+AbortError.prototype.constructor = AbortError;
+AbortError.prototype.name = 'AbortError';
+
+// fix an issue where "PassThrough", "resolve" aren't a named export for node <10
+const PassThrough$1 = __WEBPACK_IMPORTED_MODULE_0_stream___default.a.PassThrough;
+const resolve_url = __WEBPACK_IMPORTED_MODULE_2_url___default.a.resolve;
+
+/**
+ * Fetch function
+ *
+ * @param   Mixed    url   Absolute url or Request instance
+ * @param   Object   opts  Fetch options
+ * @return  Promise
+ */
+function fetch(url, opts) {
+
+	// allow custom promise
+	if (!fetch.Promise) {
+		throw new Error('native promise missing, set fetch.Promise to your favorite alternative');
+	}
+
+	Body.Promise = fetch.Promise;
+
+	// wrap http.request into fetch
+	return new fetch.Promise(function (resolve, reject) {
+		// build request object
+		const request = new Request(url, opts);
+		const options = getNodeRequestOptions(request);
+
+		const send = (options.protocol === 'https:' ? __WEBPACK_IMPORTED_MODULE_3_https___default.a : __WEBPACK_IMPORTED_MODULE_1_http___default.a).request;
+		const signal = request.signal;
+
+		let response = null;
+
+		const abort = function abort() {
+			let error = new AbortError('The user aborted a request.');
+			reject(error);
+			if (request.body && request.body instanceof __WEBPACK_IMPORTED_MODULE_0_stream___default.a.Readable) {
+				request.body.destroy(error);
+			}
+			if (!response || !response.body) return;
+			response.body.emit('error', error);
+		};
+
+		if (signal && signal.aborted) {
+			abort();
+			return;
+		}
+
+		const abortAndFinalize = function abortAndFinalize() {
+			abort();
+			finalize();
+		};
+
+		// send request
+		const req = send(options);
+		let reqTimeout;
+
+		if (signal) {
+			signal.addEventListener('abort', abortAndFinalize);
+		}
+
+		function finalize() {
+			req.abort();
+			if (signal) signal.removeEventListener('abort', abortAndFinalize);
+			clearTimeout(reqTimeout);
+		}
+
+		if (request.timeout) {
+			req.once('socket', function (socket) {
+				reqTimeout = setTimeout(function () {
+					reject(new FetchError(`network timeout at: ${request.url}`, 'request-timeout'));
+					finalize();
+				}, request.timeout);
+			});
+		}
+
+		req.on('error', function (err) {
+			reject(new FetchError(`request to ${request.url} failed, reason: ${err.message}`, 'system', err));
+			finalize();
+		});
+
+		req.on('response', function (res) {
+			clearTimeout(reqTimeout);
+
+			const headers = createHeadersLenient(res.headers);
+
+			// HTTP fetch step 5
+			if (fetch.isRedirect(res.statusCode)) {
+				// HTTP fetch step 5.2
+				const location = headers.get('Location');
+
+				// HTTP fetch step 5.3
+				const locationURL = location === null ? null : resolve_url(request.url, location);
+
+				// HTTP fetch step 5.5
+				switch (request.redirect) {
+					case 'error':
+						reject(new FetchError(`redirect mode is set to error: ${request.url}`, 'no-redirect'));
+						finalize();
+						return;
+					case 'manual':
+						// node-fetch-specific step: make manual redirect a bit easier to use by setting the Location header value to the resolved URL.
+						if (locationURL !== null) {
+							// handle corrupted header
+							try {
+								headers.set('Location', locationURL);
+							} catch (err) {
+								// istanbul ignore next: nodejs server prevent invalid response headers, we can't test this through normal request
+								reject(err);
+							}
+						}
+						break;
+					case 'follow':
+						// HTTP-redirect fetch step 2
+						if (locationURL === null) {
+							break;
+						}
+
+						// HTTP-redirect fetch step 5
+						if (request.counter >= request.follow) {
+							reject(new FetchError(`maximum redirect reached at: ${request.url}`, 'max-redirect'));
+							finalize();
+							return;
+						}
+
+						// HTTP-redirect fetch step 6 (counter increment)
+						// Create a new Request object.
+						const requestOpts = {
+							headers: new Headers(request.headers),
+							follow: request.follow,
+							counter: request.counter + 1,
+							agent: request.agent,
+							compress: request.compress,
+							method: request.method,
+							body: request.body,
+							signal: request.signal,
+							timeout: request.timeout
+						};
+
+						// HTTP-redirect fetch step 9
+						if (res.statusCode !== 303 && request.body && getTotalBytes(request) === null) {
+							reject(new FetchError('Cannot follow redirect with body being a readable stream', 'unsupported-redirect'));
+							finalize();
+							return;
+						}
+
+						// HTTP-redirect fetch step 11
+						if (res.statusCode === 303 || (res.statusCode === 301 || res.statusCode === 302) && request.method === 'POST') {
+							requestOpts.method = 'GET';
+							requestOpts.body = undefined;
+							requestOpts.headers.delete('content-length');
+						}
+
+						// HTTP-redirect fetch step 15
+						resolve(fetch(new Request(locationURL, requestOpts)));
+						finalize();
+						return;
+				}
+			}
+
+			// prepare response
+			res.once('end', function () {
+				if (signal) signal.removeEventListener('abort', abortAndFinalize);
+			});
+			let body = res.pipe(new PassThrough$1());
+
+			const response_options = {
+				url: request.url,
+				status: res.statusCode,
+				statusText: res.statusMessage,
+				headers: headers,
+				size: request.size,
+				timeout: request.timeout,
+				counter: request.counter
+			};
+
+			// HTTP-network fetch step 12.1.1.3
+			const codings = headers.get('Content-Encoding');
+
+			// HTTP-network fetch step 12.1.1.4: handle content codings
+
+			// in following scenarios we ignore compression support
+			// 1. compression support is disabled
+			// 2. HEAD request
+			// 3. no Content-Encoding header
+			// 4. no content response (204)
+			// 5. content not modified response (304)
+			if (!request.compress || request.method === 'HEAD' || codings === null || res.statusCode === 204 || res.statusCode === 304) {
+				response = new Response(body, response_options);
+				resolve(response);
+				return;
+			}
+
+			// For Node v6+
+			// Be less strict when decoding compressed responses, since sometimes
+			// servers send slightly invalid responses that are still accepted
+			// by common browsers.
+			// Always using Z_SYNC_FLUSH is what cURL does.
+			const zlibOptions = {
+				flush: __WEBPACK_IMPORTED_MODULE_4_zlib___default.a.Z_SYNC_FLUSH,
+				finishFlush: __WEBPACK_IMPORTED_MODULE_4_zlib___default.a.Z_SYNC_FLUSH
+			};
+
+			// for gzip
+			if (codings == 'gzip' || codings == 'x-gzip') {
+				body = body.pipe(__WEBPACK_IMPORTED_MODULE_4_zlib___default.a.createGunzip(zlibOptions));
+				response = new Response(body, response_options);
+				resolve(response);
+				return;
+			}
+
+			// for deflate
+			if (codings == 'deflate' || codings == 'x-deflate') {
+				// handle the infamous raw deflate response from old servers
+				// a hack for old IIS and Apache servers
+				const raw = res.pipe(new PassThrough$1());
+				raw.once('data', function (chunk) {
+					// see http://stackoverflow.com/questions/37519828
+					if ((chunk[0] & 0x0F) === 0x08) {
+						body = body.pipe(__WEBPACK_IMPORTED_MODULE_4_zlib___default.a.createInflate());
+					} else {
+						body = body.pipe(__WEBPACK_IMPORTED_MODULE_4_zlib___default.a.createInflateRaw());
+					}
+					response = new Response(body, response_options);
+					resolve(response);
+				});
+				return;
+			}
+
+			// for br
+			if (codings == 'br' && typeof __WEBPACK_IMPORTED_MODULE_4_zlib___default.a.createBrotliDecompress === 'function') {
+				body = body.pipe(__WEBPACK_IMPORTED_MODULE_4_zlib___default.a.createBrotliDecompress());
+				response = new Response(body, response_options);
+				resolve(response);
+				return;
+			}
+
+			// otherwise, use response as-is
+			response = new Response(body, response_options);
+			resolve(response);
+		});
+
+		writeToStream(req, request);
+	});
+}
+/**
+ * Redirect code matching
+ *
+ * @param   Number   code  Status code
+ * @return  Boolean
+ */
+fetch.isRedirect = function (code) {
+	return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+};
+
+// expose Promise
+fetch.Promise = global.Promise;
+
+/* harmony default export */ __webpack_exports__["default"] = (fetch);
+
+
+
+/***/ }),
+
+/***/ "BUvb":
+/***/ (function(module, exports, __webpack_require__) {
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+
+var createJob = __webpack_require__("UVan");
+
+var _require = __webpack_require__("MKEY"),
+    log = _require.log;
+
+var getId = __webpack_require__("ujuL");
+var extractProgress = __webpack_require__("PZMJ");
+var resolvePaths = __webpack_require__("5hGE");
+
+var _require2 = __webpack_require__("p66q"),
+    defaultOptions = _require2.defaultOptions,
+    spawnWorker = _require2.spawnWorker,
+    terminateWorker = _require2.terminateWorker,
+    onMessage = _require2.onMessage,
+    send = _require2.send,
+    fetchFile = _require2.fetchFile,
+    fs = _require2.fs;
+
+var workerCounter = 0;
+
+module.exports = function () {
+  var _options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+  var id = getId('Worker', workerCounter);
+
+  var _resolvePaths = resolvePaths(_extends({}, defaultOptions, _options)),
+      logger = _resolvePaths.logger,
+      progress = _resolvePaths.progress,
+      options = _objectWithoutProperties(_resolvePaths, ['logger', 'progress']);
+
+  var resolves = {};
+  var rejects = {};
+  var worker = spawnWorker(options);
+
+  workerCounter += 1;
+
+  var setResolve = function setResolve(action, res) {
+    resolves[action] = res;
+  };
+
+  var setReject = function setReject(action, rej) {
+    rejects[action] = rej;
+  };
+
+  var startJob = function startJob(_ref) {
+    var jobId = _ref.id,
+        action = _ref.action,
+        payload = _ref.payload;
+    return new Promise(function (resolve, reject) {
+      log('[' + id + ']: Start ' + jobId + ', action=' + action);
+      setResolve(action, resolve);
+      setReject(action, reject);
+      send(worker, {
+        workerId: id,
+        jobId: jobId,
+        action: action,
+        payload: payload
+      });
+    });
+  };
+
+  var load = function load(jobId) {
+    return startJob(createJob({
+      id: jobId, action: 'load', payload: { options: options }
+    }));
+  };
+
+  var syncfs = function syncfs(populate, jobId) {
+    return startJob(createJob({
+      id: jobId, action: 'syncfs', payload: { populate: populate }
+    }));
+  };
+
+  var write = function write(path, data) {
+    return new Promise(function ($return, $error) {
+      return Promise.resolve(syncfs()).then(function ($await_3) {
+        try {
+          return Promise.resolve(fetchFile(data)).then(function ($await_4) {
+            try {
+              return Promise.resolve(fs.writeFile(path, $await_4)).then(function ($await_5) {
+                try {
+                  return Promise.resolve(syncfs(true)).then(function ($await_6) {
+                    try {
+                      return $return({
+                        path: '/data/' + path
+                      });
+                    } catch ($boundEx) {
+                      return $error($boundEx);
+                    }
+                  }, $error);
+                } catch ($boundEx) {
+                  return $error($boundEx);
+                }
+              }, $error);
+            } catch ($boundEx) {
+              return $error($boundEx);
+            }
+          }, $error);
+        } catch ($boundEx) {
+          return $error($boundEx);
+        }
+      }, $error);
+    });
+  };
+
+  var writeText = function writeText(path, text) {
+    return new Promise(function ($return, $error) {
+      return Promise.resolve(syncfs(true)).then(function ($await_7) {
+        try {
+          return Promise.resolve(fs.writeFile(path, text)).then(function ($await_8) {
+            try {
+              return Promise.resolve(syncfs(true)).then(function ($await_9) {
+                try {
+                  return $return({
+                    path: '/data/' + path
+                  });
+                } catch ($boundEx) {
+                  return $error($boundEx);
+                }
+              }, $error);
+            } catch ($boundEx) {
+              return $error($boundEx);
+            }
+          }, $error);
+        } catch ($boundEx) {
+          return $error($boundEx);
+        }
+      }, $error);
+    });
+  };
+
+  var read = function read(path) {
+    var $args = arguments;return new Promise(function ($return, $error) {
+      var del, data;
+      del = $args.length > 1 && $args[1] !== undefined ? $args[1] : true;
+      return Promise.resolve(fs.readFile(path)).then(function ($await_10) {
+        try {
+          data = $await_10;
+          if (del) {
+            return Promise.resolve(fs.deleteFile(path)).then(function ($await_11) {
+              try {
+                return $If_1.call(this);
+              } catch ($boundEx) {
+                return $error($boundEx);
+              }
+            }.bind(this), $error);
+          }
+
+          function $If_1() {
+            return $return({
+              data: data
+            });
+          }
+
+          return $If_1.call(this);
+        } catch ($boundEx) {
+          return $error($boundEx);
+        }
+      }.bind(this), $error);
+    });
+  };
+
+  var remove = function remove(path) {
+    return new Promise(function ($return, $error) {
+      return Promise.resolve(fs.deleteFile(path)).then(function ($await_12) {
+        try {
+          return $return({
+            path: '/data/' + path
+          });
+        } catch ($boundEx) {
+          return $error($boundEx);
+        }
+      }, $error);
+    });
+  };
+
+  var run = function run(args) {
+    var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var jobId = arguments[2];
+    return startJob(createJob({
+      id: jobId, action: 'run', payload: { args: args, options: opts }
+    }));
+  };
+
+  var transcode = function transcode(input, output) {
+    var opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
+    var del = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : true;
+    var jobId = arguments[4];
+    return run('-i /data/' + input + ' ' + opts + ' ' + output, { input: input, output: output, del: del }, jobId);
+  };
+
+  var trim = function trim(input, output, from, to) {
+    var opts = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : '';
+    var del = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : true;
+    var jobId = arguments[6];
+    return run('-i /data/' + input + ' -ss ' + from + ' -to ' + to + ' ' + opts + ' ' + output, { input: input, output: output, del: del }, jobId);
+  };
+
+  var concatDemuxer = function concatDemuxer(input, output) {
+    var $args = arguments;return new Promise(function ($return, $error) {
+      var opts, del, jobId, text;
+      opts = $args.length > 2 && $args[2] !== undefined ? $args[2] : '';
+      del = $args.length > 3 && $args[3] !== undefined ? $args[3] : true;
+      jobId = $args[4];
+
+      text = input.reduce(function (acc, path) {
+        return acc + '\nfile ' + path;
+      }, '');
+      return Promise.resolve(writeText('concat_list.txt', text)).then(function ($await_13) {
+        try {
+          return $return(run('-f concat -safe 0 -i /data/concat_list.txt -c copy ' + opts + ' ' + output, { del: del, output: output, input: [].concat(input, ['concat_list.txt']) }, jobId));
+        } catch ($boundEx) {
+          return $error($boundEx);
+        }
+      }, $error);
+    });
+  };
+
+  var ls = function ls(path, jobId) {
+    return startJob(createJob({
+      id: jobId,
+      action: 'FS',
+      payload: { method: 'readdir', args: [path] }
+    }));
+  };
+
+  var terminate = function terminate(jobId) {
+    return new Promise(function ($return, $error) {
+      if (worker !== null) {
+        return Promise.resolve(startJob(createJob({
+          id: jobId,
+          action: 'terminate'
+        }))).then(function ($await_14) {
+          try {
+            terminateWorker(worker);
+            worker = null;
+            return $If_2.call(this);
+          } catch ($boundEx) {
+            return $error($boundEx);
+          }
+        }.bind(this), $error);
+      }
+
+      function $If_2() {
+        return $return(Promise.resolve());
+      }
+
+      return $If_2.call(this);
+    });
+  };
+
+  onMessage(worker, function (_ref2) {
+    var workerId = _ref2.workerId,
+        jobId = _ref2.jobId,
+        status = _ref2.status,
+        action = _ref2.action,
+        data = _ref2.data;
+
+    if (status === 'resolve') {
+      log('[' + workerId + ']: Complete ' + jobId);
+      var d = data;
+      if (action === 'FS') {
+        var method = data.method,
+            _data = data.data;
+
+        if (method === 'readFile') {
+          d = Uint8Array.from(_extends({}, _data, { length: Object.keys(_data).length }));
+        } else {
+          d = _data;
+        }
+      }
+      resolves[action]({ jobId: jobId, data: d });
+    } else if (status === 'reject') {
+      rejects[action](data);
+      throw Error(data);
+    } else if (status === 'progress') {
+      extractProgress(data, progress);
+      logger(data);
+    }
+  });
+
+  return {
+    id: id,
+    worker: worker,
+    setResolve: setResolve,
+    setReject: setReject,
+    load: load,
+    syncfs: syncfs,
+    write: write,
+    writeText: writeText,
+    read: read,
+    remove: remove,
+    run: run,
+    transcode: transcode,
+    trim: trim,
+    concatDemuxer: concatDemuxer,
+    ls: ls,
+    terminate: terminate
+  };
+};
 
 /***/ }),
 
@@ -80,11 +2295,49 @@ module.exports = require("util");
 
 /***/ }),
 
+/***/ "Fnt3":
+/***/ (function(module, exports, __webpack_require__) {
+
+var _require = __webpack_require__("a90S"),
+    fork = _require.fork;
+
+/**
+ * spawnWorker
+ *
+ * @name spawnWorker
+ * @function fork a new process in node
+ * @access public
+ */
+
+
+module.exports = function (_ref) {
+  var workerPath = _ref.workerPath;
+  return fork(workerPath);
+};
+
+/***/ }),
+
 /***/ "HVeQ":
 /***/ (function(module, exports) {
 
 // removed by extract-text-webpack-plugin
 module.exports = {"home":"home__1I2EN","boxName":"boxName__26nav","boxContainer":"boxContainer__1jDYD","subBox":"subBox__1KWXu","boxProp":"boxProp__31O6F","boxContents":"boxContents__3uHwf","arrayEntry":"arrayEntry__zS5vz","hexEntry":"hexEntry__1Mnjz"};
+
+/***/ }),
+
+/***/ "Hjji":
+/***/ (function(module, exports) {
+
+module.exports = function (key) {
+  var env = {
+    type: typeof window !== 'undefined' && typeof window.document !== 'undefined' ? 'browser' : 'node'
+  };
+
+  if (typeof key === 'undefined') {
+    return env;
+  }
+  return env[key];
+};
 
 /***/ }),
 
@@ -2632,6 +4885,10 @@ var additionalBoxes_default = /*#__PURE__*/__webpack_require__.n(additionalBoxes
 // CONCATENATED MODULE: ./components/m2tsBoxer.js
 
 var parser = __webpack_require__("PFLp")();
+
+var _require = __webpack_require__("9BjC"),
+    createWorker = _require.createWorker;
+
 var m2tsBoxer_MAX_TIME = 10;
 
 var pidLookup = new Map([[0, 'Program Association Table'], [1, 'Conditional Access Table'], [2, 'Transport Stream Description Table'], [3, 'IPMP Control Information Table']]);
@@ -2678,91 +4935,130 @@ var streamTypeLookup = {
     0x7F: 'IPMP stream'
 };
 
-var parsePAT = function parsePAT(buf) {
-    // need to parse the PAT
-    return {
-        table_id: tableIDLookup[buf[0]] || 'reserved',
-        section_syntax_indicator: (buf[1] & 128) >> 7,
-        // 0 bit
-        reserved1: (buf[1] & 48) >> 4,
-        section_length: (buf[1] & 15) << 4 | buf[2],
-        transport_stream_id: buf[3] << 8 | buf[4],
-        reserved2: (buf[5] & 192) >> 6,
-        version_number: (buf[5] & 62) >> 1,
-        current_next_indicator: buf[5] & 1,
-        section_number: buf[6],
-        last_section_number: buf[7],
-        program_number: buf[8] << 8 | buf[9],
-        reserved3: (buf[10] & 224) >> 5,
-        program_map_PID: (buf[10] & 31) << 8 | buf[11],
-        crc_32: buf[12] << 24 | buf[13] << 16 | buf[14] << 8 | buf[15]
-    };
-};
-
-var parsePMT = function parsePMT(buf) {
-    var _pmt;
-
-    // need to parse the PMT
-    var pmt = (_pmt = {
-        table_id: tableIDLookup[buf[0]] || 'reserved',
-        section_syntax_indicator: (buf[1] & 128) >> 7,
-        // 0 bit
-        reserved1: (buf[1] & 48) >> 4,
-        section_length: (buf[1] & 15) << 8 | buf[2],
-        program_number: buf[3] << 8 + buf[4],
-        reserved2: (buf[5] & 192) >> 6,
-        version_number: (buf[5] & 62) >> 1,
-        current_next_indicator: buf[5] & 1,
-        section_number: buf[6],
-        last_section_number: buf[7],
-        reserved3: (buf[8] & 224) >> 5,
-        PCR_PID: (buf[8] & 31) << 8 | buf[9]
-    }, _pmt['reserved3'] = (buf[10] & 240) >> 4, _pmt.program_info_length = (buf[10] & 15) << 8 | buf[11], _pmt);
-
-    // now need to loop buf[12] to get
-    var start = 12;
-    var boxes = [];
-    var i = 0;
-    while (buf.length > start + i + 4) {
-        var _streamInfo;
-
-        var streamInfo = (_streamInfo = {
-            stream_type: streamTypeLookup[buf[start + i]] || 'unknown'
-        }, _streamInfo['reserved' + (4 + i)] = (buf[start + i + 1] & 224) >> 5, _streamInfo.elementary_PID = (buf[start + i + 1] & 31) << 8 | buf[start + i + 2], _streamInfo['reserved' + (4 + i + 1)] = (buf[start + i + 3] & 240) >> 4, _streamInfo.ES_info_length = (buf[start + i + 3] & 15) << 8 | buf[start + i + 4], _streamInfo);
-        boxes.push(streamInfo);
-        // add the stream type and id to the table
-        pidLookup.set(streamInfo.elementary_PID, streamInfo.stream_type);
-        i += 5;
-    }
-    pmt.boxes = boxes;
-    pmt.crc_32 = buf[i] << 24 | buf[i + 1] << 16 | buf[i + 2] << 8 | buf[i + 3];
-    return pmt;
-};
-
-var m2tsBoxer_processEntry = function processEntry(segment) {
-    // first some manual processing of the PAT, not in the decoder (yet)
-    if (segment.hasOwnProperty('pid') && segment.pid === 0) {
-        segment.program_association_section = parsePAT(segment.payload);
-        // now add that to the list
-        pidLookup.set(segment.program_association_section.program_map_PID, 'Program Map Table');
-    };
-    if (segment.hasOwnProperty('pid') && pidLookup.get(segment.pid) === 'Program Map Table') {
-        // need to process the program map table
-        segment.program_map_section = parsePMT(segment.payload);
-    }
-    // now convert all keys to the form {name, display}
-    var keyList = Object.keys(segment).filter(function (key) {
-        return key !== 'packet' && key !== 'payload';
-    });
-    return keyList.map(function (key) {
-        if (typeof segment[key] === 'object') return { type: key, boxes: processEntry(segment[key]), start: null, end: null };
-        return { name: key, display: segment[key], start: null, end: null };
-    });
+var generateM3U8 = function generateM3U8(keyFile, IV, segmentList) {
+    return '#EXTM3U\n#EXT-X-TARGETDURATION:5\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-KEY:METHOD=AES-128,URI="' + keyFile + '",IV=0x' + IV + '\n' + segmentList.map(function (segmentFile) {
+        return '#EXTINF:5,\n' + segmentFile;
+    }) + '\n#EXT-X-ENDLIST';
 };
 
 var m2tsBoxer_processData = function processData(data) {
+    var parsePAT = function parsePAT(buf) {
+        // need to parse the PAT
+        return {
+            table_id: tableIDLookup[buf[0]] || 'reserved',
+            section_syntax_indicator: (buf[1] & 128) >> 7,
+            // 0 bit
+            reserved1: (buf[1] & 48) >> 4,
+            section_length: (buf[1] & 15) << 4 | buf[2],
+            transport_stream_id: buf[3] << 8 | buf[4],
+            reserved2: (buf[5] & 192) >> 6,
+            version_number: (buf[5] & 62) >> 1,
+            current_next_indicator: buf[5] & 1,
+            section_number: buf[6],
+            last_section_number: buf[7],
+            program_number: buf[8] << 8 | buf[9],
+            reserved3: (buf[10] & 224) >> 5,
+            program_map_PID: (buf[10] & 31) << 8 | buf[11],
+            crc_32: buf[12] << 24 | buf[13] << 16 | buf[14] << 8 | buf[15]
+        };
+    };
+
+    var parsePMT = function parsePMT(buf) {
+        // need to parse the PMT
+        var pmt = {
+            table_id: tableIDLookup[buf[0]] || 'reserved',
+            section_syntax_indicator: (buf[1] & 128) >> 7,
+            private_bit: (buf[1] & 64) >> 6,
+            reserved1: (buf[1] & 48) >> 4,
+            section_length: (buf[1] & 15) << 8 | buf[2],
+            program_number: buf[3] << 8 + buf[4],
+            reserved2: (buf[5] & 192) >> 6,
+            version_number: (buf[5] & 62) >> 1,
+            current_next_indicator: buf[5] & 1,
+            section_number: buf[6],
+            last_section_number: buf[7],
+            reserved3: (buf[8] & 224) >> 5,
+            PCR_PID: (buf[8] & 31) << 8 | buf[9],
+            reserved4: (buf[10] & 240) >> 4,
+            program_info_length: (buf[10] & 15) << 8 | buf[11]
+
+            // now need to loop buf[12] to get
+        };var start = 12;
+        var boxes = [];
+        var i = 0;
+        while (buf.length > start + i + 4) {
+            var _streamInfo;
+
+            var streamInfo = (_streamInfo = {
+                stream_type: streamTypeLookup[buf[start + i]] || 'unknown'
+            }, _streamInfo['reserved' + (5 + i)] = (buf[start + i + 1] & 224) >> 5, _streamInfo.elementary_PID = (buf[start + i + 1] & 31) << 8 | buf[start + i + 2], _streamInfo['reserved' + (6 + i + 1)] = (buf[start + i + 3] & 240) >> 4, _streamInfo.ES_info_length = (buf[start + i + 3] & 15) << 8 | buf[start + i + 4], _streamInfo);
+            boxes.push(streamInfo);
+            // add the stream type and id to the table
+            pidLookup.set(streamInfo.elementary_PID, streamInfo.stream_type);
+            i += 5;
+        }
+        boxes.map(function (stream, index) {
+            return pmt['elementary_stream ' + (index + 1)] = stream;
+        });
+        pmt.crc_32 = buf[i] << 24 | buf[i + 1] << 16 | buf[i + 2] << 8 | buf[i + 3];
+        return pmt;
+    };
+
+    var processEntry = function processEntry(segment, startByte) {
+        // first some manual processing of the PAT, not in the decoder (yet)
+        if (segment.hasOwnProperty('pid') && segment.pid === 0) {
+            segment.program_association_section = parsePAT(segment.payload);
+            // now add that to the list
+            pidLookup.set(segment.program_association_section.program_map_PID, 'Program Map Table');
+        };
+        if (segment.hasOwnProperty('pid') && pidLookup.get(segment.pid) === 'Program Map Table') {
+            // need to process the program map table
+            segment.program_map_section = parsePMT(segment.payload);
+        }
+        // now convert all keys to the form {name, display}
+        var keyList = Object.keys(segment).filter(function (key) {
+            return key !== 'packet' && key !== 'payload';
+        });
+
+        return keyList.map(function (key) {
+            // nested tags need a start and end
+            var start = 4 + startByte;
+            // if the current tag is adaptation field control, set whether this has one or not
+            if (key === 'adaptation_field_control' && (segment[key] === 2 || segment[key] === 3)) hasAdaptationField = true;
+            // if the current tag is the adaptation field length, store that
+            if (key === 'adaptation_field_length') adaptationFieldLength = segment[key];
+            // if the current tag is the program association section, set that instead
+            if (key === 'program_association_section') hasAdaptationField = true;
+            if (key === 'section_length' && hasAdaptationField) adaptationFieldLength = 3 + segment[key];
+            // if the current tag is the PMT, set that instead
+            if (key === 'program_map_section') hasAdaptationField = true;
+            if (key === 'section_length' && hasAdaptationField) adaptationFieldLength = 4 + segment[key];
+            // for elementary streams, length is 5 bytes
+            if (key.includes('elementary_stream')) {
+                adaptationFieldLength = 5;
+                start = 4 + startByte + 12 + 5 * parseInt(key.slice(-1), 10);
+            }
+            if (typeof segment[key] === 'object') return {
+                type: key,
+                boxes: processEntry(segment[key], 4 + startByte),
+                start: start,
+                end: start + adaptationFieldLength
+            };
+            // plain data doesn't need a start and end
+            return {
+                name: key,
+                display: segment[key],
+                start: null,
+                end: null
+            };
+        });
+    };
+
+    // reset markers for length counters
+    var adaptationFieldLength = void 0,
+        hasAdaptationField = void 0;
     try {
-        var boxes = data.map(function (segment) {
+        var boxes = data.map(function (segment, index) {
             // Display layer is expecting the form:
             // box.start {number} byte offset of box start
             // box.end {number} byte offset of box end
@@ -2771,13 +5067,16 @@ var m2tsBoxer_processData = function processData(data) {
             // box.name {string} name of the data entry
             // box.type {string} name of the container box
             // box.boxes {Array:box} sub-boxes
+            // first reset the markers each time we process a top-level box
+            adaptationFieldLength = 0;
+            hasAdaptationField = false;
             return {
-                start: null,
-                end: null,
-                type: 'PID ' + segment.pid + (pidLookup.has(segment.pid) ? ' (' + pidLookup.get(segment.pid) + ')' : '') + ' number ' + segment.continuity_counter,
+                start: index * 188,
+                end: (index + 1) * 188 - 1,
+                type: 'PID ' + segment.pid + (pidLookup.has(segment.pid) ? ' (' + pidLookup.get(segment.pid) + ')' : '') + ' #' + segment.continuity_counter,
                 hex: Object(tools["convertToHex"])(segment.packet),
                 packet: Object(tools["convertToHex"])(segment.packet),
-                boxes: m2tsBoxer_processEntry(segment)
+                boxes: processEntry(segment, index * 188)
             };
         });
         return { boxes: boxes };
@@ -2787,6 +5086,7 @@ var m2tsBoxer_processData = function processData(data) {
 };
 
 var m2tsBoxer = function m2tsBoxer(buf) {
+    var segmentCount = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
     return new Promise(function (resolve, reject) {
         var allData = [];
         var lastChunkTime = new Date().getTime();
@@ -2813,12 +5113,158 @@ var m2tsBoxer = function m2tsBoxer(buf) {
             parser.on('error', function (err) {
                 return reject(err);
             });
-            parser.write(buf, function () {
+            parser.write(segmentCount ? buf.slice(0, 188 * segmentCount) : buf, function () {
                 return resolve(m2tsBoxer_processData(allData));
             });
         } catch (e) {
             return reject(e);
         }
+    });
+};
+
+var convertM2TS = function convertM2TS(segmentFile) {
+    return new Promise(function (resolve, reject) {
+        return new Promise(function ($return, $error) {
+            var worker, _ref2, data;
+
+            var $Try_3_Post = function () {
+                try {
+                    return $return();
+                } catch ($boundEx) {
+                    return $error($boundEx);
+                }
+            };var $Try_3_Catch = function (e) {
+                try {
+                    return $return(reject(e));
+                } catch ($boundEx) {
+                    return $error($boundEx);
+                }
+            };
+            try {
+                worker = createWorker({ logger: function logger(_ref) {
+                        var message = _ref.message;
+                        return console.log(message);
+                    } });
+                return Promise.resolve(worker.load()).then(function ($await_5) {
+                    try {
+                        // load files into virtual file system
+                        console.log('worker loaded');
+                        return Promise.resolve(worker.write('segment.ts', segmentFile)).then(function ($await_6) {
+                            try {
+                                return Promise.resolve(worker.run('-loglevel debug -allowed_extensions ALL -i /data/segment.ts -c copy -bsf:a aac_adtstoasc decrypt.mp4', {
+                                    input: 'segment.ts',
+                                    output: 'decrypt.mp4',
+                                    del: true
+                                })).then(function ($await_7) {
+                                    try {
+                                        return Promise.resolve(worker.read('decrypt.mp4')).then(function ($await_8) {
+                                            try {
+                                                _ref2 = $await_8, data = _ref2.data;
+
+                                                return $return(resolve(data));
+                                            } catch ($boundEx) {
+                                                return $Try_3_Catch($boundEx);
+                                            }
+                                        }, $Try_3_Catch);
+                                    } catch ($boundEx) {
+                                        return $Try_3_Catch($boundEx);
+                                    }
+                                }, $Try_3_Catch);
+                            } catch ($boundEx) {
+                                return $Try_3_Catch($boundEx);
+                            }
+                        }, $Try_3_Catch);
+                    } catch ($boundEx) {
+                        return $Try_3_Catch($boundEx);
+                    }
+                }, $Try_3_Catch);
+            } catch (e) {
+                $Try_3_Catch(e)
+            }
+        });
+    });
+};
+
+var decodeM2TS = function decodeM2TS(playList, keyFile, segmentFile) {
+    return new Promise(function (resolve, reject) {
+        return new Promise(function ($return, $error) {
+            var IV, newPlayList, _map, keyFileBuffer, segmentBuffer, worker, _ref4, data;
+
+            var $Try_4_Post = function () {
+                try {
+                    return $return();
+                } catch ($boundEx) {
+                    return $error($boundEx);
+                }
+            };var $Try_4_Catch = function (err) {
+                try {
+                    return $return(reject(err));
+                } catch ($boundEx) {
+                    return $error($boundEx);
+                }
+            };
+            try {
+                IV = playList.match(/IV=0x([0123456789ABCDEF]*)\s/);
+                newPlayList = generateM3U8('keyFile.key', IV ? IV[1] : '0000000000000001', ['segment.ts']);
+                _map = [keyFile, segmentFile].map(function (data) {
+                    return Uint8Array.from(atob(data), function (c) {
+                        return c.charCodeAt(0);
+                    });
+                }), keyFileBuffer = _map[0], segmentBuffer = _map[1];
+
+                worker = createWorker({ logger: function logger(_ref3) {
+                        var message = _ref3.message;
+                        return console.log(message);
+                    } });
+                return Promise.resolve(worker.load()).then(function ($await_9) {
+                    try {
+                        // load files into virtual file system
+                        console.log('worker loaded');
+                        return Promise.resolve(worker.writeText('playlist.m3u8', newPlayList)).then(function ($await_10) {
+                            try {
+                                return Promise.resolve(worker.write('keyFile.key', keyFileBuffer)).then(function ($await_11) {
+                                    try {
+                                        return Promise.resolve(worker.write('segment.ts', segmentBuffer)).then(function ($await_12) {
+                                            try {
+                                                return Promise.resolve(worker.run('-loglevel debug -allowed_extensions ALL -i /data/playlist.m3u8 -c copy decrypt.ts', {
+                                                    input: ['playlist.m3u8', 'keyFile.key', 'segment.ts'],
+                                                    output: 'decrypt.ts',
+                                                    del: true
+                                                })).then(function ($await_13) {
+                                                    try {
+                                                        return Promise.resolve(worker.read('decrypt.ts')).then(function ($await_14) {
+                                                            try {
+                                                                _ref4 = $await_14, data = _ref4.data;
+
+                                                                return $return(resolve(data));
+                                                            } catch ($boundEx) {
+                                                                return $Try_4_Catch($boundEx);
+                                                            }
+                                                        }, $Try_4_Catch);
+                                                    } catch ($boundEx) {
+                                                        return $Try_4_Catch($boundEx);
+                                                    }
+                                                }, $Try_4_Catch);
+                                            } catch ($boundEx) {
+                                                return $Try_4_Catch($boundEx);
+                                            }
+                                        }, $Try_4_Catch);
+                                    } catch ($boundEx) {
+                                        return $Try_4_Catch($boundEx);
+                                    }
+                                }, $Try_4_Catch);
+                            } catch ($boundEx) {
+                                return $Try_4_Catch($boundEx);
+                            }
+                        }, $Try_4_Catch);
+                    } catch ($boundEx) {
+                        return $Try_4_Catch($boundEx);
+                    }
+                }, $Try_4_Catch);
+            } catch (err) {
+                $Try_4_Catch(err)
+            }
+        });
     });
 };
 
@@ -2832,7 +5278,7 @@ var header_style_default = /*#__PURE__*/__webpack_require__.n(header_style);
 
 
 
-var _ref = Object(preact_min["h"])(
+var header__ref = Object(preact_min["h"])(
 	'h1',
 	null,
 	'Media Inspector'
@@ -2844,7 +5290,7 @@ var _ref2 = Object(preact_min["h"])(
 	Object(preact_min["h"])(
 		'a',
 		null,
-		'Select Local File'
+		'Select Media File'
 	)
 );
 
@@ -2854,15 +5300,42 @@ var header_Header = function Header(props) {
 		mp4: 'ISOBMFF',
 		ts: 'MPEG-2 Transport Stream'
 	};
+
 	return Object(preact_min["h"])(
 		'header',
 		{ 'class': header_style_default.a.header },
-		_ref,
+		header__ref,
 		Object(preact_min["h"])(
 			'nav',
 			null,
-			Object(preact_min["h"])('input', { type: 'file', style: { opacity: 0 }, id: 'getFile', onChange: props.handleFiles }),
+			Object(preact_min["h"])('input', { type: 'file', id: 'getFile', onChange: function onChange(e) {
+					return props.handleFiles(e, 'segment');
+				} }),
 			_ref2,
+			Object(preact_min["h"])('input', { type: 'file', disabled: props.mode !== 'MP2T', id: 'getPlayList', onChange: function onChange(e) {
+					return props.handleFiles(e, 'playlist');
+				} }),
+			Object(preact_min["h"])(
+				'label',
+				{ 'for': 'getPlayList' },
+				Object(preact_min["h"])(
+					'a',
+					{ style: props.mode !== 'MP2T' ? { color: 'grey' } : {} },
+					'Select Playlist File'
+				)
+			),
+			Object(preact_min["h"])('input', { type: 'file', disabled: props.mode !== 'MP2T', id: 'getKey', onChange: function onChange(e) {
+					return props.handleFiles(e, 'key');
+				} }),
+			Object(preact_min["h"])(
+				'label',
+				{ 'for': 'getKey' },
+				Object(preact_min["h"])(
+					'a',
+					{ style: props.mode !== 'MP2T' ? { color: 'grey' } : {} },
+					'Select Key File'
+				)
+			),
 			Object(preact_min["h"])(
 				'a',
 				{ onClick: props.toggleHex },
@@ -2920,7 +5393,13 @@ var home_Home = function Home(props) {
 				Object.keys(entry).filter(function (key) {
 					return key !== 'entryNumber' && key !== 'title';
 				}).map(function (key) {
-					if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
+					if (Array.isArray(entry[key])) {
+						return entry[key].filter(function (element) {
+							return element && element.entryNumber;
+						}).map(function (element) {
+							return showEntryDetails(key, element);
+						});
+					}
 					return Object(preact_min["h"])(
 						'div',
 						null,
@@ -2940,7 +5419,7 @@ var home_Home = function Home(props) {
 			);
 		};
 
-		var boxLabel = '' + (box.type || box.name) + (props.hasFocus === box.start && box.type ? ' starting byte: ' + box.start : '') + (box.type && box.end ? ' (' + box.size + ' bytes)' : '');
+		var boxLabel = '' + (box.type || box.name) + (props.hasFocus === box.start && box.type ? ' starting byte: ' + box.start : '') + (box.type && box.end ? ' (' + (box.size || box.end - box.start + 1) + ' bytes)' : '');
 
 		// container boxes have a 'type'. They may contain 'boxes' or raw hex.
 		if (Object.hasOwnProperty.call(box, 'type')) {
@@ -3121,7 +5600,13 @@ var video_Video = function Video(props) {
 };
 
 /* harmony default export */ var video = (video_Video);
-// CONCATENATED MODULE: ./components/app.js
+// EXTERNAL MODULE: ./components/multiview/style.css
+var multiview_style = __webpack_require__("7pDz");
+var multiview_style_default = /*#__PURE__*/__webpack_require__.n(multiview_style);
+
+// CONCATENATED MODULE: ./components/multiview/index.js
+var multiview__extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -3132,6 +5617,314 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 
 
+/** @jsx h */
+
+var multiview_TagTree = function TagTree(props) {
+    //create indents based on children
+    var renderKids = function renderKids(boxKey) {
+        // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
+        var tag = Array.from(props.tags.keys()).filter(function (_ref) {
+            var box = _ref.box,
+                start = _ref.start;
+            return box === boxKey.box && start === boxKey.start;
+        })[0];
+        var entry = props.tags.get(tag);
+        try {
+            return Object(preact_min["h"])(
+                'li',
+                {
+                    style: { padding: '2px', fontWeight: props.selected.box === tag.box && props.selected.start === tag.start ? "bold" : "normal" },
+                    onClick: function onClick(e) {
+                        return props.handleClick(e, tag);
+                    },
+                    key: tag.start
+                },
+                tag.box,
+                !!entry.children && entry.children.length > 0 ? entry.children.map(renderKids) : ''
+            );
+        } catch (e) {
+            console.error('error processing tag', entry, e);
+        }
+    };
+
+    var rootTags = Array.from(props.tags).reduce(function (result, _ref2) {
+        var key = _ref2[0],
+            entry = _ref2[1];
+
+        if (entry.parent.length === 0) result.push(key);
+        return result;
+    }, []);
+
+    return Object(preact_min["h"])(
+        'div',
+        {
+            style: {
+                background: props.background,
+                display: "grid",
+                gridArea: "tree",
+                overflowY: 'scroll',
+                height: '50em'
+            }
+        },
+        Object(preact_min["h"])(
+            'li',
+            { onClick: function onClick(e) {
+                    return props.handleClick(e, "");
+                }, 'class': multiview_style_default.a.filename },
+            props.fileName,
+            rootTags && rootTags.map(renderKids)
+        )
+    );
+};
+
+var multiview_Data = function Data(props) {
+
+    var dataToShow = function dataToShow(box) {
+        if (box.display && Array.isArray(box.display)) {
+            if (box.display.length === 0) return Object(preact_min["h"])(
+                'div',
+                { style: { margin: 'inherit' } },
+                '[]'
+            );
+            return Object(preact_min["h"])(
+                'div',
+                { style: { margin: 'inherit' }, onClick: function onClick(e) {
+                        return props.arraySelected(e, box, props.tagName);
+                    } },
+                'Click for Details'
+            );
+        }
+        return Object(preact_min["h"])(
+            'div',
+            { style: { margin: 'inherit' } },
+            box.display
+        );
+    };
+
+    return Object(preact_min["h"])(
+        'div',
+        {
+            style: {
+                background: props.background,
+                display: 'flex',
+                flexDirection: 'column',
+                gridArea: "data",
+                overflowY: 'scroll'
+            }
+        },
+        props.tagData && props.tagData.map(function (value) {
+            return Object(preact_min["h"])(
+                'div',
+                { style: {
+                        display: 'flex',
+                        margin: '2px 2px 2px 10px'
+                    } },
+                Object(preact_min["h"])(
+                    'div',
+                    { style: { margin: 'inherit', fontWeight: 'bold' } },
+                    value.name,
+                    ':'
+                ),
+                dataToShow(value)
+            );
+        })
+    );
+};
+
+var _ref3 = Object(preact_min["h"])('div', null);
+
+var multiview_SubArray = function SubArray(props) {
+    return (
+        // TODO - deal with arrays of arrays like senc samples
+        Object(preact_min["h"])(
+            'div',
+            { style: {
+                    overflowY: 'scroll'
+                } },
+            props.entryName ? Object(preact_min["h"])(
+                'h2',
+                null,
+                props.entryName
+            ) : _ref3,
+            Object(preact_min["h"])(
+                'div',
+                {
+                    style: {
+                        background: props.background,
+                        display: "flex",
+                        gridArea: "array",
+                        flexDirection: 'column'
+                    }
+                },
+                props.subArray.map(function (entry) {
+                    return Object(preact_min["h"])(
+                        'div',
+                        { style: { display: 'flex', background: entry.entryNumber % 2 ? 'lightgray' : 'darkgray' } },
+                        Object(preact_min["h"])(
+                            'div',
+                            { style: { display: 'flex', alignSelf: 'center' } },
+                            entry.entryNumber
+                        ),
+                        Object(preact_min["h"])(
+                            'div',
+                            null,
+                            Object.keys(entry).filter(function (entry) {
+                                return entry !== 'entryNumber';
+                            }).map(function (key) {
+                                return Object(preact_min["h"])(
+                                    'div',
+                                    { style: { display: 'flex', margin: '2px 2px 2px 10px' } },
+                                    Object(preact_min["h"])(
+                                        'div',
+                                        { style: { margin: 'inherit' } },
+                                        key,
+                                        ':'
+                                    ),
+                                    Object(preact_min["h"])(
+                                        'div',
+                                        { style: { margin: 'inherit' } },
+                                        Array.isArray(entry[key]) && entry[key].length > 1 ? entry[key].map(function (nestedVal) {
+                                            return Object(preact_min["h"])(
+                                                'div',
+                                                { style: { margin: 'inherit' } },
+                                                JSON.stringify(nestedVal)
+                                            );
+                                        }) : entry[key]
+                                    )
+                                );
+                            })
+                        )
+                    );
+                })
+            )
+        )
+    );
+};
+
+var _ref4 = Object(preact_min["h"])('div', null);
+
+var multiview_Hex = function Hex(props) {
+    return Object(preact_min["h"])(
+        'div',
+        {
+            style: { background: props.background, display: 'grid', gridTemplateRows: 'repeat(' + (props.hex.length + 1) + ', 1em)', gridArea: "hex" }
+        },
+        props.hex.map(function (row) {
+            return Object(preact_min["h"])(
+                'div',
+                { style: { fontFamily: 'courier', display: "grid", gridTemplateColumns: '500px 200px auto' } },
+                Object(preact_min["h"])(
+                    'div',
+                    null,
+                    row
+                ),
+                Object(preact_min["h"])(
+                    'div',
+                    null,
+                    row.split(' ').map(function (byte) {
+                        var code = parseInt(byte, 16);
+                        return code > 31 ? String.fromCharCode(code) : '.';
+                    })
+                ),
+                _ref4
+            );
+        })
+    );
+};
+
+var multiview_MultiView = function (_Component) {
+    _inherits(MultiView, _Component);
+
+    function MultiView(props) {
+        _classCallCheck(this, MultiView);
+
+        var _this = _possibleConstructorReturn(this, _Component.call(this, props));
+
+        _this.handleClick = function (event, boxName) {
+            event.stopPropagation();
+            console.log(boxName, _this.state.boxList.get(boxName));
+
+            var _this$state$boxList$g = _this.state.boxList.get(boxName),
+                values = _this$state$boxList$g.values,
+                hex = _this$state$boxList$g.hex;
+
+            _this.setState({
+                detailBox: '',
+                arrayData: [],
+                selectedTag: multiview__extends({}, boxName),
+                selectedBox: values,
+                selectedHex: hex
+            });
+        };
+
+        _this.arraySelected = function (event, boxName, arrayTag) {
+            console.log(boxName.name + '->' + arrayTag + ' selected, contains array entries');
+            var arrayData = boxName.display;
+            _this.setState({ arrayData: arrayData, detailBox: boxName.name });
+        };
+
+        _this.state = {
+            fileName: _this.props.fileName,
+            selectedTag: "",
+            selectedBox: [],
+            arrayData: [],
+            selectedHex: [],
+            detailBox: '',
+            boxList: _this.props.boxList,
+            preProcessed: _this.props.preProcessed,
+            postProcessed: _this.props.postProcessed
+        };
+        return _this;
+    }
+
+    MultiView.prototype.render = function render() {
+        return Object(preact_min["h"])(
+            'div',
+            {
+                style: {
+                    display: "grid",
+                    gridTemplateAreas: '\'tree data array\'\n                                        \'tree hex hex\'\n                                        \'tree hex hex\'',
+                    gridTemplateRows: "25em 25em",
+                    gridTemplateColumns: "1.5fr 3fr 3fr"
+                }
+            },
+            Object(preact_min["h"])(multiview_TagTree, {
+                background: 'lightgrey',
+                tags: this.state.boxList,
+                handleClick: this.handleClick,
+                fileName: this.state.fileName,
+                selected: this.state.selectedTag
+            }),
+            Object(preact_min["h"])(multiview_Data, {
+                background: 'white',
+                tagData: this.state.selectedBox,
+                tagName: this.state.selectedTag,
+                arraySelected: this.arraySelected
+            }),
+            Object(preact_min["h"])(multiview_SubArray, {
+                background: 'white',
+                subArray: this.state.arrayData,
+                entryName: this.state.detailBox
+            }),
+            Object(preact_min["h"])(multiview_Hex, {
+                background: 'white',
+                hex: this.state.selectedHex || ['00']
+            })
+        );
+    };
+
+    return MultiView;
+}(preact_min["Component"]);
+
+/* harmony default export */ var multiview = (multiview_MultiView);
+// CONCATENATED MODULE: ./components/app.js
+
+
+function app__classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function app__possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function app__inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 
 
@@ -3139,6 +5932,14 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 
 
+
+
+
+// debugging
+
+
+// for M2TS segments, how many to parse? 
+var SEGMENT_COUNT = 512;
 
 var styles = {
 	parseButton: {
@@ -3171,7 +5972,8 @@ var modes = {
 
 var niceError = {
 	3: 'This video appears to be encrypted',
-	4: 'Can\'t parse metadata. Is this not an initialization segment?'
+	4: 'Can\'t parse metadata. Is this not an initialization segment?',
+	99: 'MP2T file appears to be encrypted. \n\tPlease select a \'.key\' file and a \'.m3u8\' file\n\tusing \'Select Local File\' above'
 
 };
 
@@ -3181,12 +5983,12 @@ var app_parseISO = function parseISO(buf) {
 			var VALID_START_BOX, parsedData, preProcessed, result;
 
 			VALID_START_BOX = new Set(['ftyp', 'moof', 'styp', 'sidx']);
-			return Promise.resolve(Object(iso_boxer["parseBuffer"])(buf.buffer)).then(function ($await_1) {
+			return Promise.resolve(Object(iso_boxer["parseBuffer"])(buf.buffer)).then(function ($await_5) {
 				try {
-					parsedData = $await_1;
+					parsedData = $await_5;
 					if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 						preProcessed = Object(additionalBoxes["convertBox"])(parsedData.boxes);
-						console.log(preProcessed);
+						console.log('pre-processed box data:', preProcessed);
 						result = Object(additionalBoxes["postProcess"])(preProcessed);
 						return $return(resolve({ boxes: result }));
 					}
@@ -3199,23 +6001,23 @@ var app_parseISO = function parseISO(buf) {
 	});
 };
 
-var app_parseWebM = function parseWebM(buf) {
-	return ebmlBoxer_ebmlBoxer(buf.buffer);
-};
+var app__ref3 = Object(preact_min["h"])(
+	'span',
+	null,
+	Object(preact_min["h"])('span', null)
+);
 
-var app_parseM2TS = function parseM2TS(buf) {
-	return m2tsBoxer(buf);
-};
+var app__ref4 = Object(preact_min["h"])('div', null);
 
-var app__ref2 = Object(preact_min["h"])('div', null);
+var _ref5 = Object(preact_min["h"])('option', null);
 
 var app_App = function (_Component) {
-	_inherits(App, _Component);
+	app__inherits(App, _Component);
 
 	function App(props) {
-		_classCallCheck(this, App);
+		app__classCallCheck(this, App);
 
-		var _this = _possibleConstructorReturn(this, _Component.call(this, props));
+		var _this = app__possibleConstructorReturn(this, _Component.call(this, props));
 
 		_this.componentWillMount = function () {
 			// add any custom box processors
@@ -3225,12 +6027,49 @@ var app_App = function (_Component) {
 		};
 
 		_this.createParsed = function (inputData) {
-			var inputBuffer = Uint8Array.from(atob(inputData), function (c) {
-				return c.charCodeAt(0);
+			return new Promise(function ($return, $error) {
+				var inputBuffer, decryptedData;
+
+				inputBuffer = Uint8Array.from(atob(inputData), function (c) {
+					return c.charCodeAt(0);
+				});
+				//console.log('hex dump',new TextDecoder('utf-8').decode(inputBuffer));
+				if (_this.state.mode === 'webm') return $return(ebmlBoxer_ebmlBoxer(inputBuffer.buffer));
+				if (_this.state.mode === 'mp4') return $return(app_parseISO(inputBuffer));
+				if (_this.state.mode === 'MP2T') {
+					// check first byte for the start code
+					if (inputBuffer[0] !== 0x47) {
+						decryptedData = void 0;
+						// it's not a start code, and we're in MP2T mode, so try decrypting
+						if (_this.state.playlist && _this.state.keyFile) {
+							return Promise.resolve(decodeM2TS(_this.state.playlist, _this.state.keyFile, inputData, SEGMENT_COUNT)).then(function ($await_6) {
+								try {
+									decryptedData = $await_6;
+									// store the converted output in inputData
+									_this.setState({ videoData: decryptedData });
+									// now process the boxes
+									return $return(m2tsBoxer(decryptedData, SEGMENT_COUNT));
+								} catch ($boundEx) {
+									return $error($boundEx);
+								}
+							}, $error);
+						} else {
+							_this.setState({ videoError: niceError[99], working: false });
+							return $return();
+						};
+						return $If_2.call(this);
+					}
+					// start code is valid, so just parse
+
+					function $If_2() {
+						_this.setState({ videoData: inputBuffer });
+						return $return(m2tsBoxer(inputBuffer, SEGMENT_COUNT));
+					}
+
+					return $If_2.call(this);
+				};
+				return $return();
 			});
-			if (_this.state.mode === 'webm') return app_parseWebM(inputBuffer);
-			if (_this.state.mode === 'mp4') return app_parseISO(inputBuffer);
-			if (_this.state.mode === 'MP2T') return app_parseM2TS(inputBuffer);
 		};
 
 		_this.updateInput = function (e) {
@@ -3239,84 +6078,31 @@ var app_App = function (_Component) {
 			_this.setState({ inputData: inputData });
 		};
 
-		_this.parseFile = function (e) {
-
-			var getBoxList = function getBoxList(collection, resultMap) {
-				return new Promise(function ($return, $error) {
-					var counter, addElements;
-
-
-					counter = 0;
-
-					addElements = function addElements(elemList, parentPath) {
-						return new Promise(function (resolve, reject) {
-							// first add all of the elements at this node
-							elemList.forEach(function (elem) {
-								console.log(elem);
-								// only add items with a 'type' (ie, box definition)
-								if (!!elem.type) {
-									if (resultMap.size && resultMap.has(elem.type)) {
-										resultMap.set(elem.type, resultMap.get(elem.type).concat(parentPath));
-									} else {
-										resultMap.set(elem.type, parentPath);
-									};
-									// now check for sub-boxes that are not null
-									if (!!elem.boxes) {
-										//quick check to see if the boxes have types
-										var validBoxes = elem.boxes.reduce(function (newList, box) {
-											if (!!box.type) {
-												newList.push(box);
-											} else if (box.name && box.name === 'entries') {
-												newList.push(box.boxes[0]);
-											}
-											return newList;
-										}, []);
-										//recurse any sub-boxes
-										if (validBoxes.length) {
-											counter++;
-											return addElements(validBoxes, parentPath.concat(elem.type));
-										}
-									}
-								}
-							});
-							counter--;
-							if (counter == 0) return resolve(resultMap);
-						});
-					};
-
-					// start the chain using the full collection
-					counter++;
-					return Promise.resolve(addElements(collection, [])).then($return, $error);
-				});
-			};
-
+		_this.parseFile = function (inputData) {
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
-			_this.createParsed(_this.state.inputData).then(function (_ref) {
+			_this.createParsed(inputData).then(function (_ref) {
 				var boxes = _ref.boxes;
 
 				var listOfBoxes = new Map();
 				//extract a list of box names for the dropdown
 				//return Map([target, [parentList]]}
-				getBoxList(boxes, listOfBoxes).then(function (boxList) {
-					return _this.setState({ boxList: boxList, parsedData: boxes, working: false, decodeAttempts: 0 });
+				Object(additionalBoxes["getBoxList"])(boxes, listOfBoxes).then(function (boxList) {
+					return _this.setState({ boxList: boxList, inputData: inputData, parsedData: boxes, working: false, decodeAttempts: 0 });
 				});
 				;
 				return;
 			}).catch(function (err) {
 				console.error(err);
 				_this.setState({ errorMessage: err, working: false });
-				if (_this.state.decodeAttempts < Object.keys(modes).length) {
-					var _this$state = _this.state,
-					    decodeAttempts = _this$state.decodeAttempts,
-					    mode = _this$state.mode;
-
-					decodeAttempts += 1;
-					mode = modes[mode];
-					console.log('failed decode #' + decodeAttempts + ', trying ' + mode + ' mode');
-					_this.setState({ decodeAttempts: decodeAttempts, mode: mode, working: true });
-					_this.parseFile();
-				}
+				/* if (this.state.decodeAttempts < Object.keys(modes).length) {
+    	let { decodeAttempts, mode } = this.state;
+    	decodeAttempts += 1;
+    	mode = modes[mode];
+    	console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
+    	this.setState({ decodeAttempts, mode, working: true });
+    	this.parseFile(this.state.inputData);
+    } */
 			});
 		};
 
@@ -3327,25 +6113,74 @@ var app_App = function (_Component) {
 			_this.setState({ showVideo: false, videoError: videoError });
 		};
 
-		_this.handleFiles = function (e) {
+		_this.handleFiles = function (e, fileType) {
 			var fileName = e.target.files[0];
-			_this.setState({ working: true, showVideo: false, inputData: '', fileName: fileName.name });
+			_this.setState({ working: true, showVideo: false, inputData: '' });
+			console.log(fileName);
+			if (fileName.type.includes('webm')) {
+				_this.setState({ mode: 'webm' });
+			} else if (fileName.type.includes('mp4')) {
+				_this.setState({ mode: 'mp4' });
+			} else {
+				_this.setState({ mode: 'MP2T' });
+			}
 			var reader = new FileReader();
 			var self = _this;
 			reader.onload = function (r) {
-				var inputData = r.target.result.split(/base64,/)[1];
-				self.setState({ inputData: inputData });
-				self.parseFile();
+				switch (fileType) {
+					case 'playlist':
+						var playlist = atob(r.target.result.split(/base64,/)[1]);
+						self.setState({ playlist: playlist, working: false, fileName: 'Loaded Playlist ' + fileName.name });
+						break;
+					case 'key':
+						var keyFile = r.target.result.split(/base64,/)[1];
+						self.setState({ keyFile: keyFile, working: false, fileName: 'Loaded key file ' + fileName.name });
+						break;
+					default:
+						var inputData = r.target.result.split(/base64,/)[1];
+						self.setState({ inputData: inputData, fileName: fileName.name });
+						self.parseFile(inputData);
+				}
 			};
 			reader.readAsDataURL(fileName);
 		};
 
 		_this.toggleHex = function (e) {
-			_this.setState({ showHex: !_this.state.showHex });
+			var showHex = !_this.state.showHex;
+			_this.setState({ showHex: showHex });
 		};
 
 		_this.togglePreview = function (e) {
-			_this.setState({ showVideo: !_this.state.showVideo });
+			return new Promise(function ($return, $error) {
+				var showVideo, inputBuffer, videoData, convertedFile;
+
+				_this.setState({ working: true });
+				showVideo = !_this.state.showVideo;
+				inputBuffer = _this.state.videoData;
+				videoData = void 0;
+				if (_this.state.mode === 'MP2T' && showVideo) {
+					return Promise.resolve(convertM2TS(inputBuffer)).then(function ($await_7) {
+						try {
+							convertedFile = $await_7;
+							// it's a buffer, so make it into base64 for rendering
+							videoData = btoa(Array.from(convertedFile).map(function (byte) {
+								return String.fromCharCode(byte);
+							}).join(''));
+							return $If_4.call(this);
+						} catch ($boundEx) {
+							return $error($boundEx);
+						}
+					}.bind(this), $error);
+				} else {
+					videoData = _this.state.inputData;
+					return $If_4.call(this);
+				}
+
+				function $If_4() {
+					_this.setState({ working: false, showVideo: showVideo, videoData: videoData });
+					return $return();
+				}
+			});
 		};
 
 		_this.handleFocus = function (e, focusRow, showOffset) {
@@ -3356,10 +6191,17 @@ var app_App = function (_Component) {
 		_this.handleSearch = function (e) {
 			var searchTerm = e.target.value;
 			console.log('searching box list for ' + searchTerm);
-			console.log(_this.state.boxList);
-			if (_this.state.boxList.has(searchTerm)) {
-				console.log('found ' + searchTerm + ' with parents ' + _this.state.boxList.get(searchTerm));
-				_this.setState({ searchTerm: searchTerm, selectedBox: { target: searchTerm, parentList: _this.state.boxList.get(searchTerm) } });
+			var keyList = Array.from(_this.state.boxList.keys()).filter(function (_ref2) {
+				var box = _ref2.box,
+				    start = _ref2.start;
+				return box === searchTerm;
+			});
+			console.log(keyList);
+			if (keyList.length) {
+				var parentList = keyList.reduce(function (result, key) {
+					return _this.state.boxList.get(key).parent.concat(result);
+				}, []);
+				_this.setState({ searchTerm: searchTerm, selectedBox: { target: searchTerm, parentList: parentList } });
 			}
 			if (searchTerm == '') {
 				_this.setState({ searchTerm: searchTerm, selectedBox: { target: '', parentList: [] } });
@@ -3368,7 +6210,8 @@ var app_App = function (_Component) {
 
 		_this.expandAll = function (e) {
 			console.log('got command to ' + (_this.state.expanded ? 'collapse' : 'expand') + ' the tree');
-			_this.setState({ working: true, expanded: !_this.state.expanded });
+			var expanded = !_this.state.expanded;
+			_this.setState({ working: true, expanded: expanded });
 			setTimeout(function () {
 				return _this.setState({ working: false });
 			}, 100);
@@ -3413,10 +6256,23 @@ var app_App = function (_Component) {
 			_this.setState({ base64: base64 });
 		};
 
+		_this.changeViewMode = function (e) {
+			var viewMode = !_this.state.viewMode;
+			_this.setState({ viewMode: viewMode });
+		};
+
+		_this.changeFileMode = function (e, mode) {
+			_this.setState({ mode: mode });
+		};
+
 		_this.state = {
+			playlist: null,
+			keyFile: null,
+			fileName: 'raw base64 data',
 			inputData: '',
+			videoData: '',
 			parsedData: { boxes: [] },
-			mode: 'mp4',
+			mode: 'MP2T',
 			working: false,
 			errorMessage: '',
 			videoError: '',
@@ -3424,12 +6280,12 @@ var app_App = function (_Component) {
 			showHex: false,
 			showVideo: false,
 			hasFocus: -1,
-			fileName: 'raw base64 data',
 			base64: '',
 			expanded: false,
 			boxList: new Map(),
 			selectedBox: { target: '', parentList: [] },
-			searchTerm: ''
+			searchTerm: '',
+			viewMode: false
 		};
 		return _this;
 	}
@@ -3447,7 +6303,9 @@ var app_App = function (_Component) {
 				showHex: this.state.showHex,
 				hexCode: this.state.hexCode,
 				toggleHex: this.toggleHex,
-				handleFiles: this.handleFiles
+				handleFiles: this.handleFiles,
+				viewMode: this.state.viewMode,
+				changeViewMode: this.changeViewMode
 			}),
 			this.state.showHex ? Object(preact_min["h"])(
 				'div',
@@ -3461,22 +6319,41 @@ var app_App = function (_Component) {
 				),
 				Object(preact_min["h"])(
 					'div',
+					{ style: { margin: '18px 0 0 7px' } },
+					['mp4', 'webm', 'MP2T'].map(function (type) {
+						return Object(preact_min["h"])(
+							'div',
+							null,
+							Object(preact_min["h"])('input', { id: type, type: 'radio', name: type, value: type, checked: _this2.state.mode === type, onChange: function onChange(e) {
+									return _this2.changeFileMode(e, type);
+								} }),
+							Object(preact_min["h"])(
+								'label',
+								{ htmlFor: type },
+								app__ref3,
+								type
+							)
+						);
+					})
+				),
+				Object(preact_min["h"])(
+					'div',
 					{ style: { gridRow: '2/3' } },
 					Object(preact_min["h"])(
 						'button',
 						{ style: styles.parseButton, onClick: function onClick(e) {
-								return _this2.parseFile(e);
+								return _this2.parseFile(_this2.state.inputData);
 							} },
 						'Go'
 					)
 				)
-			) : app__ref2,
+			) : app__ref4,
 			Object(preact_min["h"])(
 				'div',
 				null,
 				this.state.showVideo ? Object(preact_min["h"])(video, {
-					mimeType: this.state.mode,
-					data: this.state.inputData,
+					mimeType: this.state.mode === 'MP2T' ? 'mp4' : this.state.mode,
+					data: this.state.videoData,
 					handleEncrypted: this.handleEncrypted
 				}) : Object(preact_min["h"])(
 					'div',
@@ -3494,10 +6371,29 @@ var app_App = function (_Component) {
 					Object(preact_min["h"])(
 						'div',
 						{ style: styles.parseButton },
-						Object(preact_min["h"])('input', { 'class': 'tagSearch', placeholder: 'search for tag', type: 'search', size: '10', onChange: this.handleSearch, value: this.state.searchTerm })
+						Object(preact_min["h"])(
+							'input',
+							{ list: 'tags', 'class': 'tagSearch', placeholder: 'search for tag', size: '8', onChange: this.handleSearch, value: this.state.searchTerm },
+							Object(preact_min["h"])(
+								'datalist',
+								{ style: styles.parseButton, id: 'tags' },
+								Array.from(this.state.boxList.keys()).map(function (boxName) {
+									if (boxName) return Object(preact_min["h"])(
+										'option',
+										{ value: boxName },
+										boxName
+									);
+									return _ref5;
+								})
+							)
+						)
 					)
 				),
-				Object(preact_min["h"])(home, {
+				this.state.viewMode ? Object(preact_min["h"])(multiview, {
+					postProcessed: this.state.parsedData,
+					boxList: this.state.boxList,
+					fileName: this.state.fileName
+				}) : Object(preact_min["h"])(home, {
 					fileName: this.state.fileName,
 					decodeMode: this.state.mode,
 					working: this.state.working,
@@ -3522,211 +6418,287 @@ var app_App = function (_Component) {
 
 
 
-/* harmony default export */ var index = __webpack_exports__["default"] = (app_App);
+/* harmony default export */ var index_0 = __webpack_exports__["default"] = (app_App);
 
 /***/ }),
 
 /***/ "KM04":
+/***/ (function(module, exports) {
+
+var n,
+    l,
+    u,
+    t,
+    i,
+    o,
+    r,
+    f = {},
+    e = [],
+    c = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord/i;function s(n, l) {
+  for (var u in l) {
+    n[u] = l[u];
+  }return n;
+}function a(n) {
+  var l = n.parentNode;l && l.removeChild(n);
+}function p(n, l, u) {
+  var t,
+      i = arguments,
+      o = {};for (t in l) {
+    "key" !== t && "ref" !== t && (o[t] = l[t]);
+  }if (arguments.length > 3) for (u = [u], t = 3; t < arguments.length; t++) {
+    u.push(i[t]);
+  }if (null != u && (o.children = u), "function" == typeof n && null != n.defaultProps) for (t in n.defaultProps) {
+    void 0 === o[t] && (o[t] = n.defaultProps[t]);
+  }return h(n, o, l && l.key, l && l.ref);
+}function h(l, u, t, i) {
+  var o = { type: l, props: u, key: t, ref: i, __k: null, __: null, __b: 0, __e: null, __d: null, __c: null, constructor: void 0 };return n.vnode && n.vnode(o), o;
+}function v(n) {
+  return n.children;
+}function y(n, l) {
+  this.props = n, this.context = l;
+}function d(n, l) {
+  if (null == l) return n.__ ? d(n.__, n.__.__k.indexOf(n) + 1) : null;for (var u; l < n.__k.length; l++) {
+    if (null != (u = n.__k[l]) && null != u.__e) return u.__e;
+  }return "function" == typeof n.type ? d(n) : null;
+}function m(n) {
+  var l, u;if (null != (n = n.__) && null != n.__c) {
+    for (n.__e = n.__c.base = null, l = 0; l < n.__k.length; l++) {
+      if (null != (u = n.__k[l]) && null != u.__e) {
+        n.__e = n.__c.base = u.__e;break;
+      }
+    }return m(n);
+  }
+}function x(l) {
+  (!l.__d && (l.__d = !0) && 1 === u.push(l) || i !== n.debounceRendering) && ((i = n.debounceRendering) || t)(w);
+}function w() {
+  var n, l, t, i, o, r, f;for (u.sort(function (n, l) {
+    return l.__v.__b - n.__v.__b;
+  }); n = u.pop();) {
+    n.__d && (t = void 0, i = void 0, r = (o = (l = n).__v).__e, (f = l.__P) && (t = [], i = N(f, o, s({}, o), l.__n, void 0 !== f.ownerSVGElement, null, t, null == r ? d(o) : r), T(t, o), i != r && m(o)));
+  }
+}function g(n, l, u, t, i, o, r, c, s) {
+  var p,
+      h,
+      v,
+      y,
+      m,
+      x,
+      w,
+      g = u && u.__k || e,
+      _ = g.length;if (c == f && (c = null != o ? o[0] : _ ? d(u, 0) : null), p = 0, l.__k = k(l.__k, function (u) {
+    if (null != u) {
+      if (u.__ = l, u.__b = l.__b + 1, null === (v = g[p]) || v && u.key == v.key && u.type === v.type) g[p] = void 0;else for (h = 0; h < _; h++) {
+        if ((v = g[h]) && u.key == v.key && u.type === v.type) {
+          g[h] = void 0;break;
+        }v = null;
+      }if (y = N(n, u, v = v || f, t, i, o, r, c, s), (h = u.ref) && v.ref != h && (w || (w = []), v.ref && w.push(v.ref, null, u), w.push(h, u.__c || y, u)), null != y) {
+        if (null == x && (x = y), null != u.__d) y = u.__d, u.__d = null;else if (o == v || y != c || null == y.parentNode) {
+          n: if (null == c || c.parentNode !== n) n.appendChild(y);else {
+            for (m = c, h = 0; (m = m.nextSibling) && h < _; h += 2) {
+              if (m == y) break n;
+            }n.insertBefore(y, c);
+          }"option" == l.type && (n.value = "");
+        }c = y.nextSibling, "function" == typeof l.type && (l.__d = y);
+      }
+    }return p++, u;
+  }), l.__e = x, null != o && "function" != typeof l.type) for (p = o.length; p--;) {
+    null != o[p] && a(o[p]);
+  }for (p = _; p--;) {
+    null != g[p] && z(g[p], g[p]);
+  }if (w) for (p = 0; p < w.length; p++) {
+    j(w[p], w[++p], w[++p]);
+  }
+}function k(n, l, u) {
+  if (null == u && (u = []), null == n || "boolean" == typeof n) l && u.push(l(null));else if (Array.isArray(n)) for (var t = 0; t < n.length; t++) {
+    k(n[t], l, u);
+  } else u.push(l ? l("string" == typeof n || "number" == typeof n ? h(null, n, null, null) : null != n.__e || null != n.__c ? h(n.type, n.props, n.key, null) : n) : n);return u;
+}function _(n, l, u, t, i) {
+  var o;for (o in u) {
+    o in l || C(n, o, null, u[o], t);
+  }for (o in l) {
+    i && "function" != typeof l[o] || "value" === o || "checked" === o || u[o] === l[o] || C(n, o, l[o], u[o], t);
+  }
+}function b(n, l, u) {
+  "-" === l[0] ? n.setProperty(l, u) : n[l] = "number" == typeof u && !1 === c.test(l) ? u + "px" : null == u ? "" : u;
+}function C(n, l, u, t, i) {
+  var o, r, f, e, c;if (i ? "className" === l && (l = "class") : "class" === l && (l = "className"), "key" === l || "children" === l) ;else if ("style" === l) {
+    if (o = n.style, "string" == typeof u) o.cssText = u;else {
+      if ("string" == typeof t && (o.cssText = "", t = null), t) for (r in t) {
+        u && r in u || b(o, r, "");
+      }if (u) for (f in u) {
+        t && u[f] === t[f] || b(o, f, u[f]);
+      }
+    }
+  } else "o" === l[0] && "n" === l[1] ? (e = l !== (l = l.replace(/Capture$/, "")), c = l.toLowerCase(), l = (c in n ? c : l).slice(2), u ? (t || n.addEventListener(l, P, e), (n.l || (n.l = {}))[l] = u) : n.removeEventListener(l, P, e)) : "list" !== l && "tagName" !== l && "form" !== l && "type" !== l && !i && l in n ? n[l] = null == u ? "" : u : "function" != typeof u && "dangerouslySetInnerHTML" !== l && (l !== (l = l.replace(/^xlink:?/, "")) ? null == u || !1 === u ? n.removeAttributeNS("http://www.w3.org/1999/xlink", l.toLowerCase()) : n.setAttributeNS("http://www.w3.org/1999/xlink", l.toLowerCase(), u) : null == u || !1 === u ? n.removeAttribute(l) : n.setAttribute(l, u));
+}function P(l) {
+  this.l[l.type](n.event ? n.event(l) : l);
+}function N(l, u, t, i, o, r, f, e, c) {
+  var a,
+      p,
+      h,
+      d,
+      m,
+      x,
+      w,
+      _,
+      b,
+      C,
+      P = u.type;if (void 0 !== u.constructor) return null;(a = n.__b) && a(u);try {
+    n: if ("function" == typeof P) {
+      if (_ = u.props, b = (a = P.contextType) && i[a.__c], C = a ? b ? b.props.value : a.__ : i, t.__c ? w = (p = u.__c = t.__c).__ = p.__E : ("prototype" in P && P.prototype.render ? u.__c = p = new P(_, C) : (u.__c = p = new y(_, C), p.constructor = P, p.render = A), b && b.sub(p), p.props = _, p.state || (p.state = {}), p.context = C, p.__n = i, h = p.__d = !0, p.__h = []), null == p.__s && (p.__s = p.state), null != P.getDerivedStateFromProps && (p.__s == p.state && (p.__s = s({}, p.__s)), s(p.__s, P.getDerivedStateFromProps(_, p.__s))), d = p.props, m = p.state, h) null == P.getDerivedStateFromProps && null != p.componentWillMount && p.componentWillMount(), null != p.componentDidMount && p.__h.push(p.componentDidMount);else {
+        if (null == P.getDerivedStateFromProps && _ !== d && null != p.componentWillReceiveProps && p.componentWillReceiveProps(_, C), !p.__e && null != p.shouldComponentUpdate && !1 === p.shouldComponentUpdate(_, p.__s, C)) {
+          for (p.props = _, p.state = p.__s, p.__d = !1, p.__v = u, u.__e = t.__e, u.__k = t.__k, p.__h.length && f.push(p), a = 0; a < u.__k.length; a++) {
+            u.__k[a] && (u.__k[a].__ = u);
+          }break n;
+        }null != p.componentWillUpdate && p.componentWillUpdate(_, p.__s, C), null != p.componentDidUpdate && p.__h.push(function () {
+          p.componentDidUpdate(d, m, x);
+        });
+      }p.context = C, p.props = _, p.state = p.__s, (a = n.__r) && a(u), p.__d = !1, p.__v = u, p.__P = l, a = p.render(p.props, p.state, p.context), u.__k = k(null != a && a.type == v && null == a.key ? a.props.children : a), null != p.getChildContext && (i = s(s({}, i), p.getChildContext())), h || null == p.getSnapshotBeforeUpdate || (x = p.getSnapshotBeforeUpdate(d, m)), g(l, u, t, i, o, r, f, e, c), p.base = u.__e, p.__h.length && f.push(p), w && (p.__E = p.__ = null), p.__e = null;
+    } else u.__e = $(t.__e, u, t, i, o, r, f, c);(a = n.diffed) && a(u);
+  } catch (l) {
+    n.__e(l, u, t);
+  }return u.__e;
+}function T(l, u) {
+  n.__c && n.__c(u, l), l.some(function (u) {
+    try {
+      l = u.__h, u.__h = [], l.some(function (n) {
+        n.call(u);
+      });
+    } catch (l) {
+      n.__e(l, u.__v);
+    }
+  });
+}function $(n, l, u, t, i, o, r, c) {
+  var s,
+      a,
+      p,
+      h,
+      v,
+      y = u.props,
+      d = l.props;if (i = "svg" === l.type || i, null == n && null != o) for (s = 0; s < o.length; s++) {
+    if (null != (a = o[s]) && (null === l.type ? 3 === a.nodeType : a.localName === l.type)) {
+      n = a, o[s] = null;break;
+    }
+  }if (null == n) {
+    if (null === l.type) return document.createTextNode(d);n = i ? document.createElementNS("http://www.w3.org/2000/svg", l.type) : document.createElement(l.type), o = null;
+  }if (null === l.type) null != o && (o[o.indexOf(n)] = null), y !== d && n.data != d && (n.data = d);else if (l !== u) {
+    if (null != o && (o = e.slice.call(n.childNodes)), p = (y = u.props || f).dangerouslySetInnerHTML, h = d.dangerouslySetInnerHTML, !c) {
+      if (y === f) for (y = {}, v = 0; v < n.attributes.length; v++) {
+        y[n.attributes[v].name] = n.attributes[v].value;
+      }(h || p) && (h && p && h.__html == p.__html || (n.innerHTML = h && h.__html || ""));
+    }_(n, d, y, i, c), l.__k = l.props.children, h || g(n, l, u, t, "foreignObject" !== l.type && i, o, r, f, c), c || ("value" in d && void 0 !== d.value && d.value !== n.value && (n.value = null == d.value ? "" : d.value), "checked" in d && void 0 !== d.checked && d.checked !== n.checked && (n.checked = d.checked));
+  }return n;
+}function j(l, u, t) {
+  try {
+    "function" == typeof l ? l(u) : l.current = u;
+  } catch (l) {
+    n.__e(l, t);
+  }
+}function z(l, u, t) {
+  var i, o, r;if (n.unmount && n.unmount(l), (i = l.ref) && (i.current && i.current !== l.__e || j(i, null, u)), t || "function" == typeof l.type || (t = null != (o = l.__e)), l.__e = l.__d = null, null != (i = l.__c)) {
+    if (i.componentWillUnmount) try {
+      i.componentWillUnmount();
+    } catch (l) {
+      n.__e(l, u);
+    }i.base = i.__P = null;
+  }if (i = l.__k) for (r = 0; r < i.length; r++) {
+    i[r] && z(i[r], u, t);
+  }null != o && a(o);
+}function A(n, l, u) {
+  return this.constructor(n, u);
+}function D(l, u, t) {
+  var i, r, c;n.__ && n.__(l, u), r = (i = t === o) ? null : t && t.__k || u.__k, l = p(v, null, [l]), c = [], N(u, (i ? u : t || u).__k = l, r || f, f, void 0 !== u.ownerSVGElement, t && !i ? [t] : r ? null : e.slice.call(u.childNodes), c, t || f, i), T(c, l);
+}n = { __e: function __e(n, l) {
+    for (var u, t; l = l.__;) {
+      if ((u = l.__c) && !u.__) try {
+        if (u.constructor && null != u.constructor.getDerivedStateFromError && (t = !0, u.setState(u.constructor.getDerivedStateFromError(n))), null != u.componentDidCatch && (t = !0, u.componentDidCatch(n)), t) return x(u.__E = u);
+      } catch (l) {
+        n = l;
+      }
+    }throw n;
+  } }, l = function l(n) {
+  return null != n && void 0 === n.constructor;
+}, y.prototype.setState = function (n, l) {
+  var u;u = this.__s !== this.state ? this.__s : this.__s = s({}, this.state), "function" == typeof n && (n = n(u, this.props)), n && s(u, n), null != n && this.__v && (this.__e = !1, l && this.__h.push(l), x(this));
+}, y.prototype.forceUpdate = function (n) {
+  this.__v && (this.__e = !0, n && this.__h.push(n), x(this));
+}, y.prototype.render = v, u = [], t = "function" == typeof Promise ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, o = f, r = 0, exports.render = D, exports.hydrate = function (n, l) {
+  D(n, l, o);
+}, exports.createElement = p, exports.h = p, exports.Fragment = v, exports.createRef = function () {
+  return {};
+}, exports.isValidElement = l, exports.Component = y, exports.cloneElement = function (n, l) {
+  return l = s(s({}, n.props), l), arguments.length > 2 && (l.children = e.slice.call(arguments, 2)), h(n.type, l, l.key || n.key, l.ref || n.ref);
+}, exports.createContext = function (n) {
+  var l = {},
+      u = { __c: "__cC" + r++, __: n, Consumer: function Consumer(n, l) {
+      return n.children(l);
+    }, Provider: function Provider(n) {
+      var t,
+          i = this;return this.getChildContext || (t = [], this.getChildContext = function () {
+        return l[u.__c] = i, l;
+      }, this.shouldComponentUpdate = function (l) {
+        n.value !== l.value && t.some(function (n) {
+          n.context = l.value, x(n);
+        });
+      }, this.sub = function (n) {
+        t.push(n);var l = n.componentWillUnmount;n.componentWillUnmount = function () {
+          t.splice(t.indexOf(n), 1), l && l.call(n);
+        };
+      }), n.children;
+    } };return u.Consumer.contextType = u, u;
+}, exports.toChildArray = k, exports._e = z, exports.options = n;
+//# sourceMappingURL=preact.js.map
+
+/***/ }),
+
+/***/ "LTaw":
 /***/ (function(module, exports, __webpack_require__) {
 
-!function () {
-  "use strict";
-  function e(e, t) {
-    var n,
-        o,
-        r,
-        i,
-        l = W;for (i = arguments.length; i-- > 2;) {
-      P.push(arguments[i]);
-    }t && null != t.children && (P.length || P.push(t.children), delete t.children);while (P.length) {
-      if ((o = P.pop()) && void 0 !== o.pop) for (i = o.length; i--;) {
-        P.push(o[i]);
-      } else "boolean" == typeof o && (o = null), (r = "function" != typeof e) && (null == o ? o = "" : "number" == typeof o ? o += "" : "string" != typeof o && (r = !1)), r && n ? l[l.length - 1] += o : l === W ? l = [o] : l.push(o), n = r;
-    }var a = new T();return a.nodeName = e, a.children = l, a.attributes = null == t ? void 0 : t, a.key = null == t ? void 0 : t.key, void 0 !== M.vnode && M.vnode(a), a;
-  }function t(e, t) {
-    for (var n in t) {
-      e[n] = t[n];
-    }return e;
-  }function n(e, t) {
-    e && ("function" == typeof e ? e(t) : e.current = t);
-  }function o(n, o) {
-    return e(n.nodeName, t(t({}, n.attributes), o), arguments.length > 2 ? [].slice.call(arguments, 2) : n.children);
-  }function r(e) {
-    !e.__d && (e.__d = !0) && 1 == V.push(e) && (M.debounceRendering || D)(i);
-  }function i() {
-    var e;while (e = V.pop()) {
-      e.__d && x(e);
-    }
-  }function l(e, t, n) {
-    return "string" == typeof t || "number" == typeof t ? void 0 !== e.splitText : "string" == typeof t.nodeName ? !e._componentConstructor && a(e, t.nodeName) : n || e._componentConstructor === t.nodeName;
-  }function a(e, t) {
-    return e.__n === t || e.nodeName.toLowerCase() === t.toLowerCase();
-  }function u(e) {
-    var n = t({}, e.attributes);n.children = e.children;var o = e.nodeName.defaultProps;if (void 0 !== o) for (var r in o) {
-      void 0 === n[r] && (n[r] = o[r]);
-    }return n;
-  }function c(e, t) {
-    var n = t ? document.createElementNS("http://www.w3.org/2000/svg", e) : document.createElement(e);return n.__n = e, n;
-  }function p(e) {
-    var t = e.parentNode;t && t.removeChild(e);
-  }function s(e, t, o, r, i) {
-    if ("className" === t && (t = "class"), "key" === t) ;else if ("ref" === t) n(o, null), n(r, e);else if ("class" !== t || i) {
-      if ("style" === t) {
-        if (r && "string" != typeof r && "string" != typeof o || (e.style.cssText = r || ""), r && "object" == typeof r) {
-          if ("string" != typeof o) for (var l in o) {
-            l in r || (e.style[l] = "");
-          }for (var l in r) {
-            e.style[l] = "number" == typeof r[l] && !1 === E.test(l) ? r[l] + "px" : r[l];
-          }
-        }
-      } else if ("dangerouslySetInnerHTML" === t) r && (e.innerHTML = r.__html || "");else if ("o" == t[0] && "n" == t[1]) {
-        var a = t !== (t = t.replace(/Capture$/, ""));t = t.toLowerCase().substring(2), r ? o || e.addEventListener(t, _, a) : e.removeEventListener(t, _, a), (e.__l || (e.__l = {}))[t] = r;
-      } else if ("list" !== t && "type" !== t && !i && t in e) {
-        try {
-          e[t] = null == r ? "" : r;
-        } catch (e) {}null != r && !1 !== r || "spellcheck" == t || e.removeAttribute(t);
-      } else {
-        var u = i && t !== (t = t.replace(/^xlink:?/, ""));null == r || !1 === r ? u ? e.removeAttributeNS("http://www.w3.org/1999/xlink", t.toLowerCase()) : e.removeAttribute(t) : "function" != typeof r && (u ? e.setAttributeNS("http://www.w3.org/1999/xlink", t.toLowerCase(), r) : e.setAttribute(t, r));
-      }
-    } else e.className = r || "";
-  }function _(e) {
-    return this.__l[e.type](M.event && M.event(e) || e);
-  }function f() {
-    var e;while (e = A.shift()) {
-      M.afterMount && M.afterMount(e), e.componentDidMount && e.componentDidMount();
-    }
-  }function d(e, t, n, o, r, i) {
-    H++ || (R = null != r && void 0 !== r.ownerSVGElement, B = null != e && !("__preactattr_" in e));var l = h(e, t, n, o, i);return r && l.parentNode !== r && r.appendChild(l), --H || (B = !1, i || f()), l;
-  }function h(e, t, n, o, r) {
-    var i = e,
-        l = R;if (null != t && "boolean" != typeof t || (t = ""), "string" == typeof t || "number" == typeof t) return e && void 0 !== e.splitText && e.parentNode && (!e._component || r) ? e.nodeValue != t && (e.nodeValue = t) : (i = document.createTextNode(t), e && (e.parentNode && e.parentNode.replaceChild(i, e), v(e, !0))), i.__preactattr_ = !0, i;var u = t.nodeName;if ("function" == typeof u) return N(e, t, n, o);if (R = "svg" === u || "foreignObject" !== u && R, u += "", (!e || !a(e, u)) && (i = c(u, R), e)) {
-      while (e.firstChild) {
-        i.appendChild(e.firstChild);
-      }e.parentNode && e.parentNode.replaceChild(i, e), v(e, !0);
-    }var p = i.firstChild,
-        s = i.__preactattr_,
-        _ = t.children;if (null == s) {
-      s = i.__preactattr_ = {};for (var f = i.attributes, d = f.length; d--;) {
-        s[f[d].name] = f[d].value;
-      }
-    }return !B && _ && 1 === _.length && "string" == typeof _[0] && null != p && void 0 !== p.splitText && null == p.nextSibling ? p.nodeValue != _[0] && (p.nodeValue = _[0]) : (_ && _.length || null != p) && m(i, _, n, o, B || null != s.dangerouslySetInnerHTML), y(i, t.attributes, s), R = l, i;
-  }function m(e, t, n, o, r) {
-    var i,
-        a,
-        u,
-        c,
-        s,
-        _ = e.childNodes,
-        f = [],
-        d = {},
-        m = 0,
-        b = 0,
-        y = _.length,
-        g = 0,
-        w = t ? t.length : 0;if (0 !== y) for (var C = 0; C < y; C++) {
-      var x = _[C],
-          N = x.__preactattr_,
-          k = w && N ? x._component ? x._component.__k : N.key : null;null != k ? (m++, d[k] = x) : (N || (void 0 !== x.splitText ? !r || x.nodeValue.trim() : r)) && (f[g++] = x);
-    }if (0 !== w) for (var C = 0; C < w; C++) {
-      c = t[C], s = null;var k = c.key;if (null != k) m && void 0 !== d[k] && (s = d[k], d[k] = void 0, m--);else if (b < g) for (i = b; i < g; i++) {
-        if (void 0 !== f[i] && l(a = f[i], c, r)) {
-          s = a, f[i] = void 0, i === g - 1 && g--, i === b && b++;break;
-        }
-      }s = h(s, c, n, o), u = _[C], s && s !== e && s !== u && (null == u ? e.appendChild(s) : s === u.nextSibling ? p(u) : e.insertBefore(s, u));
-    }if (m) for (var C in d) {
-      void 0 !== d[C] && v(d[C], !1);
-    }while (b <= g) {
-      void 0 !== (s = f[g--]) && v(s, !1);
-    }
-  }function v(e, t) {
-    var o = e._component;o ? k(o) : (null != e.__preactattr_ && n(e.__preactattr_.ref, null), !1 !== t && null != e.__preactattr_ || p(e), b(e));
-  }function b(e) {
-    e = e.lastChild;while (e) {
-      var t = e.previousSibling;v(e, !0), e = t;
-    }
-  }function y(e, t, n) {
-    var o;for (o in n) {
-      t && null != t[o] || null == n[o] || s(e, o, n[o], n[o] = void 0, R);
-    }for (o in t) {
-      "children" === o || "innerHTML" === o || o in n && t[o] === ("value" === o || "checked" === o ? e[o] : n[o]) || s(e, o, n[o], n[o] = t[o], R);
-    }
-  }function g(e, t, n) {
-    var o,
-        r = F.length;e.prototype && e.prototype.render ? (o = new e(t, n), U.call(o, t, n)) : (o = new U(t, n), o.constructor = e, o.render = w);while (r--) {
-      if (F[r].constructor === e) return o.__b = F[r].__b, F.splice(r, 1), o;
-    }return o;
-  }function w(e, t, n) {
-    return this.constructor(e, n);
-  }function C(e, t, o, i, l) {
-    e.__x || (e.__x = !0, e.__r = t.ref, e.__k = t.key, delete t.ref, delete t.key, void 0 === e.constructor.getDerivedStateFromProps && (!e.base || l ? e.componentWillMount && e.componentWillMount() : e.componentWillReceiveProps && e.componentWillReceiveProps(t, i)), i && i !== e.context && (e.__c || (e.__c = e.context), e.context = i), e.__p || (e.__p = e.props), e.props = t, e.__x = !1, 0 !== o && (1 !== o && !1 === M.syncComponentUpdates && e.base ? r(e) : x(e, 1, l)), n(e.__r, e));
-  }function x(e, n, o, r) {
-    if (!e.__x) {
-      var i,
-          l,
-          a,
-          c = e.props,
-          p = e.state,
-          s = e.context,
-          _ = e.__p || c,
-          h = e.__s || p,
-          m = e.__c || s,
-          b = e.base,
-          y = e.__b,
-          w = b || y,
-          N = e._component,
-          U = !1,
-          S = m;if (e.constructor.getDerivedStateFromProps && (p = t(t({}, p), e.constructor.getDerivedStateFromProps(c, p)), e.state = p), b && (e.props = _, e.state = h, e.context = m, 2 !== n && e.shouldComponentUpdate && !1 === e.shouldComponentUpdate(c, p, s) ? U = !0 : e.componentWillUpdate && e.componentWillUpdate(c, p, s), e.props = c, e.state = p, e.context = s), e.__p = e.__s = e.__c = e.__b = null, e.__d = !1, !U) {
-        i = e.render(c, p, s), e.getChildContext && (s = t(t({}, s), e.getChildContext())), b && e.getSnapshotBeforeUpdate && (S = e.getSnapshotBeforeUpdate(_, h));var L,
-            T,
-            P = i && i.nodeName;if ("function" == typeof P) {
-          var W = u(i);l = N, l && l.constructor === P && W.key == l.__k ? C(l, W, 1, s, !1) : (L = l, e._component = l = g(P, W, s), l.__b = l.__b || y, l.__u = e, C(l, W, 0, s, !1), x(l, 1, o, !0)), T = l.base;
-        } else a = w, L = N, L && (a = e._component = null), (w || 1 === n) && (a && (a._component = null), T = d(a, i, s, o || !b, w && w.parentNode, !0));if (w && T !== w && l !== N) {
-          var D = w.parentNode;D && T !== D && (D.replaceChild(T, w), L || (w._component = null, v(w, !1)));
-        }if (L && k(L), e.base = T, T && !r) {
-          var E = e,
-              V = e;while (V = V.__u) {
-            (E = V).base = T;
-          }T._component = E, T._componentConstructor = E.constructor;
-        }
-      }!b || o ? A.push(e) : U || (e.componentDidUpdate && e.componentDidUpdate(_, h, S), M.afterUpdate && M.afterUpdate(e));while (e.__h.length) {
-        e.__h.pop().call(e);
-      }H || r || f();
-    }
-  }function N(e, t, n, o) {
-    var r = e && e._component,
-        i = r,
-        l = e,
-        a = r && e._componentConstructor === t.nodeName,
-        c = a,
-        p = u(t);while (r && !c && (r = r.__u)) {
-      c = r.constructor === t.nodeName;
-    }return r && c && (!o || r._component) ? (C(r, p, 3, n, o), e = r.base) : (i && !a && (k(i), e = l = null), r = g(t.nodeName, p, n), e && !r.__b && (r.__b = e, l = null), C(r, p, 1, n, o), e = r.base, l && e !== l && (l._component = null, v(l, !1))), e;
-  }function k(e) {
-    M.beforeUnmount && M.beforeUnmount(e);var t = e.base;e.__x = !0, e.componentWillUnmount && e.componentWillUnmount(), e.base = null;var o = e._component;o ? k(o) : t && (null != t.__preactattr_ && n(t.__preactattr_.ref, null), e.__b = t, p(t), F.push(e), b(t)), n(e.__r, null);
-  }function U(e, t) {
-    this.__d = !0, this.context = t, this.props = e, this.state = this.state || {}, this.__h = [];
-  }function S(e, t, n) {
-    return d(n, e, {}, !1, t, !1);
-  }function L() {
-    return {};
-  }var T = function T() {},
-      M = {},
-      P = [],
-      W = [],
-      D = "function" == typeof Promise ? Promise.resolve().then.bind(Promise.resolve()) : setTimeout,
-      E = /acit|ex(?:s|g|n|p|$)|rph|ows|mnc|ntw|ine[ch]|zoo|^ord/i,
-      V = [],
-      A = [],
-      H = 0,
-      R = !1,
-      B = !1,
-      F = [];t(U.prototype, { setState: function setState(e, n) {
-      this.__s || (this.__s = this.state), this.state = t(t({}, this.state), "function" == typeof e ? e(this.state, this.props) : e), n && this.__h.push(n), r(this);
-    }, forceUpdate: function forceUpdate(e) {
-      e && this.__h.push(e), x(this, 2);
-    }, render: function render() {} });var j = { h: e, createElement: e, cloneElement: o, createRef: L, Component: U, render: S, rerender: i, options: M }; true ? module.exports = j : self.preact = j;
-}();
-//# sourceMappingURL=preact.min.js.map
+var util = __webpack_require__("Bcfi");
+var fs = __webpack_require__("vHs2");
+
+var _readFile = util.promisify(fs.readFile);
+var _writeFile = util.promisify(fs.writeFile);
+var _deleteFile = util.promisify(fs.unlink);
+
+module.exports = function (path) {
+  return _readFile('./data/' + path);
+};
+
+module.exports = {
+  readFile: function readFile(path) {
+    return _readFile('./data/' + path);
+  },
+  writeFile: function writeFile(path, data) {
+    return _writeFile('./data/' + path, data);
+  },
+  deleteFile: function deleteFile(path) {
+    return _deleteFile('./data/' + path);
+  }
+};
+
+/***/ }),
+
+/***/ "MKEY":
+/***/ (function(module, exports) {
+
+var _this = this;
+
+var logging = false;
+
+exports.logging = logging;
+
+exports.setLogging = function (_logging) {
+  logging = _logging;
+};
+
+exports.log = function () {
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  return logging ? console.log.apply(_this, args) : null;
+};
 
 /***/ }),
 
@@ -3930,10 +6902,136 @@ module.exports = Mpeg2TsParser;
 
 /***/ }),
 
+/***/ "PZMJ":
+/***/ (function(module, exports) {
+
+var duration = 0;
+
+var ts2sec = function ts2sec(ts) {
+  var _ts$split = ts.split(':'),
+      h = _ts$split[0],
+      m = _ts$split[1],
+      s = _ts$split[2];
+
+  return parseFloat(h) * 60 * 60 + parseFloat(m) * 60 + parseFloat(s);
+};
+
+module.exports = function (_ref, progress) {
+  var message = _ref.message;
+
+  if (typeof message === 'string') {
+    if (message.startsWith('  Duration')) {
+      var ts = message.split(', ')[0].split(': ')[1];
+      var d = ts2sec(ts);
+      if (duration === 0 || duration > d) {
+        duration = d;
+      }
+    } else if (message.startsWith('frame')) {
+      var _ts = message.split('time=')[1].split(' ')[0];
+      var t = ts2sec(_ts);
+      progress({ ratio: t / duration });
+    } else if (message.startsWith('video:')) {
+      progress({ ratio: 1 });
+    }
+  }
+};
+
+/***/ }),
+
+/***/ "UVan":
+/***/ (function(module, exports, __webpack_require__) {
+
+var getId = __webpack_require__("ujuL");
+
+var jobCounter = 0;
+
+module.exports = function (_ref) {
+  var _id = _ref.id,
+      action = _ref.action,
+      _ref$payload = _ref.payload,
+      payload = _ref$payload === undefined ? {} : _ref$payload;
+
+  var id = _id;
+  if (typeof id === 'undefined') {
+    id = getId('Job', jobCounter);
+    jobCounter += 1;
+  }
+
+  return {
+    id: id,
+    action: action,
+    payload: payload
+  };
+};
+
+/***/ }),
+
+/***/ "Vy1O":
+/***/ (function(module, exports) {
+
+module.exports = require("url");
+
+/***/ }),
+
+/***/ "XgVs":
+/***/ (function(module, exports) {
+
+module.exports = require("https");
+
+/***/ }),
+
+/***/ "YX++":
+/***/ (function(module, exports, __webpack_require__) {
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var path = __webpack_require__("1v4d");
+var defaultOptions = __webpack_require__("hCda");
+
+/*
+ * Default options for node worker
+ */
+module.exports = _extends({}, defaultOptions, {
+  workerPath: path.join(__dirname, '..', '..', 'worker-script', 'node', 'index.js')
+});
+
+/***/ }),
+
+/***/ "a90S":
+/***/ (function(module, exports) {
+
+module.exports = require("child_process");
+
+/***/ }),
+
 /***/ "bUFf":
 /***/ (function(module, exports) {
 
 // removed by extract-text-webpack-plugin
+
+/***/ }),
+
+/***/ "epkN":
+/***/ (function(module, exports) {
+
+module.exports = require("zlib");
+
+/***/ }),
+
+/***/ "gHkb":
+/***/ (function(module, exports) {
+
+module.exports = require("http");
+
+/***/ }),
+
+/***/ "hCda":
+/***/ (function(module, exports) {
+
+module.exports = {
+  logger: function logger() {},
+  progress: function progress() {}
+};
 
 /***/ }),
 
@@ -4013,7 +7111,7 @@ var additionalBoxes = [{
     field: 'saiz',
     _parser: function _parser() {
         this._procFullBox();
-        this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+        this.flags & 1 && this._procFieldArray('aux_info_type', 4, 'uint', 8); //modified since this seems to be a string not a 32byte uint
         this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
         this._procField('default_sample_info_size', 'uint', 8);
         this._procField('sample_count', 'uint', 32);
@@ -4027,7 +7125,7 @@ var additionalBoxes = [{
     _parser: function _parser() {
         var version = this.version;
         this._procFullBox();
-        this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+        this.flags & 1 && this._procFieldArray('aux_info_type', 4, 'uint', 8); //modified since this seems to be a string not a 32byte uint
         this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
         this._procField('entry_count', 'uint', 32);
         this._procEntries('offsets', this.entry_count, function (entry) {
@@ -4103,7 +7201,7 @@ var additionalBoxes = [{
         this._procFullBox();
         this._procField('sample_count', 'uint', 32);
         if (this.flags & 1) {
-            this._procField('IV_size', 'uint', 8);
+            this._procField('IV_size', 'uint', this.perSampleIVSize || 8);
         }
         this._procEntries('senc_samples', this.sample_count, function (entry) {
             this._procEntryField(entry, 'InitializationVector', 'data', 8);
@@ -4199,7 +7297,7 @@ var additionalBoxes = [{
         this._procField('depth', 'uint', 16);
         this._procField('pre_defined3', 'int', 16);
         // Codec-specific fields
-        this._procSubBoxes('config', 'data', -1);
+        this._procSubBoxes('config', 1);
     }
 }, {
     source: 'EC3 Specific Box',
@@ -4241,7 +7339,7 @@ var additionalBoxes = [{
         this._procField('depth', 'uint', 16);
         this._procField('pre_defined3', 'int', 16);
         // Codec-specific fields
-        this._procSubBoxes('config', 'data', -1);
+        this._procSubBoxes('config', 1);
     }
 }, {
     source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
@@ -4258,7 +7356,63 @@ var additionalBoxes = [{
         this._procField('reserved3', 'uint', 16);
         this._procField('samplerate', 'template', 32);
         // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
-        this._procSubBoxes('esds', 'data', -1);
+        this._procSubBoxes('esds', 1);
+    }
+}, {
+    source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
+    field: 'mp4a',
+    _parser: function _parser() {
+        // SampleEntry fields
+        this._procFieldArray('reserved1', 6, 'uint', 8);
+        this._procField('data_reference_index', 'uint', 16);
+        // AudioSampleEntry fields
+        this._procFieldArray('reserved2', 2, 'uint', 32);
+        this._procField('channelcount', 'uint', 16);
+        this._procField('samplesize', 'uint', 16);
+        this._procField('pre_defined', 'uint', 16);
+        this._procField('reserved3', 'uint', 16);
+        this._procField('samplerate', 'template', 32);
+        // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
+        this._procSubBoxes('esds', 1);
+    }
+}, {
+    source: 'ISO/IEC 14496-1',
+    field: 'esds',
+    _parser: function _parser() {
+        //esds box
+        this._procField('version', 'uint', 8);
+        this._procField('ESDS_flag', 'uint', 24); //TODO deal with ESDS flag options
+        /*
+         bit(1) streamDependenceFlag;  
+         bit(1) URL_Flag;  
+         bit(1) OCRstreamFlag;  
+         bit(5) streamPriority;  
+         if (streamDependenceFlag)   bit(16) dependsOn_ES_ID;  
+         if (URL_Flag) {   bit(8) URLlength;   bit(8) URLstring[URLlength];  }  
+         if (OCRstreamFlag)   bit(16) OCR_ES_Id; 
+         */
+        // MP4ES Descriptor tag - 03
+        this._procField('ES_tag', 'uint', 8);
+        this._procField('ES_size', 'uint', 8);
+        this._procField('ES_ID', 'uint', 16);
+        this._procField('priority', 'uint', 8);
+        // Mp4 Decoder Config Descriptor - 04
+        this._procField('Dec_tag', 'uint', 8);
+        this._procField('Dec_size', 'uint', 8);
+        this._procField('Dec_type', 'uint', 8);
+        // Stream_Flag holds 6 bits of stream type, 1 bit 'upstream flag' and 1 bit reserved=1
+        this._procField('Stream_flag', 'uint', 8);
+        this._procField('buffer_size', 'uint', 24);
+        this._procField('maximum_BR', 'uint', 32);
+        this._procField('average_BR', 'uint', 32);
+        // MP4 Decoder Specific Config -05
+        this._procField('Specific_tag', 'uint', 8);
+        this._procField('Spec_size', 'uint', 8);
+        this._procFieldArray('Spec_values', this.Spec_size, 'uint', 8);
+        // SL Config Descriptor -06
+        this._procField('SL_config_tag', 'uint', 8);
+        this._procField('SL_config_size', 'uint', 8); //TODO scale by SL config size
+        this._procField('SL', 'uint', 8);
     }
 }, {
     /*
@@ -4347,6 +7501,15 @@ var additionalBoxes = [{
         this._procField('v_spacing', 'uint', 32);
     }
 }, {
+    source: 'Quicktime',
+    field: 'colr',
+    _parser: function _parser() {
+        this._procField('color_param_type', 'string', 4);
+        this._procField('primaries_index', 'uint', 16);
+        this._procField('transfer_func_index', 'uint', 16);
+        this._procField('matrix_index', 'uint', 16);
+    }
+}, {
     source: 'Netflix Cadmium Player undocumented',
     field: 'uuid',
     _parser: function _parser() {
@@ -4395,7 +7558,24 @@ var additionalBoxes = [{
             this._procField('mka_offset?', 'uint', 8); 52
             this._procField('Gfa_size?', 'uint', 4); 60
             this._procField('xfa_KID?', 'uint', 8); // just return the dataview*/
-        } else {}
+        } else if (uuidString === 'A2394F525A9B4F14A2446C427C648DF4') {
+            console.log('Netflix senc box found!');
+            this._procField('flags', 'uint', 32);
+            this._procField('sample_count', 'uint', 32);
+            if (this.flags & 1) {
+                this._procField('IV_size', 'uint', 8);
+            }
+            this._procEntries('senc_samples', this.sample_count, function (entry) {
+                this._procEntryField(entry, 'InitializationVector', 'data', 8);
+                if (this.flags & 2) {
+                    this._procEntryField(entry, 'subsample_count', 'uint', 16);
+                    this._procSubEntries(entry, 'subsamples', entry.subsample_count, function (subsample) {
+                        this._procEntryField(subsample, 'BytesOfClearData', 'uint', 16);
+                        this._procEntryField(subsample, 'BytesOfEncryptedData', 'uint', 32);
+                    });
+                }
+            });
+        }
     }
 }];
 
@@ -4525,13 +7705,55 @@ var psshLookup = {
         'senc_samples': function senc_samples(value) {
             return value.map(function (item, index) {
                 var cleanEntry = _extends({}, item, { InitializationVector: convertToHex(item.InitializationVector) });
-                // add an entry number to each subsample entry
+                // add an entry number to each subsample entry, using the index in the subsample array + 1
                 cleanEntry.subsamples = cleanEntry.subsamples.map(function (subsample, subEntryNo) {
                     return _extends({}, subsample, { entryNumber: subEntryNo + 1 });
                 });
                 cleanEntry.entryNumber = index + 1;
                 return cleanEntry;
             });
+        },
+        'ESDescriptor': function ESDescriptor(value) {
+            // bit(6) Stream type
+            // bit(1) Upstream Flag
+            // bit(1) reserved = 1
+            var flags = [{ name: 'Stream_type', bitmask: 252, shift: 2, 0: 'Forbidden', 1: 'ObjectDescriptorStream', 2: 'ClockReferenceStream', 3: 'SceneDescriptionStream', 4: 'VisualStream', 5: 'AudioStream', 6: 'MPEG7 Stream', 7: '', 8: '', 9: '', 10: '', 11: '' }, { name: 'upstream_flag', bitmask: 2, shift: 1 }, { name: 'reserved_s', bitmask: 1, shift: 0 }];
+            return [].concat(flags.reduce(function (result, flag) {
+                result[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                return result;
+            }, { entryNumber: 1 }));
+        },
+        'DecoderType': function DecoderType(value) {
+            var typeLookup = {
+                0x00: 'Forbidden',
+                0x01: 'Systems ISO/IEC 14496-1',
+                0x02: 'Systems ISO/IEC 14496-1',
+                0x03: 'Interaction Stream',
+                0x04: 'Systems ISO/IEC 14496-1 Extended BIFS Configuration',
+                0x05: 'Systems ISO/IEC 14496-1 AFX',
+                0x06: 'Font Data Stream',
+                0x07: 'Synthesized Texture Stream',
+                0x08: 'Streaming Text Stream',
+                0x20: 'Visual ISO/IEC 14496-2',
+                0x21: 'Visual ITU-T Recommendation H.264 | ISO/IEC 14496-10',
+                0x22: 'Parameter Sets for ITU-T Recommendation H.264 | ISO/IEC 14496-10',
+                0x40: 'Audio ISO/IEC 14496-3',
+                0x60: 'Visual ISO/IEC 13818-2 Simple Profile',
+                0x61: 'Visual ISO/IEC 13818-2 Main Profile',
+                0x62: 'Visual ISO/IEC 13818-2 SNR Profile',
+                0x63: 'Visual ISO/IEC 13818-2 Spatial Profile',
+                0x64: 'Visual ISO/IEC 13818-2 High Profile',
+                0x65: 'Visual ISO/IEC 13818-2 422 Profile',
+                0x66: 'Audio ISO/IEC 13818-7 Main Profile',
+                0x67: 'Audio ISO/IEC 13818-7 LowComplexity Profile',
+                0x68: 'Audio ISO/IEC 13818-7 Scaleable Sampling Rate Profile',
+                0x69: 'Audio ISO/IEC 13818-3',
+                0x6A: 'Visual ISO/IEC 11172-2',
+                0x6B: 'Audio ISO/IEC 11172-3',
+                0x6C: 'Visual ISO/IEC 10918-1',
+                0xFF: 'no object type specified'
+            };
+            return typeLookup[value] || 'reserved for ISO use';
         }
 
         // 5) Handle raw binary
@@ -4567,25 +7789,36 @@ var psshLookup = {
                 return handleArray[elementType](value, ['sap', 'reference']);
             case 'senc_samples':
                 return handleArray.senc_samples(value);
-            case 'data_format':case 'scheme_type':
+            case 'data_format':case 'scheme_type':case 'aux_info_type':
                 return value.map(function (b) {
                     return String.fromCharCode(b);
                 }).join('');
+            case 'Stream_flag':
+                return handleArray.ESDescriptor(value);
+            case 'Dec_type':
+                return handleArray.DecoderType(value);
             default:
                 // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
         }
     }
-    // special case -- flags should show up as hex for easier comparison to standard
-    if (key === 'flags') return '0x' + value.toString(16).padStart(2, '0').toUpperCase();
-    // Handle 'default_sample_flags' or 'first_sample_flags
-    if (key === 'default_sample_flags' || key === 'first_sample_flags') {
-        return handleArray.LongSampleDependency(value);
+
+    // handle special cases that aren't arrays
+    switch (key) {
+        case 'default_sample_flags':case 'first_sample_flags':
+            return handleArray.LongSampleDependency(value);
+        case 'Stream_flag':
+            return handleArray.ESDescriptor(value);
+        case 'Dec_type':
+            return handleArray.DecoderType(value);
+        case 'flags':
+            return '0x' + value.toString(16).padStart(2, '0').toUpperCase();
+        default:
+            return value;
     }
-    // Handle string or Number or anything else that slips through
-    return value;
 };
 
+// TODO: fix subsample handling !!
 var postProcess = function postProcess(boxes) {
     return boxes.map(function (box) {
         var keyList = box.keys;
@@ -4675,12 +7908,104 @@ var convertBox = function convertBox(boxes) {
     }, []);
 };
 
+var getBoxList = function getBoxList(collection, resultMap) {
+    return new Promise(function ($return, $error) {
+        var counter, addElements;
+
+
+        counter = 0;
+
+        addElements = function addElements(elemList, parentPath) {
+            return new Promise(function (resolve, reject) {
+                // first add all of the elements at this node
+                elemList.forEach(function (elem) {
+                    // only add items with a 'type' (ie, box definition) -- extend for special cases like encv entries
+                    if (!!elem.type || elem.name === 'entries') {
+                        // get all children
+                        var boxContents = !!elem.boxes && elem.boxes.reduce(function (allChildren, current) {
+                            if (!!current.type) allChildren.children.push({ box: current.type, start: current.start });
+                            if (!!current.name && elem.type === 'stsd' && current.name === 'entries') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start });
+                            if (!!current.name) allChildren.values.push(current);
+                            return allChildren;
+                        }, { children: [], values: [] });
+                        resultMap.set({ box: elem.type, start: elem.start }, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex: elem.hex });
+                        console.log('extracted element', elem);
+                        // now check for sub-boxes that are not null
+                        if (!!elem.boxes) {
+                            //quick check to see if the boxes have types
+                            var validBoxes = elem.boxes.reduce(function (newList, box) {
+                                if (!!box.type) {
+                                    newList.push(box);
+                                } else if (box.name && box.name === 'entries' && box.boxes) {
+                                    newList.push(box.boxes[0]);
+                                }
+                                return newList;
+                            }, []);
+                            //recurse any sub-boxes
+                            if (validBoxes.length) {
+                                counter++;
+                                return addElements(validBoxes, parentPath.concat(elem.type));
+                            }
+                        }
+                    }
+                });
+                counter--;
+                if (counter == 0) return resolve(resultMap);
+            });
+        };
+
+        // start the chain using the full collection
+        counter++;
+        return Promise.resolve(addElements(collection, [])).then($return, $error);
+    });
+};
+
 module.exports = {
     getISOData: getISOData,
     psshLookup: psshLookup,
     additionalBoxes: additionalBoxes,
     postProcess: postProcess,
-    convertBox: convertBox
+    convertBox: convertBox,
+    getBoxList: getBoxList
+};
+
+/***/ }),
+
+/***/ "o3ii":
+/***/ (function(module, exports) {
+
+/**
+ * terminateWorker
+ *
+ * @name terminateWorker
+ * @function kill worker
+ * @access public
+ */
+module.exports = function (worker) {
+  worker.kill();
+};
+
+/***/ }),
+
+/***/ "p66q":
+/***/ (function(module, exports, __webpack_require__) {
+
+var defaultOptions = __webpack_require__("YX++");
+var spawnWorker = __webpack_require__("Fnt3");
+var terminateWorker = __webpack_require__("o3ii");
+var onMessage = __webpack_require__("szi9");
+var send = __webpack_require__("8XbC");
+var fetchFile = __webpack_require__("4PTo");
+var fs = __webpack_require__("LTaw");
+
+module.exports = {
+  defaultOptions: defaultOptions,
+  spawnWorker: spawnWorker,
+  terminateWorker: terminateWorker,
+  onMessage: onMessage,
+  send: send,
+  fetchFile: fetchFile,
+  fs: fs
 };
 
 /***/ }),
@@ -4689,6 +8014,15 @@ module.exports = {
 /***/ (function(module, exports) {
 
 // removed by extract-text-webpack-plugin
+
+/***/ }),
+
+/***/ "szi9":
+/***/ (function(module, exports) {
+
+module.exports = function (worker, handler) {
+  worker.on('message', handler);
+};
 
 /***/ }),
 
@@ -4735,6 +8069,15 @@ module.exports = {
 
 // removed by extract-text-webpack-plugin
 module.exports = {"header":"header__2MqSo","active":"active__27Q54"};
+
+/***/ }),
+
+/***/ "ujuL":
+/***/ (function(module, exports) {
+
+module.exports = function (prefix, cnt) {
+  return prefix + "-" + cnt + "-" + Math.random().toString(16).slice(3, 8);
+};
 
 /***/ }),
 
@@ -5916,6 +9259,712 @@ ISOBox.prototype._boxProcessors['vttC'] = function () {
 ISOBox.prototype._boxProcessors['vtte'] = function () {
   // Nothing should happen here.
 };
+
+/***/ }),
+
+/***/ "v9pv":
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+var runtime = function (exports) {
+  "use strict";
+
+  var Op = Object.prototype;
+  var hasOwn = Op.hasOwnProperty;
+  var undefined; // More compressible than void 0.
+  var $Symbol = typeof Symbol === "function" ? Symbol : {};
+  var iteratorSymbol = $Symbol.iterator || "@@iterator";
+  var asyncIteratorSymbol = $Symbol.asyncIterator || "@@asyncIterator";
+  var toStringTagSymbol = $Symbol.toStringTag || "@@toStringTag";
+
+  function wrap(innerFn, outerFn, self, tryLocsList) {
+    // If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.
+    var protoGenerator = outerFn && outerFn.prototype instanceof Generator ? outerFn : Generator;
+    var generator = Object.create(protoGenerator.prototype);
+    var context = new Context(tryLocsList || []);
+
+    // The ._invoke method unifies the implementations of the .next,
+    // .throw, and .return methods.
+    generator._invoke = makeInvokeMethod(innerFn, self, context);
+
+    return generator;
+  }
+  exports.wrap = wrap;
+
+  // Try/catch helper to minimize deoptimizations. Returns a completion
+  // record like context.tryEntries[i].completion. This interface could
+  // have been (and was previously) designed to take a closure to be
+  // invoked without arguments, but in all the cases we care about we
+  // already have an existing method we want to call, so there's no need
+  // to create a new function object. We can even get away with assuming
+  // the method takes exactly one argument, since that happens to be true
+  // in every case, so we don't have to touch the arguments object. The
+  // only additional allocation required is the completion record, which
+  // has a stable shape and so hopefully should be cheap to allocate.
+  function tryCatch(fn, obj, arg) {
+    try {
+      return { type: "normal", arg: fn.call(obj, arg) };
+    } catch (err) {
+      return { type: "throw", arg: err };
+    }
+  }
+
+  var GenStateSuspendedStart = "suspendedStart";
+  var GenStateSuspendedYield = "suspendedYield";
+  var GenStateExecuting = "executing";
+  var GenStateCompleted = "completed";
+
+  // Returning this object from the innerFn has the same effect as
+  // breaking out of the dispatch switch statement.
+  var ContinueSentinel = {};
+
+  // Dummy constructor functions that we use as the .constructor and
+  // .constructor.prototype properties for functions that return Generator
+  // objects. For full spec compliance, you may wish to configure your
+  // minifier not to mangle the names of these two functions.
+  function Generator() {}
+  function GeneratorFunction() {}
+  function GeneratorFunctionPrototype() {}
+
+  // This is a polyfill for %IteratorPrototype% for environments that
+  // don't natively support it.
+  var IteratorPrototype = {};
+  IteratorPrototype[iteratorSymbol] = function () {
+    return this;
+  };
+
+  var getProto = Object.getPrototypeOf;
+  var NativeIteratorPrototype = getProto && getProto(getProto(values([])));
+  if (NativeIteratorPrototype && NativeIteratorPrototype !== Op && hasOwn.call(NativeIteratorPrototype, iteratorSymbol)) {
+    // This environment has a native %IteratorPrototype%; use it instead
+    // of the polyfill.
+    IteratorPrototype = NativeIteratorPrototype;
+  }
+
+  var Gp = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(IteratorPrototype);
+  GeneratorFunction.prototype = Gp.constructor = GeneratorFunctionPrototype;
+  GeneratorFunctionPrototype.constructor = GeneratorFunction;
+  GeneratorFunctionPrototype[toStringTagSymbol] = GeneratorFunction.displayName = "GeneratorFunction";
+
+  // Helper for defining the .next, .throw, and .return methods of the
+  // Iterator interface in terms of a single ._invoke method.
+  function defineIteratorMethods(prototype) {
+    ["next", "throw", "return"].forEach(function (method) {
+      prototype[method] = function (arg) {
+        return this._invoke(method, arg);
+      };
+    });
+  }
+
+  exports.isGeneratorFunction = function (genFun) {
+    var ctor = typeof genFun === "function" && genFun.constructor;
+    return ctor ? ctor === GeneratorFunction ||
+    // For the native GeneratorFunction constructor, the best we can
+    // do is to check its .name property.
+    (ctor.displayName || ctor.name) === "GeneratorFunction" : false;
+  };
+
+  exports.mark = function (genFun) {
+    if (Object.setPrototypeOf) {
+      Object.setPrototypeOf(genFun, GeneratorFunctionPrototype);
+    } else {
+      genFun.__proto__ = GeneratorFunctionPrototype;
+      if (!(toStringTagSymbol in genFun)) {
+        genFun[toStringTagSymbol] = "GeneratorFunction";
+      }
+    }
+    genFun.prototype = Object.create(Gp);
+    return genFun;
+  };
+
+  // Within the body of any async function, `await x` is transformed to
+  // `yield regeneratorRuntime.awrap(x)`, so that the runtime can test
+  // `hasOwn.call(value, "__await")` to determine if the yielded value is
+  // meant to be awaited.
+  exports.awrap = function (arg) {
+    return { __await: arg };
+  };
+
+  function AsyncIterator(generator) {
+    function invoke(method, arg, resolve, reject) {
+      var record = tryCatch(generator[method], generator, arg);
+      if (record.type === "throw") {
+        reject(record.arg);
+      } else {
+        var result = record.arg;
+        var value = result.value;
+        if (value && typeof value === "object" && hasOwn.call(value, "__await")) {
+          return Promise.resolve(value.__await).then(function (value) {
+            invoke("next", value, resolve, reject);
+          }, function (err) {
+            invoke("throw", err, resolve, reject);
+          });
+        }
+
+        return Promise.resolve(value).then(function (unwrapped) {
+          // When a yielded Promise is resolved, its final value becomes
+          // the .value of the Promise<{value,done}> result for the
+          // current iteration.
+          result.value = unwrapped;
+          resolve(result);
+        }, function (error) {
+          // If a rejected Promise was yielded, throw the rejection back
+          // into the async generator function so it can be handled there.
+          return invoke("throw", error, resolve, reject);
+        });
+      }
+    }
+
+    var previousPromise;
+
+    function enqueue(method, arg) {
+      function callInvokeWithMethodAndArg() {
+        return new Promise(function (resolve, reject) {
+          invoke(method, arg, resolve, reject);
+        });
+      }
+
+      return previousPromise =
+      // If enqueue has been called before, then we want to wait until
+      // all previous Promises have been resolved before calling invoke,
+      // so that results are always delivered in the correct order. If
+      // enqueue has not been called before, then it is important to
+      // call invoke immediately, without waiting on a callback to fire,
+      // so that the async generator function has the opportunity to do
+      // any necessary setup in a predictable way. This predictability
+      // is why the Promise constructor synchronously invokes its
+      // executor callback, and why async functions synchronously
+      // execute code before the first await. Since we implement simple
+      // async functions in terms of async generators, it is especially
+      // important to get this right, even though it requires care.
+      previousPromise ? previousPromise.then(callInvokeWithMethodAndArg,
+      // Avoid propagating failures to Promises returned by later
+      // invocations of the iterator.
+      callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg();
+    }
+
+    // Define the unified helper method that is used to implement .next,
+    // .throw, and .return (see defineIteratorMethods).
+    this._invoke = enqueue;
+  }
+
+  defineIteratorMethods(AsyncIterator.prototype);
+  AsyncIterator.prototype[asyncIteratorSymbol] = function () {
+    return this;
+  };
+  exports.AsyncIterator = AsyncIterator;
+
+  // Note that simple async functions are implemented on top of
+  // AsyncIterator objects; they just return a Promise for the value of
+  // the final result produced by the iterator.
+  exports.async = function (innerFn, outerFn, self, tryLocsList) {
+    var iter = new AsyncIterator(wrap(innerFn, outerFn, self, tryLocsList));
+
+    return exports.isGeneratorFunction(outerFn) ? iter // If outerFn is a generator, return the full iterator.
+    : iter.next().then(function (result) {
+      return result.done ? result.value : iter.next();
+    });
+  };
+
+  function makeInvokeMethod(innerFn, self, context) {
+    var state = GenStateSuspendedStart;
+
+    return function invoke(method, arg) {
+      if (state === GenStateExecuting) {
+        throw new Error("Generator is already running");
+      }
+
+      if (state === GenStateCompleted) {
+        if (method === "throw") {
+          throw arg;
+        }
+
+        // Be forgiving, per 25.3.3.3.3 of the spec:
+        // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorresume
+        return doneResult();
+      }
+
+      context.method = method;
+      context.arg = arg;
+
+      while (true) {
+        var delegate = context.delegate;
+        if (delegate) {
+          var delegateResult = maybeInvokeDelegate(delegate, context);
+          if (delegateResult) {
+            if (delegateResult === ContinueSentinel) continue;
+            return delegateResult;
+          }
+        }
+
+        if (context.method === "next") {
+          // Setting context._sent for legacy support of Babel's
+          // function.sent implementation.
+          context.sent = context._sent = context.arg;
+        } else if (context.method === "throw") {
+          if (state === GenStateSuspendedStart) {
+            state = GenStateCompleted;
+            throw context.arg;
+          }
+
+          context.dispatchException(context.arg);
+        } else if (context.method === "return") {
+          context.abrupt("return", context.arg);
+        }
+
+        state = GenStateExecuting;
+
+        var record = tryCatch(innerFn, self, context);
+        if (record.type === "normal") {
+          // If an exception is thrown from innerFn, we leave state ===
+          // GenStateExecuting and loop back for another invocation.
+          state = context.done ? GenStateCompleted : GenStateSuspendedYield;
+
+          if (record.arg === ContinueSentinel) {
+            continue;
+          }
+
+          return {
+            value: record.arg,
+            done: context.done
+          };
+        } else if (record.type === "throw") {
+          state = GenStateCompleted;
+          // Dispatch the exception by looping back around to the
+          // context.dispatchException(context.arg) call above.
+          context.method = "throw";
+          context.arg = record.arg;
+        }
+      }
+    };
+  }
+
+  // Call delegate.iterator[context.method](context.arg) and handle the
+  // result, either by returning a { value, done } result from the
+  // delegate iterator, or by modifying context.method and context.arg,
+  // setting context.delegate to null, and returning the ContinueSentinel.
+  function maybeInvokeDelegate(delegate, context) {
+    var method = delegate.iterator[context.method];
+    if (method === undefined) {
+      // A .throw or .return when the delegate iterator has no .throw
+      // method always terminates the yield* loop.
+      context.delegate = null;
+
+      if (context.method === "throw") {
+        // Note: ["return"] must be used for ES3 parsing compatibility.
+        if (delegate.iterator["return"]) {
+          // If the delegate iterator has a return method, give it a
+          // chance to clean up.
+          context.method = "return";
+          context.arg = undefined;
+          maybeInvokeDelegate(delegate, context);
+
+          if (context.method === "throw") {
+            // If maybeInvokeDelegate(context) changed context.method from
+            // "return" to "throw", let that override the TypeError below.
+            return ContinueSentinel;
+          }
+        }
+
+        context.method = "throw";
+        context.arg = new TypeError("The iterator does not provide a 'throw' method");
+      }
+
+      return ContinueSentinel;
+    }
+
+    var record = tryCatch(method, delegate.iterator, context.arg);
+
+    if (record.type === "throw") {
+      context.method = "throw";
+      context.arg = record.arg;
+      context.delegate = null;
+      return ContinueSentinel;
+    }
+
+    var info = record.arg;
+
+    if (!info) {
+      context.method = "throw";
+      context.arg = new TypeError("iterator result is not an object");
+      context.delegate = null;
+      return ContinueSentinel;
+    }
+
+    if (info.done) {
+      // Assign the result of the finished delegate to the temporary
+      // variable specified by delegate.resultName (see delegateYield).
+      context[delegate.resultName] = info.value;
+
+      // Resume execution at the desired location (see delegateYield).
+      context.next = delegate.nextLoc;
+
+      // If context.method was "throw" but the delegate handled the
+      // exception, let the outer generator proceed normally. If
+      // context.method was "next", forget context.arg since it has been
+      // "consumed" by the delegate iterator. If context.method was
+      // "return", allow the original .return call to continue in the
+      // outer generator.
+      if (context.method !== "return") {
+        context.method = "next";
+        context.arg = undefined;
+      }
+    } else {
+      // Re-yield the result returned by the delegate method.
+      return info;
+    }
+
+    // The delegate iterator is finished, so forget it and continue with
+    // the outer generator.
+    context.delegate = null;
+    return ContinueSentinel;
+  }
+
+  // Define Generator.prototype.{next,throw,return} in terms of the
+  // unified ._invoke helper method.
+  defineIteratorMethods(Gp);
+
+  Gp[toStringTagSymbol] = "Generator";
+
+  // A Generator should always return itself as the iterator object when the
+  // @@iterator function is called on it. Some browsers' implementations of the
+  // iterator prototype chain incorrectly implement this, causing the Generator
+  // object to not be returned from this call. This ensures that doesn't happen.
+  // See https://github.com/facebook/regenerator/issues/274 for more details.
+  Gp[iteratorSymbol] = function () {
+    return this;
+  };
+
+  Gp.toString = function () {
+    return "[object Generator]";
+  };
+
+  function pushTryEntry(locs) {
+    var entry = { tryLoc: locs[0] };
+
+    if (1 in locs) {
+      entry.catchLoc = locs[1];
+    }
+
+    if (2 in locs) {
+      entry.finallyLoc = locs[2];
+      entry.afterLoc = locs[3];
+    }
+
+    this.tryEntries.push(entry);
+  }
+
+  function resetTryEntry(entry) {
+    var record = entry.completion || {};
+    record.type = "normal";
+    delete record.arg;
+    entry.completion = record;
+  }
+
+  function Context(tryLocsList) {
+    // The root entry object (effectively a try statement without a catch
+    // or a finally block) gives us a place to store values thrown from
+    // locations where there is no enclosing try statement.
+    this.tryEntries = [{ tryLoc: "root" }];
+    tryLocsList.forEach(pushTryEntry, this);
+    this.reset(true);
+  }
+
+  exports.keys = function (object) {
+    var keys = [];
+    for (var key in object) {
+      keys.push(key);
+    }
+    keys.reverse();
+
+    // Rather than returning an object with a next method, we keep
+    // things simple and return the next function itself.
+    return function next() {
+      while (keys.length) {
+        var key = keys.pop();
+        if (key in object) {
+          next.value = key;
+          next.done = false;
+          return next;
+        }
+      }
+
+      // To avoid creating an additional object, we just hang the .value
+      // and .done properties off the next function object itself. This
+      // also ensures that the minifier will not anonymize the function.
+      next.done = true;
+      return next;
+    };
+  };
+
+  function values(iterable) {
+    if (iterable) {
+      var iteratorMethod = iterable[iteratorSymbol];
+      if (iteratorMethod) {
+        return iteratorMethod.call(iterable);
+      }
+
+      if (typeof iterable.next === "function") {
+        return iterable;
+      }
+
+      if (!isNaN(iterable.length)) {
+        var i = -1,
+            next = function next() {
+          while (++i < iterable.length) {
+            if (hasOwn.call(iterable, i)) {
+              next.value = iterable[i];
+              next.done = false;
+              return next;
+            }
+          }
+
+          next.value = undefined;
+          next.done = true;
+
+          return next;
+        };
+
+        return next.next = next;
+      }
+    }
+
+    // Return an iterator with no values.
+    return { next: doneResult };
+  }
+  exports.values = values;
+
+  function doneResult() {
+    return { value: undefined, done: true };
+  }
+
+  Context.prototype = {
+    constructor: Context,
+
+    reset: function reset(skipTempReset) {
+      this.prev = 0;
+      this.next = 0;
+      // Resetting context._sent for legacy support of Babel's
+      // function.sent implementation.
+      this.sent = this._sent = undefined;
+      this.done = false;
+      this.delegate = null;
+
+      this.method = "next";
+      this.arg = undefined;
+
+      this.tryEntries.forEach(resetTryEntry);
+
+      if (!skipTempReset) {
+        for (var name in this) {
+          // Not sure about the optimal order of these conditions:
+          if (name.charAt(0) === "t" && hasOwn.call(this, name) && !isNaN(+name.slice(1))) {
+            this[name] = undefined;
+          }
+        }
+      }
+    },
+
+    stop: function stop() {
+      this.done = true;
+
+      var rootEntry = this.tryEntries[0];
+      var rootRecord = rootEntry.completion;
+      if (rootRecord.type === "throw") {
+        throw rootRecord.arg;
+      }
+
+      return this.rval;
+    },
+
+    dispatchException: function dispatchException(exception) {
+      if (this.done) {
+        throw exception;
+      }
+
+      var context = this;
+      function handle(loc, caught) {
+        record.type = "throw";
+        record.arg = exception;
+        context.next = loc;
+
+        if (caught) {
+          // If the dispatched exception was caught by a catch block,
+          // then let that catch block handle the exception normally.
+          context.method = "next";
+          context.arg = undefined;
+        }
+
+        return !!caught;
+      }
+
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        var record = entry.completion;
+
+        if (entry.tryLoc === "root") {
+          // Exception thrown outside of any try block that could handle
+          // it, so set the completion value of the entire function to
+          // throw the exception.
+          return handle("end");
+        }
+
+        if (entry.tryLoc <= this.prev) {
+          var hasCatch = hasOwn.call(entry, "catchLoc");
+          var hasFinally = hasOwn.call(entry, "finallyLoc");
+
+          if (hasCatch && hasFinally) {
+            if (this.prev < entry.catchLoc) {
+              return handle(entry.catchLoc, true);
+            } else if (this.prev < entry.finallyLoc) {
+              return handle(entry.finallyLoc);
+            }
+          } else if (hasCatch) {
+            if (this.prev < entry.catchLoc) {
+              return handle(entry.catchLoc, true);
+            }
+          } else if (hasFinally) {
+            if (this.prev < entry.finallyLoc) {
+              return handle(entry.finallyLoc);
+            }
+          } else {
+            throw new Error("try statement without catch or finally");
+          }
+        }
+      }
+    },
+
+    abrupt: function abrupt(type, arg) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.tryLoc <= this.prev && hasOwn.call(entry, "finallyLoc") && this.prev < entry.finallyLoc) {
+          var finallyEntry = entry;
+          break;
+        }
+      }
+
+      if (finallyEntry && (type === "break" || type === "continue") && finallyEntry.tryLoc <= arg && arg <= finallyEntry.finallyLoc) {
+        // Ignore the finally entry if control is not jumping to a
+        // location outside the try/catch block.
+        finallyEntry = null;
+      }
+
+      var record = finallyEntry ? finallyEntry.completion : {};
+      record.type = type;
+      record.arg = arg;
+
+      if (finallyEntry) {
+        this.method = "next";
+        this.next = finallyEntry.finallyLoc;
+        return ContinueSentinel;
+      }
+
+      return this.complete(record);
+    },
+
+    complete: function complete(record, afterLoc) {
+      if (record.type === "throw") {
+        throw record.arg;
+      }
+
+      if (record.type === "break" || record.type === "continue") {
+        this.next = record.arg;
+      } else if (record.type === "return") {
+        this.rval = this.arg = record.arg;
+        this.method = "return";
+        this.next = "end";
+      } else if (record.type === "normal" && afterLoc) {
+        this.next = afterLoc;
+      }
+
+      return ContinueSentinel;
+    },
+
+    finish: function finish(finallyLoc) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.finallyLoc === finallyLoc) {
+          this.complete(entry.completion, entry.afterLoc);
+          resetTryEntry(entry);
+          return ContinueSentinel;
+        }
+      }
+    },
+
+    "catch": function _catch(tryLoc) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.tryLoc === tryLoc) {
+          var record = entry.completion;
+          if (record.type === "throw") {
+            var thrown = record.arg;
+            resetTryEntry(entry);
+          }
+          return thrown;
+        }
+      }
+
+      // The context.catch method must only be called with a location
+      // argument that corresponds to a known catch block.
+      throw new Error("illegal catch attempt");
+    },
+
+    delegateYield: function delegateYield(iterable, resultName, nextLoc) {
+      this.delegate = {
+        iterator: values(iterable),
+        resultName: resultName,
+        nextLoc: nextLoc
+      };
+
+      if (this.method === "next") {
+        // Deliberately forget the last sent value so that we don't
+        // accidentally pass it on to the delegate.
+        this.arg = undefined;
+      }
+
+      return ContinueSentinel;
+    }
+  };
+
+  // Regardless of whether this script is executing as a CommonJS module
+  // or not, return the runtime object so that we can declare the variable
+  // regeneratorRuntime in the outer scope, which allows this module to be
+  // injected easily by `bin/regenerator --include-runtime script.js`.
+  return exports;
+}(
+// If this script is executing as a CommonJS module, use module.exports
+// as the regeneratorRuntime namespace. Otherwise create a new empty
+// object. Either way, the resulting object will be used to initialize
+// the regeneratorRuntime variable at the top of this file.
+ true ? module.exports : {});
+
+try {
+  regeneratorRuntime = runtime;
+} catch (accidentalStrictMode) {
+  // This module should not be running in strict mode, so the above
+  // assignment should always work unless something is misconfigured. Just
+  // in case runtime.js accidentally runs in strict mode, we can escape
+  // strict mode using a global Function call. This could conceivably fail
+  // if a Content Security Policy forbids using Function, but in that case
+  // the proper solution is to fix the accidental strict mode problem. If
+  // you've misconfigured your bundler to force strict mode and applied a
+  // CSP to forbid Function, and you're not willing to fix either of those
+  // problems, please detail your unique predicament in a GitHub issue.
+  Function("r", "regeneratorRuntime = r")(runtime);
+}
+
+/***/ }),
+
+/***/ "vHs2":
+/***/ (function(module, exports) {
+
+module.exports = require("fs");
 
 /***/ })
 
