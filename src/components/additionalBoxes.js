@@ -69,7 +69,7 @@ const additionalBoxes = [
         field: 'saiz',
         _parser: function () {
             this._procFullBox();
-            this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+            this.flags & 1 && this._procFieldArray('aux_info_type', 4, 'uint', 8); //modified since this seems to be a string not a 32byte uint
             this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
             this._procField('default_sample_info_size', 'uint', 8);
             this._procField('sample_count', 'uint', 32);
@@ -83,7 +83,7 @@ const additionalBoxes = [
         _parser: function () {
             const version = this.version;
             this._procFullBox();
-            this.flags & 1 && this._procField('aux_info_type', 'uint', 32);
+            this.flags & 1 && this._procFieldArray('aux_info_type', 4, 'uint', 8); //modified since this seems to be a string not a 32byte uint
             this.flags & 1 && this._procField('aux_info_type_parameter', 'uint', 32);
             this._procField('entry_count', 'uint', 32);
             this._procEntries('offsets', this.entry_count, function (entry) {
@@ -160,7 +160,7 @@ const additionalBoxes = [
             this._procFullBox();
             this._procField('sample_count', 'uint', 32);
             if (this.flags & 1) {
-                this._procField('IV_size', 'uint', 8);
+                this._procField('IV_size', 'uint', this.perSampleIVSize || 8);
             }
             this._procEntries('senc_samples', this.sample_count, function (entry) {
                 this._procEntryField(entry, 'InitializationVector', 'data', 8);
@@ -256,7 +256,7 @@ const additionalBoxes = [
             this._procField('depth', 'uint', 16);
             this._procField('pre_defined3', 'int', 16);
             // Codec-specific fields
-            this._procSubBoxes('config', 'data', -1);
+            this._procSubBoxes('config', 1);
         }
     }, {
         source: 'EC3 Specific Box',
@@ -298,7 +298,7 @@ const additionalBoxes = [
             this._procField('depth', 'uint', 16);
             this._procField('pre_defined3', 'int', 16);
             // Codec-specific fields
-            this._procSubBoxes('config', 'data', -1);
+            this._procSubBoxes('config', 1);
         }
     },
     {
@@ -316,7 +316,65 @@ const additionalBoxes = [
             this._procField('reserved3', 'uint', 16);
             this._procField('samplerate', 'template', 32);
             // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
-            this._procSubBoxes('esds', 'data', -1);
+            this._procSubBoxes('esds', 1);
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
+        field: 'mp4a',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // AudioSampleEntry fields
+            this._procFieldArray('reserved2', 2, 'uint', 32);
+            this._procField('channelcount', 'uint', 16);
+            this._procField('samplesize', 'uint', 16);
+            this._procField('pre_defined', 'uint', 16);
+            this._procField('reserved3', 'uint', 16);
+            this._procField('samplerate', 'template', 32);
+            // ESDescriptor fields //MODIFIED TO MAKE IT A BOX PARSER
+            this._procSubBoxes('esds', 1);
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-1',
+        field: 'esds',
+        _parser: function () {
+            //esds box
+            this._procField('version', 'uint', 8);
+            this._procField('ESDS_flag', 'uint', 24); //TODO deal with ESDS flag options
+            /*
+             bit(1) streamDependenceFlag;  
+             bit(1) URL_Flag;  
+             bit(1) OCRstreamFlag;  
+             bit(5) streamPriority;  
+             if (streamDependenceFlag)   bit(16) dependsOn_ES_ID;  
+             if (URL_Flag) {   bit(8) URLlength;   bit(8) URLstring[URLlength];  }  
+             if (OCRstreamFlag)   bit(16) OCR_ES_Id; 
+             */
+            // MP4ES Descriptor tag - 03
+            this._procField('ES_tag', 'uint', 8);
+            this._procField('ES_size', 'uint', 8);
+            this._procField('ES_ID', 'uint', 16);
+            this._procField('priority', 'uint', 8);
+            // Mp4 Decoder Config Descriptor - 04
+            this._procField('Dec_tag', 'uint', 8);
+            this._procField('Dec_size', 'uint', 8);
+            this._procField('Dec_type', 'uint', 8);
+            // Stream_Flag holds 6 bits of stream type, 1 bit 'upstream flag' and 1 bit reserved=1
+            this._procField('Stream_flag', 'uint', 8);
+            this._procField('buffer_size', 'uint', 24);
+            this._procField('maximum_BR', 'uint', 32);
+            this._procField('average_BR', 'uint', 32);
+            // MP4 Decoder Specific Config -05
+            this._procField('Specific_tag', 'uint', 8);
+            this._procField('Spec_size', 'uint', 8);
+            this._procFieldArray('Spec_values', this.Spec_size, 'uint', 8);
+            // SL Config Descriptor -06
+            this._procField('SL_config_tag', 'uint', 8);
+            this._procField('SL_config_size', 'uint', 8); //TODO scale by SL config size
+            this._procField('SL', 'uint', 8);
         }
     },
     {
@@ -610,6 +668,52 @@ const getISOData = (key, value) => {
             cleanEntry.entryNumber = index + 1;
             return cleanEntry;
         }),
+        'ESDescriptor': value => {
+            // bit(6) Stream type
+            // bit(1) Upstream Flag
+            // bit(1) reserved = 1
+            const flags = [
+                { name: 'Stream_type', bitmask: 0b11111100, shift: 2, 0: 'Forbidden', 1: 'ObjectDescriptorStream', 2: 'ClockReferenceStream', 3: 'SceneDescriptionStream', 4: 'VisualStream', 5: 'AudioStream', 6: 'MPEG7 Stream', 7: '', 8: '', 9: '', 10: '', 11: '', },
+                { name: 'upstream_flag', bitmask: 0b00000010, shift: 1 },
+                { name: 'reserved_s', bitmask: 0b00000001, shift: 0 }
+            ]
+            return [].concat(flags.reduce((result, flag) => {
+                result[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
+                return result;
+            }, {entryNumber: 1}));
+        },
+        'DecoderType': value => {
+            const typeLookup = {
+                0x00: 'Forbidden',
+                0x01: 'Systems ISO/IEC 14496-1',
+                0x02: 'Systems ISO/IEC 14496-1',
+                0x03: 'Interaction Stream',
+                0x04: 'Systems ISO/IEC 14496-1 Extended BIFS Configuration',
+                0x05: 'Systems ISO/IEC 14496-1 AFX',
+                0x06: 'Font Data Stream',
+                0x07: 'Synthesized Texture Stream',
+                0x08: 'Streaming Text Stream',
+                0x20: 'Visual ISO/IEC 14496-2',
+                0x21: 'Visual ITU-T Recommendation H.264 | ISO/IEC 14496-10',
+                0x22: 'Parameter Sets for ITU-T Recommendation H.264 | ISO/IEC 14496-10',
+                0x40: 'Audio ISO/IEC 14496-3',
+                0x60: 'Visual ISO/IEC 13818-2 Simple Profile',
+                0x61: 'Visual ISO/IEC 13818-2 Main Profile',
+                0x62: 'Visual ISO/IEC 13818-2 SNR Profile',
+                0x63: 'Visual ISO/IEC 13818-2 Spatial Profile',
+                0x64: 'Visual ISO/IEC 13818-2 High Profile',
+                0x65: 'Visual ISO/IEC 13818-2 422 Profile',
+                0x66: 'Audio ISO/IEC 13818-7 Main Profile',
+                0x67: 'Audio ISO/IEC 13818-7 LowComplexity Profile',
+                0x68: 'Audio ISO/IEC 13818-7 Scaleable Sampling Rate Profile',
+                0x69: 'Audio ISO/IEC 13818-3',
+                0x6A: 'Visual ISO/IEC 11172-2',
+                0x6B: 'Audio ISO/IEC 11172-3',
+                0x6C: 'Visual ISO/IEC 10918-1',
+                0xFF: 'no object type specified'
+            }
+            return typeLookup[value] || 'reserved for ISO use';
+        }
     }
 
 
@@ -642,20 +746,30 @@ const getISOData = (key, value) => {
                 return handleArray[elementType](value, ['sap', 'reference']);
             case 'senc_samples':
                 return handleArray.senc_samples(value);
-            case 'data_format': case 'scheme_type':
+            case 'data_format': case 'scheme_type': case 'aux_info_type':
                 return value.map(b => String.fromCharCode(b)).join('');
+            case 'Stream_flag':
+                return handleArray.ESDescriptor(value);
+            case 'Dec_type':
+                return handleArray.DecoderType(value);
             default: // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
         }
     }
-    // special case -- flags should show up as hex for easier comparison to standard
-    if (key === 'flags') return `0x${value.toString(16).padStart(2, '0').toUpperCase()}`;
-    // Handle 'default_sample_flags' or 'first_sample_flags
-    if (key === 'default_sample_flags' || key === 'first_sample_flags') {
-        return handleArray.LongSampleDependency(value);
+
+    // handle special cases that aren't arrays
+    switch (key) {
+        case 'default_sample_flags': case 'first_sample_flags':
+            return handleArray.LongSampleDependency(value);
+        case 'Stream_flag':
+            return handleArray.ESDescriptor(value);
+        case 'Dec_type':
+            return handleArray.DecoderType(value);
+        case 'flags':
+            return `0x${value.toString(16).padStart(2, '0').toUpperCase()}`;
+        default:
+            return value;
     }
-    // Handle string or Number or anything else that slips through
-    return value;
 }
 
 // TODO: fix subsample handling !!
@@ -744,15 +858,15 @@ const getBoxList = async (collection, resultMap) => {
         // first add all of the elements at this node
         elemList.forEach(elem => {
             // only add items with a 'type' (ie, box definition) -- extend for special cases like encv entries
-            if (!!elem.type || elem.name==='entries') {
+            if (!!elem.type || elem.name === 'entries') {
                 // get all children
                 const boxContents = !!elem.boxes && elem.boxes.reduce((allChildren, current) => {
-                    if (!!current.type) allChildren.children.push({box: current.type, start: current.start});
-                    if (!!current.name && elem.type==='stsd' && current.name==='entries') allChildren.children.push({box:current.boxes[0].type, start:current.boxes[0].start})
+                    if (!!current.type) allChildren.children.push({ box: current.type, start: current.start });
+                    if (!!current.name && elem.type === 'stsd' && current.name === 'entries') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start })
                     if (!!current.name) allChildren.values.push(current);
                     return allChildren;
                 }, { children: [], values: [] });
-                resultMap.set({box: elem.type, start:elem.start}, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex:elem.hex});
+                resultMap.set({ box: elem.type, start: elem.start }, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex: elem.hex });
                 console.log('extracted element', elem);
                 // now check for sub-boxes that are not null
                 if (!!elem.boxes) {
