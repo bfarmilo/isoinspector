@@ -20,7 +20,9 @@ const Home = props => {
 				<details open={props.expandAll || expandBox}>
 					<summary class={style.boxProp}>{title.slice(0, -1)} {entry.entryNumber}</summary>
 					{Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
-						if (Array.isArray(entry[key]) && entry[key][0] && entry[key][0].entryNumber) return showEntryDetails(key, entry[key][0]);
+						if (Array.isArray(entry[key])) {
+							return entry[key].filter(element => element && element.entryNumber).map(element => showEntryDetails(key, element))
+						} 
 						return (
 							<div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>
 						)
