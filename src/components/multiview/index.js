@@ -81,6 +81,7 @@ const Data = props => {
 };
 
 const SubArray = props => (
+    // TODO - deal with arrays of arrays like senc samples
     <div style={{
         overflowY: 'scroll'
     }}>
@@ -98,7 +99,9 @@ const SubArray = props => (
                 <div>{Object.keys(entry).filter(entry => entry !== 'entryNumber').map(key => (
                     <div style={{ display: 'flex', margin: '2px 2px 2px 10px' }}>
                         <div style={{ margin: 'inherit' }}>{key}:</div>
-                        <div style={{ margin: 'inherit' }}>{entry[key]}</div>
+                        <div style={{ margin: 'inherit' }}>{Array.isArray(entry[key]) && entry[key].length>1 ? entry[key].map(nestedVal => (
+                            <div style={{margin: 'inherit'}}>{JSON.stringify(nestedVal)}</div>
+                        )): entry[key]}</div>
                     </div>))
                 }</div>
             </div>
