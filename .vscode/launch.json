@@ -30,5 +30,11 @@
       "outputCapture": "std",
       "autoAttachChildProcesses": true,
     },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Test current program",
+      "program": "${file}",
+    },
   ]
 }
