@@ -307,12 +307,11 @@ export default class App extends Component {
 						<div style={{ gridRow: '1/3' }}>
 							<textarea style={{ height: '90%', width: '95%', margin: '10px' }} onChange={e => this.updateInput(e)} value={this.state.inputData} />
 						</div>
-						<div style={{margin:'18px 0 0 7px'}}>
-							{['mp4', 'webm', 'MP2T'].map(type => (
-								<div>
-									<input id={type} type="radio" name={type} value={type} checked={this.state.mode === type} onChange={e => this.changeFileMode(e, type)} />
-									<label htmlFor={type}><span><span></span></span>{type}</label>
-								</div>))}
+						<div style={{ margin: '18px 0 0 7px' }}>
+							{['mp4', 'webm', 'MP2T'].map(type => (<div>
+								<input id={type} type="radio" name={type} value={type} checked={this.state.mode === type} onChange={e => this.changeFileMode(e, type)} />
+								<label htmlFor={type}><span><span></span></span>{type}</label>
+							</div>))}
 						</div>
 						<div style={{ gridRow: '2/3' }}>
 							<button style={styles.parseButton} onClick={e => this.parseFile(this.state.inputData)}>Go</button>
