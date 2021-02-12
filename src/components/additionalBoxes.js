@@ -302,6 +302,58 @@ const additionalBoxes = [
         }
     },
     {
+        source: 'AV1 Sample Entry, AV1 Codec ISO Media File Format Binding https://aomediacodec.github.io/av1-isobmff/',
+        field: 'av01',
+        _parser: function () {
+            // SampleEntry fields
+            this._procFieldArray('reserved1', 6, 'uint', 8);
+            this._procField('data_reference_index', 'uint', 16);
+            // VisualSampleEntry fields
+            this._procField('pre_defined1', 'uint', 16);
+            this._procField('reserved2', 'uint', 16);
+            this._procFieldArray('pre_defined2', 3, 'uint', 32);
+            this._procField('width', 'uint', 16);
+            this._procField('height', 'uint', 16);
+            this._procField('horizresolution', 'template', 32);
+            this._procField('vertresolution', 'template', 32);
+            this._procField('reserved3', 'uint', 32);
+            this._procField('frame_count', 'uint', 16);
+            this._procFieldArray('compressorname', 32, 'uint', 8);
+            this._procField('depth', 'uint', 16);
+            this._procField('pre_defined3', 'int', 16);
+            // Codec-specific fields
+            this._procSubBoxes('av1C', 1);
+            this._procSubBoxes('colr', 1);
+        }
+    },
+    {
+        source: 'AV1 Sample Entry, AV1 Codec ISO Media File Format Binding https://aomediacodec.github.io/av1-isobmff/',
+        field: 'av1C',
+        _parser: function () {
+            // modified to handle <8 bit data
+            this._procField('av1C_config', 'uint', 32);
+            this.marker = (this.av1C_config & 0x80000000) >>> 31; //1
+            this.version = (this.av1C_config & 0x7F000000) >>> 24; //7
+            this.seq_profile = (this.av1C_config & 0x00E00000) >>> 21; //3
+            this.seq_level_idx_0 = (this.av1C_config & 0x001F0000) >>> 16; //5
+            this.seq_tier_0 = (this.av1C_config & 0x00008000) >>> 15;//1
+            this.high_bitdepth = (this.av1C_config & 0x00004000) >>> 14; //1
+            this.twelve_bit = (this.av1C_config & 0x00002000) >>> 13; //1
+            this.monochrome = (this.av1C_config & 0x00001000) >>> 12; //1
+            this.chroma_subsamping_x = (this.av1C_config & 0x00000800) >>> 11; //1
+            this.chroma_subsampling_y = (this.av1C_config & 0x00000400) >>> 10; //1
+            this.chroma_sample_position = (this.av1C_config & 0x00000300) >>> 8; //2
+            this.reserved_1 = (this.av1C_config & 0x00000070) >>> 5; //3
+            this.initial_presentation_delay_present = (this.av1C_config & 0x00000010) >>> 4; //1
+            if (this.initial_presentation_delay_present) {
+                this.initial_presentation_delay_minus_one = (this.av1C_config & 0x0000000F) >>> 0; //4
+            } else {
+                this.reserved_2 = (this.av1C_config & 0x0000000F) >>> 0; //4
+            }
+            this._procFieldArray('configOBUs', this.size-4-4-4, 'uint', 8); //4 bytes length, 4 bytes 'av1C', 4 bytes for above
+        }
+    },
+    {
         source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
         field: 'enca',
         _parser: function () {
@@ -445,7 +497,7 @@ const additionalBoxes = [
             this._procField('AVC_profile_indication', 'uint', 8);
             this._procField('profile_compatibility', 'uint', 8);
             this._procField('configuration_version', 'uint', 8);
-            this._procField('reserved1', 'bit', 6);
+            this._procField('reserved1', 'bit', 6); //TODO Fix using Bitwise workaround with _config parameter
             this._procField('length_size_minus_one', 'uint', 2)
             this._procField('reserved1', 'bit', 3);
             this._procField('num_of_sequence_parameter_sets', 'uint', 5);
@@ -680,7 +732,7 @@ const getISOData = (key, value) => {
             return [].concat(flags.reduce((result, flag) => {
                 result[flag.name] = flag[(value & flag.bitmask) >> flag.shift] || (value & flag.bitmask) >> flag.shift;
                 return result;
-            }, {entryNumber: 1}));
+            }, { entryNumber: 1 }));
         },
         'DecoderType': value => {
             const typeLookup = {
@@ -752,6 +804,8 @@ const getISOData = (key, value) => {
                 return handleArray.ESDescriptor(value);
             case 'Dec_type':
                 return handleArray.DecoderType(value);
+            case 'configOBUs':
+                return `${convertToHex(value)}`;
             default: // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
         }
@@ -788,6 +842,7 @@ const postProcess = boxes => {
                     return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
                 }); */
                 if (key === 'config') return { name: key, display: null, hex: box[key] }
+                if (key === 'av1C_config') return { name: key, display: null, hex: null };
                 return { name: key, display: box[key], hex: hex || null }
             })
         }

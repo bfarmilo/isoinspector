@@ -1857,7 +1857,7 @@ const schema = new Map([[0x80, {
     multiple: true,
     minver: 1,
     description: 'Set the EBML characteristics of the data to follow. Each EBML document has to start with this.'
-}], [21936, {
+}], [0x55b0, {
     name: 'Colour',
     level: 4,
     type: 'm',
@@ -1867,7 +1867,7 @@ const schema = new Map([[0x80, {
     webm: false,
     description: 'Settings describing the colour format'
 }],
-[21937, {
+[0x55b1, {
     name: 'MatrixCoefficients',
     level: 5,
     type: 'u',
@@ -1878,7 +1878,7 @@ const schema = new Map([[0x80, {
     default: '2',
     description: 'FThe Matrix Coefficients of the video used to derive luma and chroma values from reg, green, and blue color primaries.'
 }],
-[21938, {
+[0x55b2, {
     name: 'BitsPerChannel',
     level: 5,
     type: 'u',
@@ -1889,7 +1889,7 @@ const schema = new Map([[0x80, {
     default: '0',
     description: 'The Matrix Coefficients of the video used to derive luma and chroma values from reg, green, and blue color primaries. For clarity, the value and meanings for MatrixCoefficients are adopted from Table 4 of ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3: Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant Luminance)'
 }],
-[21945, {
+[0x55b9, {
     name: 'Range',
     level: 5,
     type: 'u',
@@ -1900,7 +1900,7 @@ const schema = new Map([[0x80, {
     default: '0',
     description: 'Clipping of the color ranges. (0: Unspecified, 1: Broadcast Range, 2:Full Range, 3:Defined by MatrixCoefficients/TransferCharacteristics'
 }],
-[21946, {
+[0x55ba, {
     name: 'TransferCharacteristics',
     level: 5,
     type: 'u',
@@ -1911,7 +1911,7 @@ const schema = new Map([[0x80, {
     default: '2',
     description: 'The transfer characteristics of the video. For clarity, the value and meanings for TransferCharacteristics 1-15 are adopted from Table 3 of ISO/IEC 23001-8:2013/DCOR1. TransferCharacteristics 16-18 are proposed values. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3: Reserved, 4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M, 7: SMPTE 240M, 8: Linear, 9: Log, 10: Log Sqrt, 11: IEC 61966-2-4, 12: ITU-R BT.1361 Extended Colour Gamut, 13: IEC 61966-2-1, 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020 12 bit, 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG))'
 }],
-[21947, {
+[0x55bb, {
     name: 'Primaries',
     level: 5,
     type: 'u',
@@ -2225,10 +2225,10 @@ const EbmlDecoder = function EbmlDecoder(options) {
     };
 
     EbmlDecoder.prototype.getSchemaInfo = function (tagStr) {
-        debug('looking up tag')
+        debug('looking up tag', tagStr);
         return self._schema.get(parseInt(tagStr, 16)) || {
             'type': 'unknown',
-            'name': 'unknown'
+            'name': `unknown tag ${tagStr}`
         };
     };
 

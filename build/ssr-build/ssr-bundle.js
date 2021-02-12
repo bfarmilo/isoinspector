@@ -66,7 +66,6 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-
 /***/ "1v4d":
 /***/ (function(module, exports) {
 
@@ -275,7 +274,6 @@ void function (root, factory) {
 
 /***/ }),
 
-
 /***/ "7pDz":
 /***/ (function(module, exports) {
 
@@ -299,7 +297,6 @@ module.exports = function (worker, packet) {
 };
 
 /***/ }),
-
 
 /***/ "97RM":
 /***/ (function(module, exports) {
@@ -4222,7 +4219,7 @@ var schema = new Map([[0x80, {
     multiple: true,
     minver: 1,
     description: 'Set the EBML characteristics of the data to follow. Each EBML document has to start with this.'
-}], [21936, {
+}], [0x55b0, {
     name: 'Colour',
     level: 4,
     type: 'm',
@@ -4231,7 +4228,7 @@ var schema = new Map([[0x80, {
     minver: 4,
     webm: false,
     description: 'Settings describing the colour format'
-}], [21937, {
+}], [0x55b1, {
     name: 'MatrixCoefficients',
     level: 5,
     type: 'u',
@@ -4241,7 +4238,7 @@ var schema = new Map([[0x80, {
     webm: false,
     default: '2',
     description: 'FThe Matrix Coefficients of the video used to derive luma and chroma values from reg, green, and blue color primaries.'
-}], [21938, {
+}], [0x55b2, {
     name: 'BitsPerChannel',
     level: 5,
     type: 'u',
@@ -4251,7 +4248,7 @@ var schema = new Map([[0x80, {
     webm: false,
     default: '0',
     description: 'The Matrix Coefficients of the video used to derive luma and chroma values from reg, green, and blue color primaries. For clarity, the value and meanings for MatrixCoefficients are adopted from Table 4 of ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3: Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant Luminance)'
-}], [21945, {
+}], [0x55b9, {
     name: 'Range',
     level: 5,
     type: 'u',
@@ -4261,7 +4258,7 @@ var schema = new Map([[0x80, {
     webm: false,
     default: '0',
     description: 'Clipping of the color ranges. (0: Unspecified, 1: Broadcast Range, 2:Full Range, 3:Defined by MatrixCoefficients/TransferCharacteristics'
-}], [21946, {
+}], [0x55ba, {
     name: 'TransferCharacteristics',
     level: 5,
     type: 'u',
@@ -4271,7 +4268,7 @@ var schema = new Map([[0x80, {
     webm: false,
     default: '2',
     description: 'The transfer characteristics of the video. For clarity, the value and meanings for TransferCharacteristics 1-15 are adopted from Table 3 of ISO/IEC 23001-8:2013/DCOR1. TransferCharacteristics 16-18 are proposed values. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3: Reserved, 4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M, 7: SMPTE 240M, 8: Linear, 9: Log, 10: Log Sqrt, 11: IEC 61966-2-4, 12: ITU-R BT.1361 Extended Colour Gamut, 13: IEC 61966-2-1, 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020 12 bit, 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG))'
-}], [21947, {
+}], [0x55bb, {
     name: 'Primaries',
     level: 5,
     type: 'u',
@@ -4576,10 +4573,10 @@ var EbmlDecoder = function EbmlDecoder(options) {
     };
 
     EbmlDecoder.prototype.getSchemaInfo = function (tagStr) {
-        debug('looking up tag');
+        debug('looking up tag', tagStr);
         return self._schema.get(parseInt(tagStr, 16)) || {
             'type': 'unknown',
-            'name': 'unknown'
+            'name': 'unknown tag ' + tagStr
         };
     };
 
@@ -5348,11 +5345,6 @@ var header_Header = function Header(props) {
 				'a',
 				{ onClick: props.togglePreview },
 				props.showVideo ? 'Hide Preview' : 'Show Preview'
-			),
-			Object(preact_min["h"])(
-				'a',
-				{ onClick: props.changeViewMode },
-				props.viewMode ? 'Show Tree View' : 'Show Multiview'
 			)
 		)
 	);
@@ -5613,7 +5605,6 @@ var multiview_style = __webpack_require__("7pDz");
 var multiview_style_default = /*#__PURE__*/__webpack_require__.n(multiview_style);
 
 // CONCATENATED MODULE: ./components/multiview/index.js
-
 var multiview__extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 
@@ -5631,7 +5622,6 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var multiview_TagTree = function TagTree(props) {
     //create indents based on children
     var renderKids = function renderKids(boxKey) {
-
         // need to get the actual key object since {a:1, b:2} !== {a:2, b:2}
         var tag = Array.from(props.tags.keys()).filter(function (_ref) {
             var box = _ref.box,
@@ -5654,7 +5644,6 @@ var multiview_TagTree = function TagTree(props) {
             );
         } catch (e) {
             console.error('error processing tag', entry, e);
-
         }
     };
 
@@ -5672,11 +5661,9 @@ var multiview_TagTree = function TagTree(props) {
             style: {
                 background: props.background,
                 display: "grid",
-
                 gridArea: "tree",
                 overflowY: 'scroll',
                 height: '50em'
-
             }
         },
         Object(preact_min["h"])(
@@ -5685,9 +5672,7 @@ var multiview_TagTree = function TagTree(props) {
                     return props.handleClick(e, "");
                 }, 'class': multiview_style_default.a.filename },
             props.fileName,
-
             rootTags && rootTags.map(renderKids)
-
         )
     );
 };
@@ -5749,7 +5734,6 @@ var multiview_Data = function Data(props) {
 var _ref3 = Object(preact_min["h"])('div', null);
 
 var multiview_SubArray = function SubArray(props) {
-
     return (
         // TODO - deal with arrays of arrays like senc samples
         Object(preact_min["h"])(
@@ -5813,11 +5797,9 @@ var multiview_SubArray = function SubArray(props) {
                     );
                 })
             )
-
         )
     );
 };
-
 
 var _ref4 = Object(preact_min["h"])('div', null);
 
@@ -5850,7 +5832,6 @@ var multiview_Hex = function Hex(props) {
     );
 };
 
-
 var multiview_MultiView = function (_Component) {
     _inherits(MultiView, _Component);
 
@@ -5861,7 +5842,6 @@ var multiview_MultiView = function (_Component) {
 
         _this.handleClick = function (event, boxName) {
             event.stopPropagation();
-
             console.log(boxName, _this.state.boxList.get(boxName));
 
             var _this$state$boxList$g = _this.state.boxList.get(boxName),
@@ -5874,7 +5854,6 @@ var multiview_MultiView = function (_Component) {
                 selectedTag: multiview__extends({}, boxName),
                 selectedBox: values,
                 selectedHex: hex
-
             });
         };
 
@@ -5889,9 +5868,7 @@ var multiview_MultiView = function (_Component) {
             selectedTag: "",
             selectedBox: [],
             arrayData: [],
-
             selectedHex: [],
-
             detailBox: '',
             boxList: _this.props.boxList,
             preProcessed: _this.props.preProcessed,
@@ -5908,9 +5885,7 @@ var multiview_MultiView = function (_Component) {
                     display: "grid",
                     gridTemplateAreas: '\'tree data array\'\n                                        \'tree hex hex\'\n                                        \'tree hex hex\'',
                     gridTemplateRows: "25em 25em",
-
                     gridTemplateColumns: "1.5fr 3fr 3fr"
-
                 }
             },
             Object(preact_min["h"])(multiview_TagTree, {
@@ -5931,19 +5906,16 @@ var multiview_MultiView = function (_Component) {
                 subArray: this.state.arrayData,
                 entryName: this.state.detailBox
             }),
-
             Object(preact_min["h"])(multiview_Hex, {
                 background: 'white',
                 hex: this.state.selectedHex || ['00']
             })
-
         );
     };
 
     return MultiView;
 }(preact_min["Component"]);
 
-
 /* harmony default export */ var multiview = (multiview_MultiView);
 // CONCATENATED MODULE: ./components/app.js
 
@@ -5956,15 +5928,9 @@ function app__inherits(subClass, superClass) { if (typeof superClass !== "functi
 
 
 
-/* harmony default export */ var multiview = (multiview_MultiView);
-// CONCATENATED MODULE: ./components/app.js
 
 
-function app__classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-function app__possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function app__inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 
 
@@ -5974,14 +5940,6 @@ function app__inherits(subClass, superClass) { if (typeof superClass !== "functi
 
 // for M2TS segments, how many to parse? 
 var SEGMENT_COUNT = 512;
-=======
-
-
-
-
-
-
-
 
 var styles = {
 	parseButton: {
@@ -6051,9 +6009,7 @@ var app__ref3 = Object(preact_min["h"])(
 
 var app__ref4 = Object(preact_min["h"])('div', null);
 
-
 var _ref5 = Object(preact_min["h"])('option', null);
-
 
 var app_App = function (_Component) {
 	app__inherits(App, _Component);
@@ -6122,9 +6078,7 @@ var app_App = function (_Component) {
 			_this.setState({ inputData: inputData });
 		};
 
-
 		_this.parseFile = function (inputData) {
-
 			console.log('parsing data in ' + _this.state.mode + ' mode:');
 			_this.setState({ working: true, showVideo: false, videoError: '' });
 			_this.createParsed(inputData).then(function (_ref) {
@@ -6134,9 +6088,7 @@ var app_App = function (_Component) {
 				//extract a list of box names for the dropdown
 				//return Map([target, [parentList]]}
 				Object(additionalBoxes["getBoxList"])(boxes, listOfBoxes).then(function (boxList) {
-
 					return _this.setState({ boxList: boxList, inputData: inputData, parsedData: boxes, working: false, decodeAttempts: 0 });
-
 				});
 				;
 				return;
@@ -6305,13 +6257,12 @@ var app_App = function (_Component) {
 		};
 
 		_this.changeViewMode = function (e) {
-	var viewMode = !_this.state.viewMode;
+			var viewMode = !_this.state.viewMode;
 			_this.setState({ viewMode: viewMode });
 		};
 
 		_this.changeFileMode = function (e, mode) {
 			_this.setState({ mode: mode });
-
 		};
 
 		_this.state = {
@@ -6396,9 +6347,7 @@ var app_App = function (_Component) {
 						'Go'
 					)
 				)
-
 			) : app__ref4,
-
 			Object(preact_min["h"])(
 				'div',
 				null,
@@ -6434,17 +6383,13 @@ var app_App = function (_Component) {
 										{ value: boxName },
 										boxName
 									);
-
 									return _ref5;
-
 								})
 							)
 						)
 					)
 				),
 				this.state.viewMode ? Object(preact_min["h"])(multiview, {
-
-
 					postProcessed: this.state.parsedData,
 					boxList: this.state.boxList,
 					fileName: this.state.fileName
@@ -7397,6 +7342,56 @@ var additionalBoxes = [{
         this._procSubBoxes('config', 1);
     }
 }, {
+    source: 'AV1 Sample Entry, AV1 Codec ISO Media File Format Binding https://aomediacodec.github.io/av1-isobmff/',
+    field: 'av01',
+    _parser: function _parser() {
+        // SampleEntry fields
+        this._procFieldArray('reserved1', 6, 'uint', 8);
+        this._procField('data_reference_index', 'uint', 16);
+        // VisualSampleEntry fields
+        this._procField('pre_defined1', 'uint', 16);
+        this._procField('reserved2', 'uint', 16);
+        this._procFieldArray('pre_defined2', 3, 'uint', 32);
+        this._procField('width', 'uint', 16);
+        this._procField('height', 'uint', 16);
+        this._procField('horizresolution', 'template', 32);
+        this._procField('vertresolution', 'template', 32);
+        this._procField('reserved3', 'uint', 32);
+        this._procField('frame_count', 'uint', 16);
+        this._procFieldArray('compressorname', 32, 'uint', 8);
+        this._procField('depth', 'uint', 16);
+        this._procField('pre_defined3', 'int', 16);
+        // Codec-specific fields
+        this._procSubBoxes('av1C', 1);
+        this._procSubBoxes('colr', 1);
+    }
+}, {
+    source: 'AV1 Sample Entry, AV1 Codec ISO Media File Format Binding https://aomediacodec.github.io/av1-isobmff/',
+    field: 'av1C',
+    _parser: function _parser() {
+        // modified to handle <8 bit data
+        this._procField('av1C_config', 'uint', 32);
+        this.marker = (this.av1C_config & 0x80000000) >>> 31; //1
+        this.version = (this.av1C_config & 0x7F000000) >>> 24; //7
+        this.seq_profile = (this.av1C_config & 0x00E00000) >>> 21; //3
+        this.seq_level_idx_0 = (this.av1C_config & 0x001F0000) >>> 16; //5
+        this.seq_tier_0 = (this.av1C_config & 0x00008000) >>> 15; //1
+        this.high_bitdepth = (this.av1C_config & 0x00004000) >>> 14; //1
+        this.twelve_bit = (this.av1C_config & 0x00002000) >>> 13; //1
+        this.monochrome = (this.av1C_config & 0x00001000) >>> 12; //1
+        this.chroma_subsamping_x = (this.av1C_config & 0x00000800) >>> 11; //1
+        this.chroma_subsampling_y = (this.av1C_config & 0x00000400) >>> 10; //1
+        this.chroma_sample_position = (this.av1C_config & 0x00000300) >>> 8; //2
+        this.reserved_1 = (this.av1C_config & 0x00000070) >>> 5; //3
+        this.initial_presentation_delay_present = (this.av1C_config & 0x00000010) >>> 4; //1
+        if (this.initial_presentation_delay_present) {
+            this.initial_presentation_delay_minus_one = (this.av1C_config & 0x0000000F) >>> 0; //4
+        } else {
+            this.reserved_2 = (this.av1C_config & 0x0000000F) >>> 0; //4
+        }
+        this._procFieldArray('configOBUs', this.size - 4 - 4 - 4, 'uint', 8); //4 bytes length, 4 bytes 'av1C', 4 bytes for above
+    }
+}, {
     source: 'ISO/IEC 14496-12:2015 - 8.5.2.2 mp4a box (use AudioSampleEntry definition and naming)',
     field: 'enca',
     _parser: function _parser() {
@@ -7536,7 +7531,7 @@ var additionalBoxes = [{
         this._procField('AVC_profile_indication', 'uint', 8);
         this._procField('profile_compatibility', 'uint', 8);
         this._procField('configuration_version', 'uint', 8);
-        this._procField('reserved1', 'bit', 6);
+        this._procField('reserved1', 'bit', 6); //TODO Fix using Bitwise workaround with _config parameter
         this._procField('length_size_minus_one', 'uint', 2);
         this._procField('reserved1', 'bit', 3);
         this._procField('num_of_sequence_parameter_sets', 'uint', 5);
@@ -7852,6 +7847,8 @@ var psshLookup = {
                 return handleArray.ESDescriptor(value);
             case 'Dec_type':
                 return handleArray.DecoderType(value);
+            case 'configOBUs':
+                return '' + convertToHex(value);
             default:
                 // Otherwise handle based on type of the first entry
                 return value[0] ? handleArray[elementType](value) : [];
@@ -7896,6 +7893,7 @@ var postProcess = function postProcess(boxes) {
                     return entryKeys.map(entryKey => ({ name: entryKey, display: entry[entryKey] }));
                 }); */
                 if (key === 'config') return { name: key, display: null, hex: box[key] };
+                if (key === 'av1C_config') return { name: key, display: null, hex: null };
                 return { name: key, display: box[key], hex: hex || null };
             });
         }
@@ -7983,9 +7981,7 @@ var getBoxList = function getBoxList(collection, resultMap) {
                             if (!!current.name) allChildren.values.push(current);
                             return allChildren;
                         }, { children: [], values: [] });
-
                         resultMap.set({ box: elem.type, start: elem.start }, { name: elem.type, parent: parentPath, children: boxContents.children, values: boxContents.values, hex: elem.hex });
-
                         console.log('extracted element', elem);
                         // now check for sub-boxes that are not null
                         if (!!elem.boxes) {
@@ -8024,7 +8020,6 @@ module.exports = {
     postProcess: postProcess,
     convertBox: convertBox,
     getBoxList: getBoxList
-
 };
 
 /***/ }),
@@ -8064,7 +8059,6 @@ module.exports = {
   send: send,
   fetchFile: fetchFile,
   fs: fs
-
 };
 
 /***/ }),

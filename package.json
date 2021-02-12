@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "isoinspector",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "license": "MIT",
   "scripts": {
     "start": "if-env NODE_ENV=production && npm run -s serve || npm run -s dev",
@@ -9,7 +9,8 @@
     "serve": "preact build && preact serve",
     "dev": "preact watch",
     "lint": "eslint src",
-    "test": "jest"
+    "test": "jest",
+    "deploy_pi": "wsl rsync -azv --exclude-from='./.deploy_ignore' --delete ./build/ pi@192.168.50.59:/media/pi/main/Projects/isoinspector/"
   },
   "eslintConfig": {
     "extends": "eslint-config-synacor"
