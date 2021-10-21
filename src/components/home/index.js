@@ -22,7 +22,7 @@ const Home = props => {
 					{Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
 						if (Array.isArray(entry[key])) {
 							return entry[key].filter(element => element && element.entryNumber).map(element => showEntryDetails(key, element))
-						} 
+						}
 						return (
 							<div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>
 						)
@@ -42,7 +42,7 @@ const Home = props => {
 						<summary class={style.boxName} /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>
 							{boxLabel}
 						</summary>
-						{box.boxes ? box.boxes.map(processBox) : box.display || box.hex && box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} class={style.hexEntry}>{row}</div>)}
+						{box.boxes ? box.boxes.map(processBox) : box.display || (box.hex && box.hex.map(row => <div onClick={e => props.toggleBase64(e, box)} class={style.hexEntry}>{row}</div>))}
 					</details>
 				</div>
 				<div><a style={{ display: 'flex', justifySelf: 'end' }} onClick={e => props.toggleBase64(e, box)}>+</a></div>
@@ -54,6 +54,7 @@ const Home = props => {
 		// 3. an array of Objects, 
 		// 4. a deeply nested box,
 		// 5. (senc) an array of Objects that contains a key that contains an Array of Objects
+		// 6. a box containing an object, (eg pssh's Data field, sometimes)
 		let outputRow;
 		let outputLabel = <span /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>{boxLabel}:</span>;
 		if (box.hex) {
@@ -67,6 +68,9 @@ const Home = props => {
 			// case 4
 			outputLabel = '';
 			outputRow = box.boxes.map(processBox)
+		} else if (boxLabel=='Data' && typeof(box.display)=='object') {
+			// case 6
+			outputRow = <span class={style.boxContents}>{Object.keys(box.display).map(subKey => <div key={subKey} style={{margin:'0px 10px'}}><span style={{fontWeight:'bold'}}>{subKey}:</span><span style={{margin:'0px 3px'}}>{box.display[subKey]}</span></div>)}</span>;
 		} else {
 			// case 2
 			outputRow = <span class={style.boxContents}>{box.display}</span>;
