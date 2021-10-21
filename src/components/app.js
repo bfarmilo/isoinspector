@@ -215,6 +215,7 @@ export default class App extends Component {
 		const inputBuffer = this.state.videoData;
 		let videoData;
 		if (this.state.mode === 'MP2T' && showVideo) {
+			// rather than using HLS.js or anything, just convert it to Mp4 so we can use the browser's built-in player
 			const convertedFile = await convertM2TS(inputBuffer);
 			// it's a buffer, so make it into base64 for rendering
 			videoData = btoa(Array.from(convertedFile).map(byte => String.fromCharCode(byte)).join(''));
