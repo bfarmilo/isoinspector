@@ -245,7 +245,7 @@ const convertM2TS = (segmentFile) => new Promise(async (resolve, reject) => {
         // load files into virtual file system
         console.log('worker loaded');
         await worker.write('segment.ts', segmentFile);
-        // now run the decryption
+        // now run the conversion
         await worker.run(`-loglevel debug -allowed_extensions ALL -i /data/segment.ts -c copy -bsf:a aac_adtstoasc decrypt.mp4`, {
             input: 'segment.ts',
             output: `decrypt.mp4`,

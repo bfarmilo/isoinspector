@@ -1,6 +1,51 @@
+
 const { convertToHex, formatUuid } = require('./tools.js');
+const { createWorker } = require('@ffmpeg/ffmpeg');
+const Pbf = require('pbf');
+const { WidevinePsshData } = require('./widevine_pssh.js');
 
 let perSampleIVSize, subsampleCount;
+
+const generateMPD = (keyFile, IV, segmentList) => `<?xml version="1.0"?>
+<MPD minBufferTime="PT1.500000S" type="static" mediaPresentationDuration="PT0H9M56.46S" profiles="urn:mpeg:dash:profile:isoff-full:2011">
+    <Period duration="PT0H1M0S">
+        <AdaptationSet segmentAlignment="true" group="1" maxWidth="480" maxHeight="360" maxFrameRate="24" par="4:3">
+            <SegmentTemplate timescale="96" media="bunny_$Bandwidth$bps/BigBuckBunny_6s$Number$.m4s" startNumber="1" duration="576" initialization="bunny_$Bandwidth$bps/BigBuckBunny_6s_init.mp4"/>
+            <Representation id="320x240 46.0kbps" mimeType="video/mp4" codecs="avc1.42c00d" width="320" height="240" frameRate="24" sar="1:1" startWithSAP="1" bandwidth="45514"/>
+        </AdaptationSet>
+    </Period>
+</MPD>
+`;
+
+const decodeMP4 = (playList, keyFile, segmentFile) => new Promise(async (resolve, reject) => {
+    try {
+        // should take a playList (buffer), keyFile (buffer), and a segmentFile (buffer)
+        // remap to a new playList (buffer)
+
+        // first get IV from old playlist
+        const IV = playList.match(/IV=0x([0123456789ABCDEF]*)\s/);
+        const newPlayList = generateM3U8('keyFile.key', IV ? IV[1] : '0000000000000001', ['segment.ts']);
+        const [keyFileBuffer, segmentBuffer] = [keyFile, segmentFile].map(data => Uint8Array.from(atob(data), c => c.charCodeAt(0)));
+        // now run ffmpeg and send the resulting buffer to processData(decoded)
+        const worker = createWorker({ logger: ({ message }) => console.log(message) });
+        await worker.load();
+        // load files into virtual file system
+        console.log('worker loaded');
+        await worker.writeText('playlist.m3u8', newPlayList);
+        await worker.write('keyFile.key', keyFileBuffer);
+        await worker.write('segment.ts', segmentBuffer);
+        // now run the decryption
+        await worker.run(`-loglevel debug -allowed_extensions ALL -i /data/playlist.m3u8 -c copy decrypt.ts`, {
+            input: ['playlist.m3u8', 'keyFile.key', 'segment.ts'],
+            output: `decrypt.ts`,
+            del: true
+        });
+        const { data } = await worker.read(`decrypt.ts`);
+        return resolve(data);
+    } catch (err) {
+        return reject(err);
+    }
+})
 
 const additionalBoxes = [
     {
@@ -350,7 +395,7 @@ const additionalBoxes = [
             } else {
                 this.reserved_2 = (this.av1C_config & 0x0000000F) >>> 0; //4
             }
-            this._procFieldArray('configOBUs', this.size-4-4-4, 'uint', 8); //4 bytes length, 4 bytes 'av1C', 4 bytes for above
+            this._procFieldArray('configOBUs', this.size - 4 - 4 - 4, 'uint', 8); //4 bytes length, 4 bytes 'av1C', 4 bytes for above
         }
     },
     {
@@ -639,7 +684,7 @@ const psshLookup = {
  * @param {Object} entry ->  a single box parameter
  * @returns {String or Array<Object>} -> returns the unformatted contents in an array
  */
-const getISOData = (key, value) => {
+const getISOData = (key, value, boxIdentifier = '') => {
     // little helper that returns the type
     const valueType = Object.prototype.toString.call(value).match(/ (\w+)\]/i)[1];
 
@@ -782,6 +827,51 @@ const getISOData = (key, value) => {
             case 'SystemID':
                 return `${convertToHex(value)} (${psshLookup[convertToHex(value)]})`;
             case 'Data':
+                if (boxIdentifier.includes('WideVine')) {
+                    try {
+                        const pbf = new Pbf(value);
+                        const license = WidevinePsshData.read(pbf);
+                        console.log('license read:', license);
+                        // formatting
+
+                        return Object.keys(license).reduce((formatted, key) => {
+                            let value = '';
+                            switch (key) {
+                                case 'algorithm':
+                                    value = license[key] == 1 ? 'AESCTR' : license[key] == 0 ? 'unencrypted' : null;
+                                    break;
+                                case 'key_id':
+                                    value = Array.isArray(license[key]) ? license[key].map(val => formatUuid(val)).join(', ') : formatUuid(license[key])
+                                    break;
+                                case 'content_id':
+                                    value = license[key] ? String.fromCharCode.apply(null, license[key]) : null;
+                                    break;
+                                case 'protection_scheme':
+                                    if (license[key] != 9999) {
+                                        // kind of hacky - it's a uint32 which is really a string (like 'cenc'). So - convert to hex, split into bytes, make Uint8Array, convert each byte to string
+                                        value = String.fromCharCode.apply(null, Uint8Array.from(license[key].toString(16).padStart(8, 0).replace(/(\S{2})/g, "0x$1,").split(',').slice(0, 4)));
+                                    } else {
+                                        value = null;
+                                    }
+                                    break;
+                                default:
+                                    value = parseInt(license[key], 10) != 9999 ? license[key] : null;
+                            }
+                            if (value !== null) formatted[key] = value;
+                            return formatted;
+                        }, {});
+                    } catch (e) {
+                        return value.map(b => String.fromCharCode(b)).join('')
+                    }
+                } else if (boxIdentifier.includes('FairPlay')) {
+                    // Netflix specific, looks like 44 bytes total
+                    // 4 bytes? 00 00 00 04
+                    // 8 bytes KID 00 00 00 00 05 79 2B DD
+                    // 32 bytes? D8 08 6B 6F 6F 15 24 37  03 7E 52 3A DD F0 77 28  15 BB 6D CB FC 56 0C E9  73 4A 86 B3 9C 1C EB 45
+                } else {
+                    return value.map(b => String.fromCharCode(b)).join('');
+                }
+                
             case 'compressorname':
                 return value.map(b => String.fromCharCode(b)).join('');
             case 'usertype':
@@ -895,7 +985,7 @@ const convertBox = boxes => {
                 } else {
                     if (key !== '_data' || (box.type === 'uuid' && key === '_data')) {
                         const { newKey, value } = mappedKey(key, box);
-                        newBox[newKey] = getISOData(key, value);
+                        newBox[newKey] = getISOData(key, value, newKey == 'Data' ? newBox.SystemID : '');
                         if (!HIDE_KEYS.has(newKey)) newBox.keys.push(newKey);
                     }
                 }

@@ -37,13 +37,13 @@
     "jest": "^21.2.1",
     "preact-cli": "^2.2.1",
     "preact-cli-plugin-fast-async": "^1.0.1",
-    "preact-render-spy": "^1.2.1",
-    "protobuf.js": "^1.1.2"
+    "preact-render-spy": "^1.2.1"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.5.2",
     "codem-isoboxer": "^0.3.7",
     "mpeg2ts-parser": "^1.0.2",
+    "pbf": "^3.2.1",
     "preact": "^10.2.1",
     "protobufjs": "^6.8.8"
   }
