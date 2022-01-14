@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "isoinspector",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "license": "MIT",
   "scripts": {
     "start": "if-env NODE_ENV=production && npm run -s serve || npm run -s dev",
@@ -35,16 +35,15 @@
     "identity-obj-proxy": "^3.0.0",
     "if-env": "^1.0.0",
     "jest": "^21.2.1",
-    "preact-cli": "^2.2.1",
-    "preact-cli-plugin-fast-async": "^1.0.1",
-    "preact-render-spy": "^1.2.1"
+    "preact-cli": "^3.3.3",
+    "preact-cli-plugin-fast-async": "^1.0.1"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.5.2",
     "codem-isoboxer": "^0.3.7",
     "mpeg2ts-parser": "^1.0.2",
     "pbf": "^3.2.1",
-    "preact": "^10.2.1",
+    "preact": "^10.6.4",
     "protobufjs": "^6.8.8"
   }
 }

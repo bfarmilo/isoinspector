@@ -3,6 +3,8 @@ import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
 import { ebmlBoxer } from './ebmlBoxer';
 import { additionalBoxes, convertBox, postProcess, getBoxList } from './additionalBoxes';
 import { m2tsBoxer, decodeM2TS, convertM2TS } from './m2tsBoxer';
+import { BIFParser } from './bifParser';
+import { convertToHex } from './tools';
 
 
 import Header from './header';
@@ -60,7 +62,7 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 		'sidx'
 	]);
 	// get the boxes
-	const parsedData = await parseBuffer(buf.buffer);
+	const parsedData = await parseBuffer(buf.buffer)
 	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
 		// process the boxes
 		const preProcessed = convertBox(parsedData.boxes);
@@ -69,6 +71,37 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 		return resolve({ boxes: result });
 	}
 	return reject(new Error('not an ISOBMFF file'));
+
+});
+
+const parseBIF = buf => new Promise((resolve, reject) => {
+	try {
+		const bif = new BIFParser(buf.buffer);
+		const index = bif.bifIndex;
+		const multiplier = bif.framewiseSeparation / 1000;
+		const { boxes, videoData } = index.reduce((result, entry) => {
+			// boxes should be {type, start, size, boxes}
+			const { width, height, format } = bif.getImageMetaAtSecond(entry.timestamp * multiplier);
+			result.boxes.push({
+				start: entry.offset,
+				type: `${format} image`,
+				end: entry.offset + entry.length,
+				display: `image ${entry.timestamp}`,
+				hex: null,
+				boxes: [
+					{ name: 'width', display: width },
+					{ name: 'height', display: height },
+					{ name: 'timestamp', display: entry.timestamp }
+				]
+			});
+			// videoData should be {timestamp, src}
+			result.videoData.push({ timestamp: entry.timestamp * multiplier, src: bif.getImageDataAtSecond(entry.timestamp * multiplier) });
+			return result;
+		}, { boxes: [], videoData: [] });
+		return resolve({ boxes, videoData });
+	} catch (error) {
+		return reject(error);
+	}
 
 });
 
@@ -106,22 +139,38 @@ export default class App extends Component {
 		});
 	}
 
-	createParsed = async inputData => {
-		const inputBuffer = Uint8Array.from(atob(inputData), c => c.charCodeAt(0));
+	createParsed = inputData => {
+		const inputBuffer = Buffer.from(inputData, 'base64');
 		//console.log('hex dump',new TextDecoder('utf-8').decode(inputBuffer));
-		if (this.state.mode === 'webm') return ebmlBoxer(inputBuffer.buffer);
-		if (this.state.mode === 'mp4') return parseISO(inputBuffer);
+		if (this.state.mode === 'webm') {
+			const parsedEBML = ebmlBoxer(inputBuffer.buffer);
+			return parsedEBML;
+		}
+		if (this.state.mode === 'mp4') {
+			const parsedISO = parseISO(inputBuffer);
+			return parsedISO;
+		}
+		if (this.state.mode === 'bif') {
+			return parseBIF(inputBuffer).then(({ boxes, videoData }) => {
+				this.setState({ videoData });
+				return { boxes };
+			});
+		}
 		if (this.state.mode === 'MP2T') {
 			// check first byte for the start code
 			if (inputBuffer[0] !== 0x47) {
 				let decryptedData;
 				// it's not a start code, and we're in MP2T mode, so try decrypting
 				if (this.state.playlist && this.state.keyFile) {
-					decryptedData = await decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT);
-					// store the converted output in inputData
-					this.setState({ videoData: decryptedData });
-					// now process the boxes
-					return m2tsBoxer(decryptedData, SEGMENT_COUNT);
+					return decodeM2TS(this.state.playlist, this.state.keyFile, inputData, SEGMENT_COUNT)
+						.then(result => {
+							decryptedData = result;
+							// store the converted output in inputData
+							this.setState({ videoData: decryptedData });
+							// now process the boxes
+							return m2tsBoxer(decryptedData, SEGMENT_COUNT);
+						})
+						.catch(err => console.error(err));
 				} else {
 					this.setState({ videoError: niceError[99], working: false });
 					return;
@@ -139,30 +188,28 @@ export default class App extends Component {
 		this.setState({ inputData });
 	}
 
-	parseFile = inputData => {
+	parseFile = async inputData => {
 		console.log(`parsing data in ${this.state.mode} mode:`);
 		this.setState({ working: true, showVideo: false, videoError: '' });
-		this.createParsed(inputData)
-			.then(({ boxes }) => {
-				const listOfBoxes = new Map();
-				//extract a list of box names for the dropdown
-				//return Map([target, [parentList]]}
-				getBoxList(boxes, listOfBoxes).then(boxList => this.setState({ boxList, inputData, parsedData: boxes, working: false, decodeAttempts: 0 }));
-				;
-				return;
-			})
-			.catch(err => {
-				console.error(err);
-				this.setState({ errorMessage: err, working: false });
-				/* if (this.state.decodeAttempts < Object.keys(modes).length) {
-					let { decodeAttempts, mode } = this.state;
-					decodeAttempts += 1;
-					mode = modes[mode];
-					console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
-					this.setState({ decodeAttempts, mode, working: true });
-					this.parseFile(this.state.inputData);
-				} */
-			})
+		try {
+			const { boxes } = await this.createParsed(inputData);
+			const listOfBoxes = new Map();
+			//extract a list of box names for the dropdown
+			//return Map([target, [parentList]]}
+			getBoxList(boxes, listOfBoxes).then(boxList => this.setState({ boxList, inputData, parsedData: boxes, working: false, decodeAttempts: 0 }));
+			return;
+		} catch (err) {
+			console.error(err);
+			this.setState({ errorMessage: err, working: false });
+			/* if (this.state.decodeAttempts < Object.keys(modes).length) {
+				let { decodeAttempts, mode } = this.state;
+				decodeAttempts += 1;
+				mode = modes[mode];
+				console.log(`failed decode #${decodeAttempts}, trying ${mode} mode`);
+				this.setState({ decodeAttempts, mode, working: true });
+				this.parseFile(this.state.inputData);
+			} */
+		}
 	}
 
 	handleEncrypted = e => {
@@ -176,13 +223,39 @@ export default class App extends Component {
 		const fileName = e.target.files[0];
 		this.setState({ working: true, showVideo: false, inputData: '' });
 		console.log(fileName);
-		if (fileName.type.includes('webm')) {
-			this.setState({ mode: 'webm' });
-		} else if (fileName.type.includes('mp4')) {
-			this.setState({ mode: 'mp4' });
+		let mode = 'MP2T'; //default
+		if (fileName.type) {
+			if (fileName.type.includes('webm')) mode = 'webm';
+			if (fileName.type.includes('mp4')) mode = 'mp4';
+			if (fileName.type.includes('bif')) mode = 'bif';
 		} else {
-			this.setState({ mode: 'MP2T' });
+			if (/m4?$/.test(fileName.name)) mode = 'mp4';
+			if (/bif$/.test(fileName.name)) mode = 'bif';
+			if (/webm$/.test(fileName.name)) mode = 'webm';
 		}
+		// set the mode and clear out some key state variables
+		this.setState({
+			playlist: null,
+			keyFile: null,
+			fileName: 'raw base64 data',
+			inputData: '',
+			videoData: '',
+			parsedData: { boxes: [] },
+			working: false,
+			errorMessage: '',
+			videoError: '',
+			decodeAttempts: 0,
+			showHex: false,
+			showVideo: false,
+			hasFocus: -1,
+			base64: '',
+			expanded: false,
+			boxList: new Map(),
+			selectedBox: { target: '', parentList: [] },
+			searchTerm: '',
+			viewMode: false,
+			mode 
+		});
 		const reader = new FileReader();
 		const self = this;
 		reader.onload = r => {
@@ -209,16 +282,23 @@ export default class App extends Component {
 		this.setState({ showHex });
 	}
 
-	togglePreview = async e => {
+	togglePreview = e => {
 		this.setState({ working: true });
 		const showVideo = !this.state.showVideo;
-		const inputBuffer = this.state.videoData;
 		let videoData;
 		if (this.state.mode === 'MP2T' && showVideo) {
 			// rather than using HLS.js or anything, just convert it to Mp4 so we can use the browser's built-in player
-			const convertedFile = await convertM2TS(inputBuffer);
-			// it's a buffer, so make it into base64 for rendering
-			videoData = btoa(Array.from(convertedFile).map(byte => String.fromCharCode(byte)).join(''));
+			const inputBuffer = this.state.videoData;
+			convertM2TS(inputBuffer)
+				.then(convertedFile => {
+					// it's a buffer, so make it into base64 for rendering
+					videoData = Buffer.from(convertedFile, 'base64') //btoa(Array.from(convertedFile).map(byte => String.fromCharCode(byte)).join(''));
+					return;
+				})
+				.catch(err => console.error(err));
+		} else if (this.state.mode === 'bif') {
+			// nothing to do, videoData is already good
+			videoData = this.state.videoData;
 		} else {
 			videoData = this.state.inputData;
 		}
@@ -252,30 +332,22 @@ export default class App extends Component {
 	}
 
 	toggleBase64 = (e, boxData) => {
-		const extractHex = buffer => {
-			const getRow = start => (start + 16 < buffer.length) ?
-				[buffer.slice(start, start + 16).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')].concat(getRow(start + 16)) :
-				[buffer.slice(start).map(bit => bit.toString('16').padStart(2, '0').toUpperCase()).join(' ')];
-			return getRow(0);
-		}
 		let mp4Hex, base64;
 
-		if (this.state.mode === 'mp4' && boxData) {
-			// need to extract the hex by size and start byte
-			const buf = Array.from(Uint8Array.from(atob(this.state.inputData), c => c.charCodeAt(0)).slice(boxData.start, boxData.start + boxData.size));
-			mp4Hex = extractHex(buf);
-		}
-		const hexData = boxData && (boxData.hex || mp4Hex);
-		// toggle from hidden => base64 => hex
 		if (!this.state.base64) {
-			// hidden => base64
-			base64 = hexData ? hexData.join(' ').split(' ').map(byte => String.fromCharCode(parseInt(byte, 16))).join('') : '';
-		} else if (this.state.base64 instanceof Array) {// /([0-F][0-F] ){3,}/i.test(this.state.base64)) {
-			// hex => hidden
-			base64 = ''
-		} else {
-			// base64 => hex
+			if (this.state.mode === 'mp4' && boxData) {
+				// need to extract the hex by size and start byte
+				const buf = Buffer.from(this.state.inputData, 'base64').slice(boxData.start, boxData.start + boxData.size);
+				mp4Hex = convertToHex(buf, true);
+			}
+			if (this.state.mode==='MP2T' && boxData) {
+				mp4Hex = boxData.hex;
+			}
+			const hexData = mp4Hex; //boxData && (boxData.hex || mp4Hex);
+			// hidden => hex
 			base64 = hexData;
+		} else {
+			base64 = '';
 		}
 		this.setState({ base64 })
 	}
@@ -331,7 +403,7 @@ export default class App extends Component {
 						<div style={styles.parseButton}><input list="tags" class={'tagSearch'} placeholder="search for tag" size="8" onChange={this.handleSearch} value={this.state.searchTerm}>
 							<datalist style={styles.parseButton} id="tags">
 								{Array.from(this.state.boxList.keys()).map(boxName => {
-									if (boxName) return <option value={boxName}>{boxName}</option>
+									if (boxName.box) return <option value={boxName.box}>{boxName.box}</option>
 									return <option />
 								})}
 							</datalist>
