@@ -192,7 +192,7 @@ const processData = data => {
                 start: index * 188,
                 end: (index + 1) * 188 - 1,
                 type: `PID ${segment.pid}${pidLookup.has(segment.pid) ? ` (${pidLookup.get(segment.pid)})` : ''} #${segment.continuity_counter}`,
-                hex: convertToHex(segment.packet),
+                hex: convertToHex(segment.packet, true),
                 packet: convertToHex(segment.packet),
                 boxes: processEntry(segment, index * 188)
             };
