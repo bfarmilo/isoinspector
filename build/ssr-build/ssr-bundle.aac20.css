@@ -1,0 +1,161 @@
+html, body {
+	height: 100%;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	background: #FAFAFA;
+	font-family: 'Helvetica Neue', arial, sans-serif;
+	font-weight: 400;
+	color: #444;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+.treeControl {
+	display:-ms-flexbox;
+	display:flex;
+	width:20%;
+}
+
+.tagSearch {
+	background-color:#673ab7;
+	border: 1 solid #683bb8;
+	color:whitesmoke;
+	box-shadow: none;
+	height:2em;
+	border-radius:3px;
+	padding:2px;
+	margin-top:2px;
+	font-size:large;
+}
+
+#app {
+	height: 100%;
+}
+
+
+
+.header__OVZyn {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 56px;
+	padding: 0;
+	background: #673AB7;
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+	z-index: 50;
+}
+
+.header__OVZyn h1 {
+	float: left;
+	margin: 0;
+	padding: 0 15px;
+	font-size: 24px;
+	line-height: 56px;
+	font-weight: 400;
+	color: #FFF;
+}
+
+.header__OVZyn nav {
+	float: right;
+	font-size: 100%;
+}
+
+.header__OVZyn nav a {
+	display:inline-block;
+	height: 56px;
+	line-height: 56px;
+	padding: 0 15px;
+	min-width: 50px;
+	text-align: center;
+	background: rgba(255,255,255,0);
+	text-decoration: none;
+	color: #FFF;
+	will-change: background-color;
+}
+
+.header__OVZyn nav input {
+	display:none;
+	opacity:0;
+}
+
+.header__OVZyn nav a:hover,
+.header__OVZyn nav a:active {
+	background: rgba(0,0,0,0.2);
+}
+
+.header__OVZyn nav a.active__r\+Z6z {
+	background: rgba(0,0,0,0.4);
+}
+
+details {
+	margin-left: 1em;
+}
+
+.home__dHsuy {
+	padding: 0px 20px 20px 20px;
+	min-height: 100%;
+	width: 100%;
+}
+
+.boxName__CEk8B {
+	font-size: large;
+	background-color: rgba(197, 197, 197, 0.6);
+	color: black;
+	padding: 2px 0px 0px 4px;
+	margin: 2px;
+}
+
+.boxContainer__1G-Yj {
+	border-style: solid;
+}
+
+.subBox__J0k1p {
+	margin-left: 1em;
+}
+
+.boxProp__3uiD3 {
+	margin-left: 1em;
+	font-size: medium;
+	font-weight: bold;
+	color: black;
+	background-color: white;
+}
+
+.boxContents__Ek1Z\+ {
+	font-weight: normal;
+	margin-left: 0.5em;
+}
+
+.arrayEntry__-Sf3L {
+	padding-right: 0.5em;
+}
+
+
+.hexEntry__hIrzj {
+	font-family: 'Courier New', Courier, monospace;
+	font-weight: normal;
+}
+
+body {
+	cursor: default;
+}
+video {
+	padding:56px 20px 0px 20px;
+}
+li {
+    margin-left:8px;
+    list-style:'\21B3';
+  }
+  
+.filename__3NrEl {
+    list-style: none;
+    font-weight:bold;
+}
+
+/*# sourceMappingURL=ssr-bundle.aac20.css.map*/
