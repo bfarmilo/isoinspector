@@ -14,14 +14,16 @@ const Home = props => {
         // box.boxes {Array:box} sub-boxes
         // 
 
+        const unPlural = word => word.slice(-3) === 'ies' ? word.slice(0,-3).concat('y') : word.slice(0, -1);
+
         const showEntryDetails = (title, entry) => {
             const expandBox = props.selectedBox && (props.selectedBox.target === title || props.selectedBox.parentList.includes(title));
             return (
                 <details open={props.expandAll || expandBox}>
-                    <summary class={style.boxProp}>{title.slice(0, -1)} {entry.entryNumber}</summary>
+                    <summary class={style.boxProp}>{unPlural(title)} {entry.entryNumber}</summary>
                     {Object.keys(entry).filter(key => key !== 'entryNumber' && key !== 'title').map(key => {
                         if (Array.isArray(entry[key])) {
-                            return entry[key].filter(element => element && element.entryNumber).map(element => showEntryDetails(key, element))
+                            return entry[key].filter(element => element && element.entryNumber).map(element => showEntryDetails(key, element));
                         }
                         return (
                             <div><span class={style.boxProp}>{key}:</span><span class={style.boxContents}>{entry[key]}</span></div>
@@ -31,14 +33,14 @@ const Home = props => {
                 </details>);
         };
 
-        const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type && box.end ? ` (${box.size || box.end-box.start+1} bytes)` : ''}`;
+        const boxLabel = `${box.type || box.name}${(props.hasFocus === box.start && box.type) ? ` starting byte: ${box.start}` : ''}${box.type && box.end ? ` (${box.size || box.end - box.start + 1} bytes)` : ''}`;
 
         // container boxes have a 'type'. They may contain 'boxes' or raw hex.
         if (Object.hasOwnProperty.call(box, 'type')) {
             const expandBox = props.selectedBox && (props.selectedBox.target === boxLabel || props.selectedBox.parentList.includes(boxLabel));
             return <div style={{ display: 'flex' }}>
                 <div style={{ minWidth: '30em' }}>
-                    <details open={props.expandAll || expandBox} onToggle={e => props.toggleBase64(e, null)} key={box.start}>
+                    <details open={props.expandAll || expandBox} onToggle={e => props.toggleBase64(e, null)} key={`${box.name}_${box.start}`}>
                         <summary class={style.boxName} /*onMouseEnter={e => props.handleFocus(e, box.start, true)} onMouseLeave={e => props.handleFocus(e, box.start, false)}*/>
                             {boxLabel}
                         </summary>
@@ -68,14 +70,14 @@ const Home = props => {
             // case 4
             outputLabel = '';
             outputRow = box.boxes.map(processBox);
-        } else if (boxLabel=='Data' && typeof(box.display)=='object') {
+        } else if (boxLabel == 'Data' && typeof (box.display) == 'object') {
             // case 6
-            outputRow = <span class={style.boxContents}>{Object.keys(box.display).map(subKey => <div key={subKey} style={{margin:'0px 10px'}}><span style={{fontWeight:'bold'}}>{subKey}:</span><span style={{margin:'0px 3px'}}>{box.display[subKey]}</span></div>)}</span>;
+            outputRow = <span class={style.boxContents}>{Object.keys(box.display).map(subKey => <div key={subKey} style={{ margin: '0px 10px' }}><span style={{ fontWeight: 'bold' }}>{subKey}:</span><span style={{ margin: '0px 3px' }}>{box.display[subKey]}</span></div>)}</span>;
         } else {
             // case 2
             outputRow = <span class={style.boxContents}>{box.display}</span>;
         }
-        return <div key={box.start} class={box.boxes ? style.boxName : style.boxProp}>
+        return <div key={`${box.name}_${box.start}`} class={box.boxes ? style.boxName : style.boxProp}>
             {outputLabel}
             {outputRow}
         </div>;

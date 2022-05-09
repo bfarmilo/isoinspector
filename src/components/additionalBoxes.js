@@ -572,38 +572,42 @@ const additionalBoxes = [
             this._procSubBoxes('ilst', 1);
 
         }
-    },{
+    }, {
         source: 'Quicktime',
         field: 'keys',
         _parser: function () {
             this._procFullBox();
-            this._procField('key_id', 'unit', 32);
-            this._procSubBoxes('mdta', this.key_id);
+            this._procField('key_count', 'uint', 32);
+            this._procEntries('keys_entries', this.key_count, function (id) {
+                this._procSubBoxes('mdta', 1);
+            });
         }
-    },{
+    }, {
         source: 'Quicktime',
         field: 'ilst',
         _parser: function () {
             this._procFullBox();
-            this._procField('data_id', 'uint', 32);
-            this._procSubBoxes('data', 1);
+            this._procField('data_count', 'uint', 32);
+            this._procEntries('data_entries', this.data_count, function (id) {
+                this._procSubBoxes('data', 1)
+            });
         }
-    },{
+    }, {
         source: 'Quicktime',
         field: 'mdta',
         _parser: function () {
-            this._procSubBoxes('key_name', 'utf8');
+            this._procField('key_name', 'utf8');
         }
-    },{
+    }, {
         source: 'Quicktime',
         field: 'data',
         _parser: function () {
             this._procFullBox();
             this._procField('reserved', 'uint', 32);
-            this._procSubBoxes('data_value', 'utf8',);
+            this._procField('data_value', 'utf8');
         }
     },
-    
+
     {
         source: 'Quicktime',
         field: 'pasp',
@@ -920,7 +924,7 @@ const getISOData = (key, value, boxIdentifier = '') => {
                 } else {
                     return value.map(b => String.fromCharCode(b)).join('');
                 }
-                
+
             case 'compressorname':
                 return value.map(b => String.fromCharCode(b)).join('');
             case 'usertype':
