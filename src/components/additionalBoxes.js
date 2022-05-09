@@ -556,6 +556,55 @@ const additionalBoxes = [
         }
     },
     {
+        source: 'ISO/IEC 14496-12:2015: 8-10',
+        field: 'udta',
+        _parser: function () {
+            this._procSubBoxes('meta', 1);
+        }
+    },
+    {
+        source: 'ISO/IEC 14496-12:2015: 8-11',
+        field: 'meta',
+        _parser: function () {
+            this._procFullBox();
+            this._procSubBoxes('hdlr', 1);
+            this._procSubBoxes('keys', 1);
+            this._procSubBoxes('ilst', 1);
+
+        }
+    },{
+        source: 'Quicktime',
+        field: 'keys',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('key_id', 'unit', 32);
+            this._procSubBoxes('mdta', this.key_id);
+        }
+    },{
+        source: 'Quicktime',
+        field: 'ilst',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('data_id', 'uint', 32);
+            this._procSubBoxes('data', 1);
+        }
+    },{
+        source: 'Quicktime',
+        field: 'mdta',
+        _parser: function () {
+            this._procSubBoxes('key_name', 'utf8');
+        }
+    },{
+        source: 'Quicktime',
+        field: 'data',
+        _parser: function () {
+            this._procFullBox();
+            this._procField('reserved', 'uint', 32);
+            this._procSubBoxes('data_value', 'utf8',);
+        }
+    },
+    
+    {
         source: 'Quicktime',
         field: 'pasp',
         _parser: function () {

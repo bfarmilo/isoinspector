@@ -1,16 +1,16 @@
 {
   "private": true,
   "name": "isoinspector",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "license": "MIT",
   "scripts": {
     "start": "if-env NODE_ENV=production && npm run -s serve || npm run -s dev",
     "build": "preact build",
     "serve": "preact build && preact serve",
-    "dev": "preact watch",
+    "dev": "preact watch --p 9000",
     "lint": "eslint src",
     "test": "jest",
-    "deploy_pi": "wsl rsync -azv --exclude-from='./.deploy_ignore' --delete ./build/ pi@192.168.50.59:/media/pi/main/Projects/isoinspector/"
+    "deploy_pi": "wsl rsync -azv --exclude-from='./.deploy_ignore' --delete ./build/ pi@192.168.2.36:/media/pi/main/Projects/isoinspector/"
   },
   "eslintConfig": {
     "extends": "eslint-config-synacor"
@@ -29,13 +29,13 @@
   "devDependencies": {
     "enzyme": "^3.11.0",
     "enzyme-adapter-preact-pure": "^2.2.0",
-    "eslint": "^4.9.0",
+    "eslint": "^8.15.0",
     "eslint-config-synacor": "^2.0.2",
     "fs-extra": "^8.1.0",
     "identity-obj-proxy": "^3.0.0",
     "if-env": "^1.0.0",
-    "jest": "^21.2.1",
-    "preact-cli": "^3.3.3",
+    "jest": "^28.1.0",
+    "preact-cli": "^3.3.5",
     "preact-cli-plugin-fast-async": "^1.0.1"
   },
   "dependencies": {

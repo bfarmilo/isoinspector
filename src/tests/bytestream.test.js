@@ -53,14 +53,14 @@ describe.skip('webM handling', () => {
     test('jumps to a tag and reads the hex values');
 });
 
-describe.skip('ISOBMFF init handling', () => {
+describe('ISOBMFF init handling', () => {
     let buf;
     let result;
 
     beforeAll(async () => {
         // add the additional boxes
         componentWillMount();
-        buf = new Uint8Array(await fse.readFile('./src/tests/598_StrangerThings.mp4')).buffer;
+        buf = await fse.readFile('./src/tests/598_StrangerThings.mp4');
         return;
     });
 
