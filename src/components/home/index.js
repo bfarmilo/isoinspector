@@ -14,7 +14,7 @@ const Home = props => {
         // box.boxes {Array:box} sub-boxes
         // 
 
-        const unPlural = word => word.slice(-3) === 'ies' ? word.slice(0,-3).concat('y') : word.slice(0, -1);
+        const unPlural = word => word.slice(-3) === 'ies' ? word.slice(0, -3).concat('y') : word.slice(0, -1);
 
         const showEntryDetails = (title, entry) => {
             const expandBox = props.selectedBox && (props.selectedBox.target === title || props.selectedBox.parentList.includes(title));
@@ -86,36 +86,37 @@ const Home = props => {
     return (
         <div class={style.home} >
             <h2>{props.fileName} ({props.decodeMode})</h2>
-            {
-                props.working ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50' }}>
-                        <svg version='1.1' x='0px' y='0px' width='40px' height='50px' viewBox='0 0 24 30'>
-                            {[0, 1, 2].map(x => (
-                                <rect key={x} x={x * 7} y='0' width='4' height='20' fill='#673Ab7'>
-                                    <animate attributeName='opacity' attributeType='XML'
-                                        values='1; .2; 1'
-                                        begin={`${x * 0.2}s`} dur='0.6s' repeatCount='indefinite' />
-                                </rect>
-                            ))}
-                        </svg>
+            {props.error ? (
+                <div>{props.error}</div>
+            ) : props.working ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50' }}>
+                    <svg version='1.1' x='0px' y='0px' width='40px' height='50px' viewBox='0 0 24 30'>
+                        {[0, 1, 2].map(x => (
+                            <rect key={x} x={x * 7} y='0' width='4' height='20' fill='#673Ab7'>
+                                <animate attributeName='opacity' attributeType='XML'
+                                    values='1; .2; 1'
+                                    begin={`${x * 0.2}s`} dur='0.6s' repeatCount='indefinite' />
+                            </rect>
+                        ))}
+                    </svg>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr' }}>
+                    <div class={style.Result}>
+                        {(props.parsedData.length > 0) ?
+                            props.parsedData.map(processBox)
+                            : <div>No valid boxes detected</div>
+                        }
                     </div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr' }}>
-                        <div class={style.Result}>
-                            {(props.parsedData.length > 0) ?
-                                props.parsedData.map(processBox)
-                                : <div>No valid boxes detected</div>
-                            }
-                        </div>
-                        <div>{props.base64 ? (props.base64 instanceof Array) ?
-                            props.base64.map(row => <div class={style.hexEntry}>{row}</div>)
-                            : <div class={style.hexEntry}>{props.base64}</div>
-                            : ''}</div>
-                    </div>
-                )
+                    <div>{props.base64 ? (props.base64 instanceof Array) ?
+                        props.base64.map(row => <div class={style.hexEntry}>{row}</div>)
+                        : <div class={style.hexEntry}>{props.base64}</div>
+                        : ''}</div>
+                </div>
+            )
             }
         </div >
     );
-}
+};
 
 export default Home;
