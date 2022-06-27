@@ -1,5 +1,5 @@
 import { h, Component } from 'preact';
-import { parseBuffer, addBoxProcessor } from 'codem-isoboxer';
+import { parseBuffer, addBoxProcessor } from '../iso_boxer_mod';
 import { ebmlBoxer } from './ebmlBoxer';
 import { additionalBoxes, convertBox, postProcess, getBoxList } from './additionalBoxes';
 import { m2tsBoxer, decodeM2TS, convertM2TS } from './m2tsBoxer';
@@ -62,15 +62,19 @@ const parseISO = buf => new Promise(async (resolve, reject) => {
 		'sidx'
 	]);
 	// get the boxes
-	const parsedData = await parseBuffer(buf.buffer)
-	if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
-		// process the boxes
-		const preProcessed = convertBox(parsedData.boxes);
-		console.log('pre-processed box data:', preProcessed);
-		const result = postProcess(preProcessed);
-		return resolve({ boxes: result });
+	try {
+		const parsedData = await parseBuffer(buf.buffer)
+		if (VALID_START_BOX.has(parsedData.boxes[0].type)) {
+			// process the boxes
+			const preProcessed = convertBox(parsedData.boxes);
+			console.log('pre-processed box data:', preProcessed);
+			const result = postProcess(preProcessed);
+			return resolve({ boxes: result });
+		}
+		return reject(new Error('not an ISOBMFF file'));
+	} catch (err) {
+		return reject(err);
 	}
-	return reject(new Error('not an ISOBMFF file'));
 
 });
 
@@ -200,7 +204,7 @@ export default class App extends Component {
 			return;
 		} catch (err) {
 			console.error(err);
-			this.setState({ errorMessage: err, working: false });
+			this.setState({ errorMessage: err.message || err, working: false });
 			/* if (this.state.decodeAttempts < Object.keys(modes).length) {
 				let { decodeAttempts, mode } = this.state;
 				decodeAttempts += 1;
@@ -235,8 +239,6 @@ export default class App extends Component {
 		}
 		// set the mode and clear out some key state variables
 		this.setState({
-			playlist: null,
-			keyFile: null,
 			fileName: 'raw base64 data',
 			inputData: '',
 			videoData: '',
@@ -254,7 +256,7 @@ export default class App extends Component {
 			selectedBox: { target: '', parentList: [] },
 			searchTerm: '',
 			viewMode: false,
-			mode 
+			mode
 		});
 		const reader = new FileReader();
 		const self = this;
@@ -340,7 +342,7 @@ export default class App extends Component {
 				const buf = Buffer.from(this.state.inputData, 'base64').slice(boxData.start, boxData.start + boxData.size);
 				mp4Hex = convertToHex(buf, true);
 			}
-			if (this.state.mode==='MP2T' && boxData) {
+			if (this.state.mode === 'MP2T' && boxData) {
 				mp4Hex = boxData.hex;
 			}
 			const hexData = mp4Hex; //boxData && (boxData.hex || mp4Hex);

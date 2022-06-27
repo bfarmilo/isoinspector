@@ -52,12 +52,12 @@ const streamTypeLookup = {
     0x7F: 'IPMP stream'
 }
 
-const generateM3U8 = (keyFile, IV, segmentList) => `#EXTM3U
-#EXT-X-TARGETDURATION:5
+const generateM3U8 = (keyFile, IVList, segmentList) => `#EXTM3U
+#EXT-X-TARGETDURATION:${5*IVList.length}
 #EXT-X-MEDIA-SEQUENCE:0
-#EXT-X-KEY:METHOD=AES-128,URI="${keyFile}",IV=0x${IV}
-${segmentList.map(segmentFile => `#EXTINF:5,
-${segmentFile}`)}
+${IVList.map((IV, idx) => `#EXT-X-KEY:METHOD=AES-128,URI="${keyFile}",${IV}${segmentList.map(segmentFile => `#EXTINF:${5*idx},
+${segmentFile}`).join('\n')}
+`).join('\n')}
 #EXT-X-ENDLIST`;
 
 const processData = data => {
@@ -264,8 +264,9 @@ const decodeM2TS = (playList, keyFile, segmentFile) => new Promise(async (resolv
         // remap to a new playList (buffer)
 
         // first get IV from old playlist
-        const IV = playList.match(/IV=0x([0123456789ABCDEF]*)\s/);
-        const newPlayList = generateM3U8('keyFile.key', IV ? IV[1] : '0000000000000001', ['segment.ts']);
+        const IV = playList.match(/IV=0x[0123456789ABCDEF]*\s/g);
+        console.log(`found ${IV.length} Initialization Vectors, trying #1`);
+        const newPlayList = generateM3U8('keyFile.key', IV && IV.length ? IV : ['IV=0x0000000000000001\n'], ['segment.ts']);
         const [keyFileBuffer, segmentBuffer] = [keyFile, segmentFile].map(data => Uint8Array.from(atob(data), c => c.charCodeAt(0)));
         // now run ffmpeg and send the resulting buffer to processData(decoded)
         const worker = createWorker({ logger: ({ message }) => console.log(message) });
