@@ -1060,7 +1060,8 @@ const getBoxList = async (collection, resultMap) => {
                 // get all children
                 const boxContents = !!elem.boxes && elem.boxes.reduce((allChildren, current) => {
                     if (!!current.type) allChildren.children.push({ box: current.type, start: current.start });
-                    if (!!current.name && elem.type === 'stsd' && current.name === 'entries') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start })
+                    if (!!current.name && elem.type === 'stsd' && current.name === 'entries') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start });
+                    if (!!current.name && elem.type === 'encv' && current.name === 'config') allChildren.children.push({ box: current.boxes[0].type, start: current.boxes[0].start });
                     if (!!current.name) allChildren.values.push(current);
                     return allChildren;
                 }, { children: [], values: [] });
@@ -1072,7 +1073,7 @@ const getBoxList = async (collection, resultMap) => {
                     const validBoxes = elem.boxes.reduce((newList, box) => {
                         if (!!box.type) {
                             newList.push(box);
-                        } else if (box.name && box.name === 'entries' && box.boxes) {
+                        } else if (box.name && (box.name === 'entries' || box.name === 'config') && box.boxes) {
                             newList.push(box.boxes[0]);
                         }
                         return newList;
